@@ -1,0 +1,6 @@
+{
+  "name": "Guru Ji Vision",
+  "description": "All-in-One Agriculture and Education Ecosystem for Indian agriculture students, farmers, and educators with bilingual English/Bengali support, student money manager, agri calculators, Gemini AI assistant, and admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

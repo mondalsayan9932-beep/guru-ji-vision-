@@ -1,0 +1,1004 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL PRIMITIVE HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        (
+          ('email' in request.auth.token) &&
+          ('email_verified' in request.auth.token) &&
+          request.auth.token.email == 'mondalsayan9932@gmail.com' &&
+          request.auth.token.email_verified == true
+        ) ||
+        (('founder' in request.auth.token) && request.auth.token.founder == true) ||
+        (('role' in request.auth.token) && request.auth.token.role == 'FOUNDER')
+      );
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function hasVerifiedEmail(expectedEmail) {
+      return isSignedIn() &&
+        expectedEmail is string &&
+        expectedEmail.size() >= 3 &&
+        ('email' in request.auth.token) &&
+        ('email_verified' in request.auth.token) &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email == expectedEmail;
+    }
+
+    function isKnownFacultyEmail() {
+      return isSignedIn() &&
+        ('email' in request.auth.token) &&
+        ('email_verified' in request.auth.token) &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email in [
+          'anuman.lin@gmail.com',
+          'sudipbhattacharya234@gmail.com',
+          'pratonu31@gmail.com',
+          'subhaspatar@gmail.com',
+          'soumyasjd@gmail.com',
+          'bhowmik.anirban1@gmail.com',
+          'sardarbiswanath8597@gmail.com'
+        ];
+    }
+
+    function isAuthorizedMeetingHost() {
+      return isAdmin() ||
+        isKnownFacultyEmail() ||
+        (
+          isSignedIn() &&
+          exists(/databases/$(database)/documents/professorAccounts/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/professorAccounts/$(request.auth.uid)).data.active == true &&
+          get(/databases/$(database)/documents/professorAccounts/$(request.auth.uid)).data.canHostMeetings == true
+        );
+    }
+
+    function isAssignedProfessorForThread(data) {
+      return isSignedIn() && (
+        (data.professorUid is string && data.professorUid.size() >= 1 && data.professorUid == request.auth.uid) ||
+        hasVerifiedEmail(data.professorEmail) ||
+        (
+          exists(/databases/$(database)/documents/professorAccounts/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/professorAccounts/$(request.auth.uid)).data.active == true &&
+          get(/databases/$(database)/documents/professorAccounts/$(request.auth.uid)).data.professorId == data.professorId
+        )
+      );
+    }
+
+    // --- VALIDATION BLUEPRINTS (Anti-Update-Gap) ---
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+        data.role in ['STUDENT', 'FARMER'] &&
+        data.institutionOrVillage is string && data.institutionOrVillage.size() <= 120 &&
+        data.district is string && data.district.size() <= 80 &&
+        data.semester is int && data.semester >= 0 && data.semester <= 8 &&
+        data.language in ['EN', 'BN'] &&
+        (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+        (!('lastActiveAt' in data) || isValidTimestamp(data.lastActiveAt)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidMoneyTransaction(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+        data.amount is number && data.amount > 0 && data.amount <= 10000000 &&
+        data.type in ['INCOME', 'EXPENSE'] &&
+        data.category in ['FOOD_MESS', 'HOSTEL_RENT', 'EDUCATION', 'TRAVEL_RECHARGE', 'SHARED', 'SAVINGS', 'ALLOWANCE', 'SCHOLARSHIP', 'OTHER'] &&
+        data.note is string && data.note.size() <= 300 &&
+        data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 30 &&
+        (!('sharedWith' in data) || (data.sharedWith is string && data.sharedWith.size() <= 100)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFinancialGoal(data) {
+      return data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        data.kind in ['MONTHLY_BUDGET', 'SAVINGS_GOAL'] &&
+        data.targetAmount is number && data.targetAmount > 0 && data.targetAmount <= 10000000 &&
+        data.savedAmount is number && data.savedAmount >= 0 && data.savedAmount <= 10000000 &&
+        data.monthKey is string && data.monthKey.size() >= 4 && data.monthKey.size() <= 20 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidQuizAttempt(data) {
+      return data.semester is int && data.semester >= 1 && data.semester <= 8 &&
+        data.score is int && data.score >= 0 && data.score <= 200 &&
+        data.totalQuestions is int && data.totalQuestions >= 1 && data.totalQuestions <= 200 &&
+        data.score <= data.totalQuestions &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidFarmerQuery(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.farmerName is string && data.farmerName.size() >= 1 && data.farmerName.size() <= 80 &&
+        data.cropName is string && data.cropName.size() >= 1 && data.cropName.size() <= 80 &&
+        data.category in ['DISEASE', 'PEST', 'FERTILIZER', 'SOIL', 'WEATHER', 'OTHER'] &&
+        data.description is string && data.description.size() >= 5 && data.description.size() <= 1000 &&
+        data.district is string && data.district.size() <= 80 &&
+        data.hasImage is bool &&
+        data.imageSummary is string && data.imageSummary.size() <= 400 &&
+        data.status in ['OPEN', 'IN_REVIEW', 'RESOLVED'] &&
+        data.adminReply is string && data.adminReply.size() <= 1000 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidStudyMaterial(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
+        data.semester is int && data.semester >= 1 && data.semester <= 8 &&
+        data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 80 &&
+        data.category in ['NOTES_PDF', 'VIDEO_LECTURE', 'PYQ', 'PRACTICAL'] &&
+        data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 1000 &&
+        (!('contentText' in data) || (data.contentText is string && data.contentText.size() <= 12000)) &&
+        (!('verifiedForAi' in data) || data.verifiedForAi is bool) &&
+        data.resourceUrl is string && data.resourceUrl.size() <= 400 &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidQuizQuestion(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+        data.semester is int && data.semester >= 1 && data.semester <= 8 &&
+        data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 80 &&
+        data.questionText is string && data.questionText.size() >= 5 && data.questionText.size() <= 500 &&
+        data.options is list && data.options.size() == 4 &&
+        data.options[0] is string && data.options[0].size() >= 1 && data.options[0].size() <= 160 &&
+        data.options[1] is string && data.options[1].size() >= 1 && data.options[1].size() <= 160 &&
+        data.options[2] is string && data.options[2].size() >= 1 && data.options[2].size() <= 160 &&
+        data.options[3] is string && data.options[3].size() >= 1 && data.options[3].size() <= 160 &&
+        data.correctIndex is int && data.correctIndex >= 0 && data.correctIndex <= 3 &&
+        data.explanation is string && data.explanation.size() <= 500 &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCareerOpportunity(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
+        data.organization is string && data.organization.size() >= 2 && data.organization.size() <= 120 &&
+        data.category in ['GOVT_JOB', 'PRIVATE_JOB', 'SCHOLARSHIP', 'INTERNSHIP', 'COMPETITIVE_EXAM'] &&
+        data.eligibility is string && data.eligibility.size() >= 2 && data.eligibility.size() <= 200 &&
+        data.deadline is string && data.deadline.size() >= 2 && data.deadline.size() <= 40 &&
+        data.description is string && data.description.size() >= 5 && data.description.size() <= 1000 &&
+        data.applyUrl is string && data.applyUrl.size() <= 400 &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCommunityPost(data) {
+      return data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+        data.collegeGroup is string && data.collegeGroup.size() >= 1 && data.collegeGroup.size() <= 100 &&
+        data.topic in ['DOUBT', 'NOTES_SHARE', 'EXAM_PREP', 'FARM_TALK'] &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 140 &&
+        data.body is string && data.body.size() >= 5 && data.body.size() <= 1500 &&
+        data.helpfulCount is int && data.helpfulCount >= 0 && data.helpfulCount <= 1000000 &&
+        data.status in ['ACTIVE', 'HIDDEN'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAnnouncement(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+        data.message is string && data.message.size() >= 3 && data.message.size() <= 500 &&
+        data.audience in ['ALL', 'STUDENTS', 'FARMERS'] &&
+        data.active is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAppSettings(data) {
+      return data.whatsappNumber is string && data.whatsappNumber.size() >= 5 && data.whatsappNumber.size() <= 25 &&
+        (!('whatsappGroupInviteUrl' in data) || (data.whatsappGroupInviteUrl is string && data.whatsappGroupInviteUrl.size() <= 300)) &&
+        data.supportEmail is string && data.supportEmail.size() >= 3 && data.supportEmail.size() <= 120 &&
+        data.aboutText is string && data.aboutText.size() >= 5 && data.aboutText.size() <= 1000 &&
+        data.heroHeadline is string && data.heroHeadline.size() >= 2 && data.heroHeadline.size() <= 140 &&
+        (!('studentModuleEnabled' in data) || data.studentModuleEnabled is bool) &&
+        (!('moneyManagerEnabled' in data) || data.moneyManagerEnabled is bool) &&
+        (!('farmerModuleEnabled' in data) || data.farmerModuleEnabled is bool) &&
+        (!('toolsModuleEnabled' in data) || data.toolsModuleEnabled is bool) &&
+        (!('aiAssistantEnabled' in data) || data.aiAssistantEnabled is bool) &&
+        (!('careerModuleEnabled' in data) || data.careerModuleEnabled is bool) &&
+        (!('communityModuleEnabled' in data) || data.communityModuleEnabled is bool) &&
+        (!('meetingZoneEnabled' in data) || data.meetingZoneEnabled is bool) &&
+        (!('doubtZoneEnabled' in data) || data.doubtZoneEnabled is bool) &&
+        (!('aiModelName' in data) || data.aiModelName in ['gemini-3.8-flash', 'gemini-3.5-flash-lite']) &&
+        (!('aiFreeSearchEnabled' in data) || data.aiFreeSearchEnabled is bool) &&
+        (!('aiDailyLimitPerUser' in data) || (data.aiDailyLimitPerUser is int && data.aiDailyLimitPerUser >= 1 && data.aiDailyLimitPerUser <= 200)) &&
+        (!('aiPaidServicesApproved' in data) || data.aiPaidServicesApproved is bool) &&
+        (!('maintenanceBanner' in data) || (data.maintenanceBanner is string && data.maintenanceBanner.size() <= 300)) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAdminRecord(data) {
+      return data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+        data.roleTitle is string && data.roleTitle.size() >= 2 && data.roleTitle.size() <= 60 &&
+        data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidActivityEvent(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.userRole in ['STUDENT', 'FARMER', 'ADMIN', 'PROFESSOR'] &&
+        data.eventType in ['APP_SESSION', 'STUDY_VIEW', 'EXAM_COMPLETED', 'QUERY_SUBMITTED', 'POST_CREATED', 'TOOL_USED', 'MATERIAL_UPLOADED', 'MEETING_CREATED', 'MEETING_JOINED', 'DOUBT_ASKED'] &&
+        data.module in ['STUDENT', 'FARMER', 'TOOLS', 'AI', 'COMMUNITY', 'CAREER', 'ADMIN', 'MEETING_ZONE', 'DOUBT_ZONE'] &&
+        data.detail is string && data.detail.size() <= 200 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidExamStat(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.semester is int && data.semester >= 1 && data.semester <= 8 &&
+        data.score is int && data.score >= 0 && data.score <= 200 &&
+        data.totalQuestions is int && data.totalQuestions >= 1 && data.totalQuestions <= 200 &&
+        data.score <= data.totalQuestions &&
+        data.percentage is int && data.percentage >= 0 && data.percentage <= 100 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidAiUsageLog(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.modelName is string && data.modelName.size() >= 2 && data.modelName.size() <= 80 &&
+        data.feature in ['AI_CHAT', 'CROP_PHOTO_SCAN', 'PDF_EXTRACT', 'HEALTH_CHECK'] &&
+        data.language in ['EN', 'BN'] &&
+        data.promptTokens is int && data.promptTokens >= 0 && data.promptTokens <= 2000000 &&
+        data.outputTokens is int && data.outputTokens >= 0 && data.outputTokens <= 2000000 &&
+        data.latencyMs is int && data.latencyMs >= 0 && data.latencyMs <= 300000 &&
+        data.success is bool &&
+        data.hasImage is bool &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidErrorLog(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.source in ['FIRESTORE', 'AI_LOGIC', 'AUTH', 'SYSTEM'] &&
+        data.severity in ['INFO', 'WARNING', 'CRITICAL'] &&
+        data.module is string && data.module.size() >= 1 && data.module.size() <= 60 &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 500 &&
+        data.resolved is bool &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidContentReport(data) {
+      return data.reporterId is string && data.reporterId.size() >= 1 && data.reporterId.size() <= 128 &&
+        data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 80 &&
+        data.targetType in ['COMMUNITY_POST'] &&
+        data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
+        data.targetTitle is string && data.targetTitle.size() >= 1 && data.targetTitle.size() <= 140 &&
+        data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 300 &&
+        data.status in ['PENDING', 'DISMISSED', 'ACTION_TAKEN'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAdminAuditLog(data) {
+      return data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+        data.actorEmail is string && data.actorEmail.size() >= 3 && data.actorEmail.size() <= 120 &&
+        data.action is string && data.action.size() >= 2 && data.action.size() <= 80 &&
+        data.targetType is string && data.targetType.size() >= 2 && data.targetType.size() <= 60 &&
+        data.targetId is string && data.targetId.size() <= 128 &&
+        data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 300 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidMeetingSession(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
+        data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 80 &&
+        data.description is string && data.description.size() <= 1000 &&
+        data.meetUrl is string && data.meetUrl.size() >= 15 && data.meetUrl.size() <= 300 &&
+        data.meetUrl.matches('^https://meet\\.google\\.com/[a-zA-Z0-9_\\-/?=&]+$') &&
+        data.scheduledDate is string && data.scheduledDate.size() >= 8 && data.scheduledDate.size() <= 20 &&
+        data.scheduledTime is string && data.scheduledTime.size() >= 3 && data.scheduledTime.size() <= 20 &&
+        data.scheduledAtEpochMs is int && data.scheduledAtEpochMs >= 0 &&
+        data.hostName is string && data.hostName.size() >= 2 && data.hostName.size() <= 80 &&
+        data.hostUid is string && data.hostUid.size() >= 1 && data.hostUid.size() <= 128 &&
+        data.notifyStudents is bool &&
+        data.published is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidProfessorProfile(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.designation is string && data.designation.size() >= 2 && data.designation.size() <= 100 &&
+        data.qualification is string && data.qualification.size() <= 100 &&
+        data.subject is string && data.subject.size() <= 80 &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 100 &&
+        data.email is string && data.email.size() <= 120 &&
+        data.specialization is string && data.specialization.size() >= 2 && data.specialization.size() <= 200 &&
+        data.avatarUrl is string && data.avatarUrl.size() <= 500 &&
+        data.authorizedUid is string && data.authorizedUid.size() <= 128 &&
+        data.canHostMeetings is bool &&
+        data.active is bool &&
+        data.displayOrder is int && data.displayOrder >= 0 && data.displayOrder <= 100 &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidProfessorAccountLink(data) {
+      return data.professorId is string && data.professorId.size() >= 1 && data.professorId.size() <= 128 &&
+        data.email is string && data.email.size() <= 120 &&
+        data.canHostMeetings is bool &&
+        data.active is bool &&
+        data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidDoubtChatThread(data) {
+      return data.studentId is string && data.studentId.size() >= 1 && data.studentId.size() <= 128 &&
+        data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 80 &&
+        data.studentSemester is int && data.studentSemester >= 0 && data.studentSemester <= 8 &&
+        data.professorId is string && data.professorId.size() >= 1 && data.professorId.size() <= 128 &&
+        data.professorName is string && data.professorName.size() >= 2 && data.professorName.size() <= 100 &&
+        data.professorEmail is string && data.professorEmail.size() <= 120 &&
+        data.professorUid is string && data.professorUid.size() <= 128 &&
+        data.lastMessagePreview is string && data.lastMessagePreview.size() <= 200 &&
+        data.lastSenderRole in ['STUDENT', 'PROFESSOR'] &&
+        data.unreadForStudent is int && data.unreadForStudent >= 0 && data.unreadForStudent <= 100000 &&
+        data.unreadForProfessor is int && data.unreadForProfessor >= 0 && data.unreadForProfessor <= 100000 &&
+        (!('studentLastReadAt' in data) || isValidTimestamp(data.studentLastReadAt)) &&
+        (!('professorLastReadAt' in data) || isValidTimestamp(data.professorLastReadAt)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidDoubtMessage(data) {
+      return data.studentId is string && data.studentId.size() >= 1 && data.studentId.size() <= 128 &&
+        data.professorId is string && data.professorId.size() >= 1 && data.professorId.size() <= 128 &&
+        data.professorEmail is string && data.professorEmail.size() <= 120 &&
+        data.professorUid is string && data.professorUid.size() <= 128 &&
+        data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+        data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 80 &&
+        data.senderRole in ['STUDENT', 'PROFESSOR'] &&
+        data.text is string && data.text.size() <= 2000 &&
+        data.hasImage is bool &&
+        (data.text.size() >= 1 || data.hasImage == true) &&
+        (!('imageBase64' in data) || (data.imageBase64 is string && data.imageBase64.size() <= 350000)) &&
+        data.readByRecipient is bool &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    // --- 1. USERS & PRIVATE STUDENT FINANCIAL / QUIZ SUBCOLLECTIONS ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
+      allow list: if isSuperAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        request.auth.uid == userId &&
+        incoming().userId == request.auth.uid &&
+        incoming().keys().hasAll(['userId', 'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'photoUrl', 'lastActiveAt', 'createdAt', 'updatedAt']) &&
+        isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'photoUrl', 'lastActiveAt', 'updatedAt'])) ||
+          (isSuperAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'updatedAt']))
+        );
+
+      allow delete: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
+
+      // Private Student Money Manager Transactions (Owner ONLY — NEVER exposed to Super Admin or Staff)
+      match /transactions/{transactionId} {
+        allow get: if isValidId(userId) && isValidId(transactionId) && isOwner(userId);
+        allow list: if isOwner(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(transactionId) &&
+          isOwner(userId) &&
+          incoming().keys().hasAll(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'createdAt', 'updatedAt']) &&
+          isValidMoneyTransaction(incoming());
+
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(transactionId) &&
+          isValidMoneyTransaction(incoming()) &&
+          isOwner(userId) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(transactionId) && isOwner(userId);
+      }
+
+      // Private Student Budgets & Savings Goals (Owner ONLY — NEVER exposed to Super Admin or Staff)
+      match /budgets/{budgetId} {
+        allow get: if isValidId(userId) && isValidId(budgetId) && isOwner(userId);
+        allow list: if isOwner(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(budgetId) &&
+          isOwner(userId) &&
+          incoming().keys().hasAll(['name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'createdAt', 'updatedAt']) &&
+          isValidFinancialGoal(incoming());
+
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(budgetId) &&
+          isValidFinancialGoal(incoming()) &&
+          isOwner(userId) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(budgetId) && isOwner(userId);
+      }
+
+      // Private Student Quiz Attempts (Owner ONLY)
+      match /quizAttempts/{attemptId} {
+        allow get: if isValidId(userId) && isValidId(attemptId) && isOwner(userId);
+        allow list: if isOwner(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(attemptId) &&
+          isOwner(userId) &&
+          incoming().keys().hasAll(['semester', 'score', 'totalQuestions', 'createdAt']) &&
+          incoming().keys().hasOnly(['semester', 'score', 'totalQuestions', 'createdAt']) &&
+          isValidQuizAttempt(incoming());
+
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(attemptId) && isOwner(userId);
+      }
+    }
+
+    // --- 2. FARMER QUERIES ---
+    match /farmerQueries/{queryId} {
+      allow get: if isSignedIn() && isValidId(queryId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(queryId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'OPEN' &&
+        incoming().adminReply == '' &&
+        incoming().keys().hasAll(['userId', 'farmerName', 'cropName', 'category', 'description', 'district', 'hasImage', 'imageSummary', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'farmerName', 'cropName', 'category', 'description', 'district', 'hasImage', 'imageSummary', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
+        isValidFarmerQuery(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(queryId) &&
+        isValidFarmerQuery(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminReply', 'updatedAt'])) ||
+          (existing().userId == request.auth.uid &&
+           existing().status == 'OPEN' &&
+           incoming().status == 'OPEN' &&
+           incoming().adminReply == existing().adminReply &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['cropName', 'category', 'description', 'district', 'imageSummary', 'hasImage', 'updatedAt']))
+        );
+
+      allow delete: if isSignedIn() && isValidId(queryId) &&
+        ((existing().userId == request.auth.uid && existing().status == 'OPEN') || isAdmin());
+    }
+
+    // --- 3. STUDY MATERIALS ---
+    match /studyMaterials/{materialId} {
+      allow get: if isSignedIn() && isValidId(materialId) && (existing().published == true || isAdmin());
+      allow list: if isSignedIn() && (existing().published == true || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(materialId) &&
+        isValidStudyMaterial(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll(['title', 'semester', 'subject', 'category', 'summary', 'resourceUrl', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['title', 'semester', 'subject', 'category', 'summary', 'contentText', 'verifiedForAi', 'resourceUrl', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        isAdmin();
+
+      allow update: if isSignedIn() &&
+        isValidId(materialId) &&
+        isValidStudyMaterial(incoming()) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'semester', 'subject', 'category', 'summary', 'contentText', 'verifiedForAi', 'resourceUrl', 'published', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(materialId) && isAdmin();
+    }
+
+    // --- 4. QUIZZES / MCQs ---
+    match /quizzes/{quizId} {
+      allow get: if isSignedIn() && isValidId(quizId) && (existing().published == true || isAdmin());
+      allow list: if isSignedIn() && (existing().published == true || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(quizId) &&
+        isValidQuizQuestion(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll(['title', 'semester', 'subject', 'questionText', 'options', 'correctIndex', 'explanation', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['title', 'semester', 'subject', 'questionText', 'options', 'correctIndex', 'explanation', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        isAdmin();
+
+      allow update: if isSignedIn() &&
+        isValidId(quizId) &&
+        isValidQuizQuestion(incoming()) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'semester', 'subject', 'questionText', 'options', 'correctIndex', 'explanation', 'published', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(quizId) && isAdmin();
+    }
+
+    // --- 5. CAREER OPPORTUNITIES ---
+    match /careerOpportunities/{careerId} {
+      allow get: if isSignedIn() && isValidId(careerId) && (existing().published == true || isAdmin());
+      allow list: if isSignedIn() && (existing().published == true || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(careerId) &&
+        isValidCareerOpportunity(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll(['title', 'organization', 'category', 'eligibility', 'deadline', 'description', 'applyUrl', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['title', 'organization', 'category', 'eligibility', 'deadline', 'description', 'applyUrl', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        isAdmin();
+
+      allow update: if isSignedIn() &&
+        isValidId(careerId) &&
+        isValidCareerOpportunity(incoming()) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'organization', 'category', 'eligibility', 'deadline', 'description', 'applyUrl', 'published', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(careerId) && isAdmin();
+    }
+
+    // --- 6. COMMUNITY POSTS ---
+    match /communityPosts/{postId} {
+      allow get: if isSignedIn() && isValidId(postId) &&
+        (existing().status == 'ACTIVE' || existing().authorId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() &&
+        (existing().status == 'ACTIVE' || existing().authorId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(postId) &&
+        incoming().authorId == request.auth.uid &&
+        incoming().status == 'ACTIVE' &&
+        incoming().helpfulCount == 0 &&
+        incoming().keys().hasAll(['authorId', 'authorName', 'collegeGroup', 'topic', 'title', 'body', 'helpfulCount', 'status', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['authorId', 'authorName', 'collegeGroup', 'topic', 'title', 'body', 'helpfulCount', 'status', 'createdAt', 'updatedAt']) &&
+        isValidCommunityPost(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(postId) &&
+        isValidCommunityPost(incoming()) &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+          (existing().authorId == request.auth.uid &&
+           existing().status == 'ACTIVE' &&
+           incoming().status == 'ACTIVE' &&
+           incoming().helpfulCount == existing().helpfulCount &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['collegeGroup', 'topic', 'title', 'body', 'updatedAt'])) ||
+          (existing().status == 'ACTIVE' &&
+           incoming().status == 'ACTIVE' &&
+           incoming().helpfulCount == existing().helpfulCount + 1 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['helpfulCount', 'updatedAt']))
+        );
+
+      allow delete: if isSignedIn() && isValidId(postId) &&
+        (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // --- 7. ANNOUNCEMENTS ---
+    match /announcements/{announcementId} {
+      allow get: if isSignedIn() && isValidId(announcementId) && (existing().active == true || isAdmin());
+      allow list: if isSignedIn() && (existing().active == true || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(announcementId) &&
+        isValidAnnouncement(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll(['title', 'message', 'audience', 'active', 'createdBy', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['title', 'message', 'audience', 'active', 'createdBy', 'createdAt', 'updatedAt']) &&
+        (isAdmin() || (isAuthorizedMeetingHost() && incoming().audience == 'STUDENTS'));
+
+      allow update: if isSignedIn() &&
+        isValidId(announcementId) &&
+        isValidAnnouncement(incoming()) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'message', 'audience', 'active', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(announcementId) && isAdmin();
+    }
+
+    // --- 8. GLOBAL APP SETTINGS & OWNER FEATURE FLAGS (Founder-Only Writes) ---
+    match /appSettings/{settingId} {
+      allow get: if isSignedIn() && settingId == 'global';
+      allow list: if isSuperAdmin();
+
+      allow create, update: if isSignedIn() &&
+        settingId == 'global' &&
+        isValidAppSettings(incoming()) &&
+        incoming().keys().hasAll(['whatsappNumber', 'supportEmail', 'aboutText', 'heroHeadline', 'updatedAt']) &&
+        incoming().keys().hasOnly([
+          'whatsappNumber', 'whatsappGroupInviteUrl', 'supportEmail', 'aboutText', 'heroHeadline',
+          'studentModuleEnabled', 'moneyManagerEnabled', 'farmerModuleEnabled',
+          'toolsModuleEnabled', 'aiAssistantEnabled', 'careerModuleEnabled',
+          'communityModuleEnabled', 'meetingZoneEnabled', 'doubtZoneEnabled',
+          'aiModelName', 'aiFreeSearchEnabled', 'aiDailyLimitPerUser', 'aiPaidServicesApproved',
+          'maintenanceBanner', 'updatedAt'
+        ]) &&
+        isSuperAdmin();
+
+      allow delete: if false;
+    }
+
+    // --- 9. ADMIN ROLE REGISTRY (Super Admin Only for mutations) ---
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(adminUid) &&
+        isValidAdminRecord(incoming()) &&
+        incoming().addedBy == request.auth.uid &&
+        incoming().keys().hasAll(['email', 'roleTitle', 'addedBy', 'createdAt']) &&
+        incoming().keys().hasOnly(['email', 'roleTitle', 'addedBy', 'createdAt']) &&
+        isSuperAdmin();
+
+      allow update: if isSignedIn() &&
+        isValidId(adminUid) &&
+        isValidAdminRecord(incoming()) &&
+        incoming().addedBy == existing().addedBy &&
+        incoming().createdAt == existing().createdAt &&
+        isSuperAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email', 'roleTitle']);
+
+      allow delete: if isSignedIn() && isValidId(adminUid) && isSuperAdmin();
+    }
+
+    // --- 10. OWNER TELEMETRY: ACTIVITY EVENTS (Owner-Only Read) ---
+    match /activityEvents/{eventId} {
+      allow get: if isValidId(eventId) && isSuperAdmin();
+      allow list: if isSuperAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(eventId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().keys().hasAll(['userId', 'userRole', 'eventType', 'module', 'detail', 'createdAt']) &&
+        incoming().keys().hasOnly(['userId', 'userRole', 'eventType', 'module', 'detail', 'createdAt']) &&
+        isValidActivityEvent(incoming());
+
+      allow update: if false;
+      allow delete: if isValidId(eventId) && isSuperAdmin();
+    }
+
+    // --- 11. OWNER TELEMETRY: ONLINE EXAM STATISTICS (Owner-Only Aggregate Read) ---
+    match /examStats/{statId} {
+      allow get: if isValidId(statId) && (isSuperAdmin() || (isSignedIn() && existing().userId == request.auth.uid));
+      allow list: if isSuperAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        isValidId(statId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().keys().hasAll(['userId', 'semester', 'score', 'totalQuestions', 'percentage', 'createdAt']) &&
+        incoming().keys().hasOnly(['userId', 'semester', 'score', 'totalQuestions', 'percentage', 'createdAt']) &&
+        isValidExamStat(incoming());
+
+      allow update: if false;
+      allow delete: if isValidId(statId) && isSuperAdmin();
+    }
+
+    // --- 12. OWNER TELEMETRY: GEMINI AI USAGE & COST LOGS (Owner-Only Read) ---
+    match /aiUsageLogs/{logId} {
+      allow get: if isValidId(logId) && isSuperAdmin();
+      allow list: if isSuperAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(logId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().keys().hasAll(['userId', 'modelName', 'feature', 'language', 'promptTokens', 'outputTokens', 'latencyMs', 'success', 'hasImage', 'createdAt']) &&
+        incoming().keys().hasOnly(['userId', 'modelName', 'feature', 'language', 'promptTokens', 'outputTokens', 'latencyMs', 'success', 'hasImage', 'createdAt']) &&
+        isValidAiUsageLog(incoming());
+
+      allow update: if false;
+      allow delete: if isValidId(logId) && isSuperAdmin();
+    }
+
+    // --- 13. OWNER TELEMETRY: ERROR LOGS & SYSTEM HEALTH (Owner-Only Read & Resolve) ---
+    match /errorLogs/{errorId} {
+      allow get: if isValidId(errorId) && isSuperAdmin();
+      allow list: if isSuperAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(errorId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().resolved == false &&
+        incoming().keys().hasAll(['userId', 'source', 'severity', 'module', 'message', 'resolved', 'createdAt']) &&
+        incoming().keys().hasOnly(['userId', 'source', 'severity', 'module', 'message', 'resolved', 'createdAt']) &&
+        isValidErrorLog(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(errorId) &&
+        isValidErrorLog(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        isSuperAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['resolved']);
+
+      allow delete: if isValidId(errorId) && isSuperAdmin();
+    }
+
+    // --- 14. REPORTED CONTENT MODERATION QUEUE ---
+    match /contentReports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(reportId) &&
+        incoming().reporterId == request.auth.uid &&
+        incoming().status == 'PENDING' &&
+        incoming().keys().hasAll(['reporterId', 'reporterName', 'targetType', 'targetId', 'targetTitle', 'reason', 'status', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['reporterId', 'reporterName', 'targetType', 'targetId', 'targetTitle', 'reason', 'status', 'createdAt', 'updatedAt']) &&
+        isValidContentReport(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(reportId) &&
+        isValidContentReport(incoming()) &&
+        incoming().reporterId == existing().reporterId &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      allow delete: if isValidId(reportId) && isSuperAdmin();
+    }
+
+    // --- 15. FOUNDER ADMINISTRATIVE AUDIT LOG (Immutable, Founder-Only) ---
+    match /adminAuditLogs/{logId} {
+      allow get: if isValidId(logId) && isSuperAdmin();
+      allow list: if isSuperAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(logId) &&
+        isSuperAdmin() &&
+        incoming().actorUid == request.auth.uid &&
+        incoming().keys().hasAll(['actorUid', 'actorEmail', 'action', 'targetType', 'targetId', 'summary', 'createdAt']) &&
+        incoming().keys().hasOnly(['actorUid', 'actorEmail', 'action', 'targetType', 'targetId', 'summary', 'createdAt']) &&
+        isValidAdminAuditLog(incoming());
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // --- 16. MEETING ZONE (Google Meet Sessions) ---
+    match /meetings/{meetingId} {
+      allow get: if isSignedIn() && isValidId(meetingId) && (existing().published == true || isAuthorizedMeetingHost());
+      allow list: if isSignedIn() && (existing().published == true || isAuthorizedMeetingHost());
+
+      allow create: if isSignedIn() &&
+        isValidId(meetingId) &&
+        isAuthorizedMeetingHost() &&
+        incoming().hostUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'title', 'subject', 'description', 'meetUrl', 'scheduledDate', 'scheduledTime',
+          'scheduledAtEpochMs', 'hostName', 'hostUid', 'notifyStudents', 'published', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'title', 'subject', 'description', 'meetUrl', 'scheduledDate', 'scheduledTime',
+          'scheduledAtEpochMs', 'hostName', 'hostUid', 'notifyStudents', 'published', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidMeetingSession(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(meetingId) &&
+        isAuthorizedMeetingHost() &&
+        (isSuperAdmin() || existing().hostUid == request.auth.uid) &&
+        isValidMeetingSession(incoming()) &&
+        incoming().hostUid == existing().hostUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'subject', 'description', 'meetUrl', 'scheduledDate', 'scheduledTime',
+          'scheduledAtEpochMs', 'hostName', 'notifyStudents', 'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() &&
+        isValidId(meetingId) &&
+        isAuthorizedMeetingHost() &&
+        (isSuperAdmin() || existing().hostUid == request.auth.uid);
+    }
+
+    // --- 17. PROFESSOR DIRECTORY (Managed by Founder / Admin) ---
+    match /professors/{professorId} {
+      allow get: if isSignedIn() && isValidId(professorId) && (existing().active == true || isSuperAdmin());
+      allow list: if isSignedIn() && (existing().active == true || isSuperAdmin());
+
+      allow create, update: if isSignedIn() &&
+        isValidId(professorId) &&
+        isSuperAdmin() &&
+        incoming().keys().hasAll([
+          'name', 'designation', 'qualification', 'subject', 'department', 'email',
+          'specialization', 'avatarUrl', 'authorizedUid', 'canHostMeetings', 'active', 'displayOrder', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'name', 'designation', 'qualification', 'subject', 'department', 'email',
+          'specialization', 'avatarUrl', 'authorizedUid', 'canHostMeetings', 'active', 'displayOrder', 'updatedAt'
+        ]) &&
+        isValidProfessorProfile(incoming());
+
+      allow delete: if isValidId(professorId) && isSuperAdmin();
+    }
+
+    // --- 18. PROFESSOR ACCOUNT AUTHORIZATION REGISTRY (Founder / Admin Only) ---
+    match /professorAccounts/{profUid} {
+      allow get: if isSignedIn() && isValidId(profUid) && (request.auth.uid == profUid || isSuperAdmin());
+      allow list: if isSuperAdmin();
+
+      allow create, update: if isSignedIn() &&
+        isValidId(profUid) &&
+        isSuperAdmin() &&
+        incoming().addedBy == request.auth.uid &&
+        incoming().keys().hasAll(['professorId', 'email', 'canHostMeetings', 'active', 'addedBy', 'createdAt']) &&
+        incoming().keys().hasOnly(['professorId', 'email', 'canHostMeetings', 'active', 'addedBy', 'createdAt']) &&
+        isValidProfessorAccountLink(incoming());
+
+      allow delete: if isValidId(profUid) && isSuperAdmin();
+    }
+
+    // --- 19. DOUBT ZONE PRIVATE CHAT ROOMS (Concerned Student & Assigned Professor ONLY — NEVER Admin or Other Students) ---
+    match /doubtChats/{chatId} {
+      allow get: if isSignedIn() && isValidId(chatId) && (
+        existing().studentId == request.auth.uid ||
+        isAssignedProfessorForThread(existing())
+      );
+
+      allow list: if isSignedIn() && (
+        existing().studentId == request.auth.uid ||
+        isAssignedProfessorForThread(existing())
+      );
+
+      allow create: if isSignedIn() &&
+        isValidId(chatId) &&
+        chatId == incoming().professorId + '__' + incoming().studentId &&
+        incoming().studentId == request.auth.uid &&
+        incoming().keys().hasAll([
+          'studentId', 'studentName', 'studentSemester', 'professorId', 'professorName',
+          'professorEmail', 'professorUid', 'lastMessagePreview', 'lastSenderRole',
+          'unreadForStudent', 'unreadForProfessor', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'studentId', 'studentName', 'studentSemester', 'professorId', 'professorName',
+          'professorEmail', 'professorUid', 'lastMessagePreview', 'lastSenderRole',
+          'unreadForStudent', 'unreadForProfessor', 'studentLastReadAt', 'professorLastReadAt',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidDoubtChatThread(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(chatId) &&
+        isValidDoubtChatThread(incoming()) &&
+        incoming().studentId == existing().studentId &&
+        incoming().professorId == existing().professorId &&
+        incoming().professorEmail == existing().professorEmail &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (
+            existing().studentId == request.auth.uid &&
+            incoming().professorUid == existing().professorUid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'studentName', 'studentSemester', 'lastMessagePreview', 'lastSenderRole',
+              'unreadForStudent', 'unreadForProfessor', 'studentLastReadAt', 'updatedAt'
+            ])
+          ) ||
+          (
+            isAssignedProfessorForThread(existing()) &&
+            (incoming().professorUid == existing().professorUid || incoming().professorUid == request.auth.uid) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'professorName', 'professorUid', 'lastMessagePreview', 'lastSenderRole',
+              'unreadForStudent', 'unreadForProfessor', 'professorLastReadAt', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+
+      // Private Messages Subcollection (Strictly Concerned Student & Assigned Professor ONLY)
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(chatId) && isValidId(messageId) && (
+          existing().studentId == request.auth.uid ||
+          isAssignedProfessorForThread(existing())
+        );
+
+        allow list: if isSignedIn() && isValidId(chatId) && (
+          existing().studentId == request.auth.uid ||
+          isAssignedProfessorForThread(existing())
+        );
+
+        allow create: if isSignedIn() &&
+          isValidId(chatId) &&
+          isValidId(messageId) &&
+          incoming().senderId == request.auth.uid &&
+          incoming().readByRecipient == false &&
+          incoming().keys().hasAll([
+            'studentId', 'professorId', 'professorEmail', 'professorUid',
+            'senderId', 'senderName', 'senderRole', 'text', 'hasImage', 'readByRecipient', 'createdAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'studentId', 'professorId', 'professorEmail', 'professorUid',
+            'senderId', 'senderName', 'senderRole', 'text', 'hasImage', 'imageBase64', 'readByRecipient', 'createdAt'
+          ]) &&
+          isValidDoubtMessage(incoming()) &&
+          exists(/databases/$(database)/documents/doubtChats/$(chatId)) &&
+          incoming().studentId == get(/databases/$(database)/documents/doubtChats/$(chatId)).data.studentId &&
+          incoming().professorId == get(/databases/$(database)/documents/doubtChats/$(chatId)).data.professorId &&
+          incoming().professorEmail == get(/databases/$(database)/documents/doubtChats/$(chatId)).data.professorEmail &&
+          (
+            (incoming().studentId == request.auth.uid && incoming().senderRole == 'STUDENT') ||
+            (isAssignedProfessorForThread(get(/databases/$(database)/documents/doubtChats/$(chatId)).data) && incoming().senderRole == 'PROFESSOR')
+          );
+
+        // Prevent editing message text/image — ONLY the recipient can mark readByRecipient = true
+        allow update: if isSignedIn() &&
+          isValidId(chatId) &&
+          isValidId(messageId) &&
+          isValidDoubtMessage(incoming()) &&
+          existing().senderId != request.auth.uid &&
+          (existing().studentId == request.auth.uid || isAssignedProfessorForThread(existing())) &&
+          incoming().readByRecipient == true &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['readByRecipient']);
+
+        // Prevent students/users from deleting another user's message — only original sender can delete own message
+        allow delete: if isSignedIn() &&
+          isValidId(chatId) &&
+          isValidId(messageId) &&
+          existing().senderId == request.auth.uid;
+      }
+    }
+  }
+}

@@ -1,0 +1,505 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile storing role (STUDENT or FARMER), language preference, presence timestamp, and profile info.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["STUDENT", "FARMER"] },
+        "institutionOrVillage": { "type": "string" },
+        "district": { "type": "string" },
+        "semester": { "type": "integer" },
+        "language": { "type": "string", "enum": ["EN", "BN"] },
+        "photoUrl": { "type": "string", "description": "Optional Google account profile photo URL" },
+        "lastActiveAt": { "type": "string", "format": "date-time", "description": "Optional server timestamp of latest activity" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "email", "role", "institutionOrVillage", "district", "semester", "language", "createdAt", "updatedAt"]
+    },
+    "MoneyTransaction": {
+      "title": "MoneyTransaction",
+      "description": "Strictly private student financial record (income or daily expense in INR).",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["INCOME", "EXPENSE"] },
+        "category": { "type": "string", "enum": ["FOOD_MESS", "HOSTEL_RENT", "EDUCATION", "TRAVEL_RECHARGE", "SHARED", "SAVINGS", "ALLOWANCE", "SCHOLARSHIP", "OTHER"] },
+        "note": { "type": "string" },
+        "dateLabel": { "type": "string" },
+        "sharedWith": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "amount", "type", "category", "note", "dateLabel", "createdAt", "updatedAt"]
+    },
+    "FinancialGoal": {
+      "title": "FinancialGoal",
+      "description": "Strictly private student monthly budget limit or savings goal in INR.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string", "enum": ["MONTHLY_BUDGET", "SAVINGS_GOAL"] },
+        "targetAmount": { "type": "number" },
+        "savedAmount": { "type": "number" },
+        "monthKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "kind", "targetAmount", "savedAmount", "monthKey", "createdAt", "updatedAt"]
+    },
+    "QuizAttempt": {
+      "title": "QuizAttempt",
+      "description": "Private student MCQ examination attempt score.",
+      "type": "object",
+      "properties": {
+        "semester": { "type": "integer" },
+        "score": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["semester", "score", "totalQuestions", "createdAt"]
+    },
+    "FarmerQuery": {
+      "title": "FarmerQuery",
+      "description": "Private farmer crop issue query visible only to the submitting farmer and platform admins.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "cropName": { "type": "string" },
+        "category": { "type": "string", "enum": ["DISEASE", "PEST", "FERTILIZER", "SOIL", "WEATHER", "OTHER"] },
+        "description": { "type": "string" },
+        "district": { "type": "string" },
+        "hasImage": { "type": "boolean" },
+        "imageSummary": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "IN_REVIEW", "RESOLVED"] },
+        "adminReply": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "farmerName", "cropName", "category", "description", "district", "hasImage", "imageSummary", "status", "adminReply", "createdAt", "updatedAt"]
+    },
+    "StudyMaterial": {
+      "title": "StudyMaterial",
+      "description": "B.Sc Agriculture semester-wise study notes, PDFs, video lectures, PYQs, and practical guides managed by admins.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "semester": { "type": "integer" },
+        "subject": { "type": "string" },
+        "category": { "type": "string", "enum": ["NOTES_PDF", "VIDEO_LECTURE", "PYQ", "PRACTICAL"] },
+        "summary": { "type": "string" },
+        "contentText": { "type": "string", "description": "Optional extracted educational PDF/notes text used by AI Guru Knowledge Base" },
+        "verifiedForAi": { "type": "boolean", "description": "Prioritize this verified Guru Ji Vision resource inside AI Guru answers" },
+        "resourceUrl": { "type": "string" },
+        "published": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "semester", "subject", "category", "summary", "resourceUrl", "published", "createdBy", "createdAt", "updatedAt"]
+    },
+    "QuizQuestion": {
+      "title": "QuizQuestion",
+      "description": "MCQ examination question for B.Sc Agriculture managed by admins.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "semester": { "type": "integer" },
+        "subject": { "type": "string" },
+        "questionText": { "type": "string" },
+        "options": { "type": "array" },
+        "correctIndex": { "type": "integer" },
+        "explanation": { "type": "string" },
+        "published": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "semester", "subject", "questionText", "options", "correctIndex", "explanation", "published", "createdBy", "createdAt", "updatedAt"]
+    },
+    "CareerOpportunity": {
+      "title": "CareerOpportunity",
+      "description": "Agriculture jobs, scholarships, internships, and competitive exams managed by admins.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "organization": { "type": "string" },
+        "category": { "type": "string", "enum": ["GOVT_JOB", "PRIVATE_JOB", "SCHOLARSHIP", "INTERNSHIP", "COMPETITIVE_EXAM"] },
+        "eligibility": { "type": "string" },
+        "deadline": { "type": "string" },
+        "description": { "type": "string" },
+        "applyUrl": { "type": "string" },
+        "published": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "organization", "category", "eligibility", "deadline", "description", "applyUrl", "published", "createdBy", "createdAt", "updatedAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Student and farmer community discussion, doubt-solving, and college group post.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "collegeGroup": { "type": "string" },
+        "topic": { "type": "string", "enum": ["DOUBT", "NOTES_SHARE", "EXAM_PREP", "FARM_TALK"] },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "helpfulCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ACTIVE", "HIDDEN"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorName", "collegeGroup", "topic", "title", "body", "helpfulCount", "status", "createdAt", "updatedAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Platform broadcast notifications managed by admins.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "audience": { "type": "string", "enum": ["ALL", "STUDENTS", "FARMERS"] },
+        "active": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "audience", "active", "createdBy", "createdAt", "updatedAt"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global platform configuration including WhatsApp support, website/app content, and module feature flags.",
+      "type": "object",
+      "properties": {
+        "whatsappNumber": { "type": "string" },
+        "whatsappGroupInviteUrl": { "type": "string", "description": "Official WhatsApp Support Group invitation URL" },
+        "supportEmail": { "type": "string" },
+        "aboutText": { "type": "string" },
+        "heroHeadline": { "type": "string" },
+        "studentModuleEnabled": { "type": "boolean" },
+        "moneyManagerEnabled": { "type": "boolean" },
+        "farmerModuleEnabled": { "type": "boolean" },
+        "toolsModuleEnabled": { "type": "boolean" },
+        "aiAssistantEnabled": { "type": "boolean" },
+        "careerModuleEnabled": { "type": "boolean" },
+        "communityModuleEnabled": { "type": "boolean" },
+        "meetingZoneEnabled": { "type": "boolean" },
+        "doubtZoneEnabled": { "type": "boolean" },
+        "aiModelName": { "type": "string", "enum": ["gemini-3.8-flash", "gemini-3.5-flash-lite"], "description": "Free-tier-only Gemini model selected by Admin" },
+        "aiFreeSearchEnabled": { "type": "boolean", "description": "Allow optional genuinely free Wikipedia web search with source citations" },
+        "aiDailyLimitPerUser": { "type": "integer", "description": "Per-user daily AI Guru question limit to prevent free-tier quota abuse" },
+        "aiPaidServicesApproved": { "type": "boolean", "description": "Paid AI services remain disabled (false) unless explicitly approved by Admin" },
+        "maintenanceBanner": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["whatsappNumber", "supportEmail", "aboutText", "heroHeadline", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Authorized admin/staff role registry controlled by Super Admin.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "roleTitle": { "type": "string" },
+        "addedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "roleTitle", "addedBy", "createdAt"]
+    },
+    "ActivityEvent": {
+      "title": "ActivityEvent",
+      "description": "Real-time student and farmer non-financial platform activity telemetry for Owner Monitoring.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userRole": { "type": "string", "enum": ["STUDENT", "FARMER", "ADMIN"] },
+        "eventType": { "type": "string", "enum": ["APP_SESSION", "STUDY_VIEW", "EXAM_COMPLETED", "QUERY_SUBMITTED", "POST_CREATED", "TOOL_USED", "MATERIAL_UPLOADED"] },
+        "module": { "type": "string", "enum": ["STUDENT", "FARMER", "TOOLS", "AI", "COMMUNITY", "CAREER", "ADMIN"] },
+        "detail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userRole", "eventType", "module", "detail", "createdAt"]
+    },
+    "ExamStat": {
+      "title": "ExamStat",
+      "description": "Aggregate online examination completion telemetry for Owner Analytics.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "semester": { "type": "integer" },
+        "score": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "percentage": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "semester", "score", "totalQuestions", "percentage", "createdAt"]
+    },
+    "AiUsageLog": {
+      "title": "AiUsageLog",
+      "description": "Real Gemini AI Logic request, token, latency, and outcome log for Owner Cost & Usage Monitoring.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "modelName": { "type": "string" },
+        "feature": { "type": "string", "enum": ["AI_CHAT", "CROP_PHOTO_SCAN"] },
+        "language": { "type": "string", "enum": ["EN", "BN"] },
+        "promptTokens": { "type": "integer" },
+        "outputTokens": { "type": "integer" },
+        "latencyMs": { "type": "integer" },
+        "success": { "type": "boolean" },
+        "hasImage": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "modelName", "feature", "language", "promptTokens", "outputTokens", "latencyMs", "success", "hasImage", "createdAt"]
+    },
+    "ErrorLog": {
+      "title": "ErrorLog",
+      "description": "Application error logs and system health alerts monitored by the Platform Owner.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "source": { "type": "string", "enum": ["FIRESTORE", "AI_LOGIC", "AUTH", "SYSTEM"] },
+        "severity": { "type": "string", "enum": ["INFO", "WARNING", "CRITICAL"] },
+        "module": { "type": "string" },
+        "message": { "type": "string" },
+        "resolved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "source", "severity", "module", "message", "resolved", "createdAt"]
+    },
+    "ContentReport": {
+      "title": "ContentReport",
+      "description": "User-submitted reports on community content for Owner moderation review.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["COMMUNITY_POST"] },
+        "targetId": { "type": "string" },
+        "targetTitle": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "DISMISSED", "ACTION_TAKEN"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "reporterName", "targetType", "targetId", "targetTitle", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Immutable Founder/Admin audit trail recording important administrative actions without ever storing student financial records.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "targetType": { "type": "string" },
+        "targetId": { "type": "string" },
+        "summary": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorUid", "actorEmail", "action", "targetType", "targetId", "summary", "createdAt"]
+    },
+    "MeetingSession": {
+      "title": "MeetingSession",
+      "description": "Online Google Meet session created by Founder/Admin or authorized professors for Guru Ji Vision students.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "description": { "type": "string" },
+        "meetUrl": { "type": "string" },
+        "scheduledDate": { "type": "string" },
+        "scheduledTime": { "type": "string" },
+        "scheduledAtEpochMs": { "type": "integer" },
+        "hostName": { "type": "string" },
+        "hostUid": { "type": "string" },
+        "notifyStudents": { "type": "boolean" },
+        "published": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "subject", "description", "meetUrl", "scheduledDate", "scheduledTime", "scheduledAtEpochMs", "hostName", "hostUid", "notifyStudents", "published", "createdAt", "updatedAt"]
+    },
+    "ProfessorProfile": {
+      "title": "ProfessorProfile",
+      "description": "Faculty/advisor profile displayed in Doubt Zone – Ask Your Professor, managed by Admin/Founder.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "qualification": { "type": "string" },
+        "subject": { "type": "string" },
+        "department": { "type": "string" },
+        "email": { "type": "string" },
+        "specialization": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "authorizedUid": { "type": "string" },
+        "canHostMeetings": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "displayOrder": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "designation", "qualification", "subject", "department", "email", "specialization", "avatarUrl", "authorizedUid", "canHostMeetings", "active", "displayOrder", "updatedAt"]
+    },
+    "ProfessorAccountLink": {
+      "title": "ProfessorAccountLink",
+      "description": "Admin-managed mapping authorizing a Google UID as a specific faculty member for Doubt Zone and Meeting Zone.",
+      "type": "object",
+      "properties": {
+        "professorId": { "type": "string" },
+        "email": { "type": "string" },
+        "canHostMeetings": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "addedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["professorId", "email", "canHostMeetings", "active", "addedBy", "createdAt"]
+    },
+    "DoubtChatThread": {
+      "title": "DoubtChatThread",
+      "description": "Strictly private 1-on-1 academic doubt conversation between a single student and their chosen professor.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentSemester": { "type": "integer" },
+        "professorId": { "type": "string" },
+        "professorName": { "type": "string" },
+        "professorEmail": { "type": "string" },
+        "professorUid": { "type": "string" },
+        "lastMessagePreview": { "type": "string" },
+        "lastSenderRole": { "type": "string", "enum": ["STUDENT", "PROFESSOR"] },
+        "unreadForStudent": { "type": "integer" },
+        "unreadForProfessor": { "type": "integer" },
+        "studentLastReadAt": { "type": "string", "format": "date-time" },
+        "professorLastReadAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "studentName", "studentSemester", "professorId", "professorName", "professorEmail", "professorUid", "lastMessagePreview", "lastSenderRole", "unreadForStudent", "unreadForProfessor", "createdAt", "updatedAt"]
+    },
+    "DoubtMessage": {
+      "title": "DoubtMessage",
+      "description": "Individual text or compressed image message inside a private student-professor doubt chat thread.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "professorId": { "type": "string" },
+        "professorEmail": { "type": "string" },
+        "professorUid": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["STUDENT", "PROFESSOR"] },
+        "text": { "type": "string" },
+        "hasImage": { "type": "boolean" },
+        "imageBase64": { "type": "string" },
+        "readByRecipient": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "professorId", "professorEmail", "professorUid", "senderId", "senderName", "senderRole", "text", "hasImage", "readByRecipient", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profiles accessible only to owner or verified admins."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/MoneyTransaction" },
+      "description": "Private student financial records strictly isolated to the owning student (owner-only, not exposed to admins)."
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/FinancialGoal" },
+      "description": "Private student monthly budgets and savings goals strictly isolated to the owning student."
+    },
+    "/users/{userId}/quizAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/QuizAttempt" },
+      "description": "Private student MCQ quiz history strictly isolated to the owning student."
+    },
+    "/farmerQueries/{queryId}": {
+      "schema": { "$ref": "#/entities/FarmerQuery" },
+      "description": "Farmer crop queries accessible only to the owning farmer and verified admins."
+    },
+    "/studyMaterials/{materialId}": {
+      "schema": { "$ref": "#/entities/StudyMaterial" },
+      "description": "Published B.Sc Agriculture study materials managed by admins."
+    },
+    "/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/QuizQuestion" },
+      "description": "Published MCQ examination questions managed by admins."
+    },
+    "/careerOpportunities/{careerId}": {
+      "schema": { "$ref": "#/entities/CareerOpportunity" },
+      "description": "Published agriculture career opportunities managed by admins."
+    },
+    "/communityPosts/{postId}": {
+      "schema": { "$ref": "#/entities/CommunityPost" },
+      "description": "Active student and farmer discussion forum posts with admin moderation."
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Active platform notices managed by admins."
+    },
+    "/appSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Global platform settings and module feature flags document (global) managed by platform owner/admins."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Authorized admin UIDs managed by Super Admin."
+    },
+    "/activityEvents/{eventId}": {
+      "schema": { "$ref": "#/entities/ActivityEvent" },
+      "description": "Non-financial platform activity telemetry readable only by Super Admin."
+    },
+    "/examStats/{statId}": {
+      "schema": { "$ref": "#/entities/ExamStat" },
+      "description": "Online examination telemetry readable by Super Admin and the submitting student."
+    },
+    "/aiUsageLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AiUsageLog" },
+      "description": "Gemini AI Logic API usage, token, latency, and cost logs readable only by Super Admin."
+    },
+    "/errorLogs/{errorId}": {
+      "schema": { "$ref": "#/entities/ErrorLog" },
+      "description": "Application error logs and system health alerts readable and resolvable only by Super Admin."
+    },
+    "/contentReports/{reportId}": {
+      "schema": { "$ref": "#/entities/ContentReport" },
+      "description": "Reported community content queue reviewed and resolved by Super Admin / Admins."
+    },
+    "/adminAuditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AdminAuditLog" },
+      "description": "Immutable Founder-only administrative action audit log."
+    },
+    "/meetings/{meetingId}": {
+      "schema": { "$ref": "#/entities/MeetingSession" },
+      "description": "Published Google Meet sessions readable by authenticated students and managed only by Admin or authorized professors."
+    },
+    "/professors/{professorId}": {
+      "schema": { "$ref": "#/entities/ProfessorProfile" },
+      "description": "Faculty advisor directory for Doubt Zone managed by Founder/Admin."
+    },
+    "/professorAccounts/{profUid}": {
+      "schema": { "$ref": "#/entities/ProfessorAccountLink" },
+      "description": "Founder-managed professor account authorization mapping for Meeting Zone and Doubt Zone."
+    },
+    "/doubtChats/{chatId}": {
+      "schema": { "$ref": "#/entities/DoubtChatThread" },
+      "description": "Strictly private student-professor doubt chat rooms accessible ONLY to the concerned student and assigned professor (never other students or Admin)."
+    },
+    "/doubtChats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/DoubtMessage" },
+      "description": "Strictly private text and image messages within a student-professor doubt chat room."
+    }
+  }
+}
