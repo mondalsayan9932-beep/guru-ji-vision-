@@ -130,8 +130,8 @@ export function renderHomeView(state) {
                 🎓 Study Notes
               </button>
               ${!state.user ? `
-                <button data-action="open-auth" class="px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1FB857] text-[#052E16] text-xs sm:text-sm font-extrabold transition-colors">
-                  Sign In / Register
+                <button data-action="open-auth" class="px-4 py-2.5 rounded-xl bg-white hover:bg-[#EDF4EE] text-[#14532D] text-xs sm:text-sm font-extrabold transition-colors shadow-sm">
+                  Continue with Google
                 </button>
               ` : `
                 <button data-action="open-profile" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
@@ -620,8 +620,8 @@ export function renderFarmerView(state) {
             <button id="fqCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
           </div>
           ${!state.user ? `
-            <p class="text-xs sm:text-sm text-[#496052]">Sign in with WhatsApp/Phone or Email to submit private crop queries, upload crop photos, and receive replies from Guru Ji Vision experts.</p>
-            <button data-action="open-auth" class="w-full py-3 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Sign In to Submit Query</button>
+            <p class="text-xs sm:text-sm text-[#496052]">Sign in with your Google Account to submit private crop queries, upload crop photos, and receive replies from Guru Ji Vision experts.</p>
+            <button data-action="open-auth" class="w-full py-3 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Continue with Google to Submit Query</button>
           ` : `
             <form id="farmerQueryForm" class="space-y-3">
               <input id="fqEditId" type="hidden" value="" />

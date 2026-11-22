@@ -140,7 +140,7 @@
 
     <div class="p-3 border-t border-[#CDE0D3] space-y-2">
       <button data-action="open-profile" type="button" class="w-full py-2 px-4 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">Edit My Profile</button>
-      <button id="drawerAuthAction" data-action="open-auth" type="button" class="w-full py-2.5 px-4 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Sign In / Sign Up</button>
+      <button id="drawerAuthAction" data-action="open-auth" type="button" class="w-full py-2.5 px-4 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Continue with Google</button>
     </div>
   </aside>
 
@@ -194,222 +194,57 @@
     </div>
   </nav>
 
-  <!-- ==================== AUTH MODAL: PRIMARY GOOGLE SIGN-IN + FIREBASE SMS OTP ==================== -->
+  <!-- ==================== AUTH MODAL: ONE-CLICK GOOGLE SIGN-IN ONLY ==================== -->
   <div id="authModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
     <div class="bg-white w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl animate-fade-up">
-      <!-- 1. Guru Ji Vision Logo & Welcome Header -->
-      <div class="p-5 bg-gradient-to-r from-[#0C3B20] to-[#1E7E45] text-white flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3 min-w-0">
-          <img src="./assets/icons/logo.svg" alt="Guru Ji Vision" class="w-11 h-11 rounded-2xl bg-white/10 p-0.5 shadow-sm shrink-0" />
-          <div class="min-w-0">
-            <h3 id="authModalTitle" class="font-display text-lg sm:text-xl font-bold leading-tight">Welcome to Guru Ji Vision</h3>
-            <p class="text-xs text-emerald-100 mt-0.5">Sign in or create an account for Students, Farmers &amp; Professors</p>
-          </div>
+      <!-- Branded Header -->
+      <div class="p-6 bg-gradient-to-br from-[#0C3B20] via-[#14532D] to-[#1E7E45] text-white relative">
+        <button data-action="close-auth" type="button" class="absolute top-4 right-4 w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 font-bold flex items-center justify-center" aria-label="Close sign in dialog">✕</button>
+        <div class="flex flex-col items-center text-center pt-1">
+          <img src="./assets/icons/logo.svg" alt="Guru Ji Vision" class="w-16 h-16 rounded-2xl bg-white/10 p-1 shadow-md mb-3" />
+          <h3 id="authModalTitle" class="font-display text-2xl font-bold tracking-tight">Guru Ji Vision</h3>
+          <p class="text-xs sm:text-sm text-emerald-100 font-medium mt-1">One Account. One Platform. Endless Opportunities.</p>
         </div>
-        <button data-action="close-auth" type="button" class="w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 font-bold shrink-0" aria-label="Close sign in dialog">✕</button>
       </div>
 
-      <div class="p-5 pb-10 space-y-4">
+      <div class="p-6 pb-10 space-y-4">
         <!-- Dynamic Error / Status Feedback (Hidden until needed) -->
         <div id="authErrorBox" class="hidden rounded-2xl bg-rose-50 border border-rose-200 p-3.5 text-xs font-semibold text-rose-800 leading-relaxed" role="alert"></div>
         <div id="authInfoBox" class="hidden rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-semibold text-emerald-900 leading-relaxed" role="status"></div>
 
-        <!-- 2. PRIMARY LOGIN: Continue with Google (Gmail) -->
-        <div class="space-y-2">
-          <button id="googleSignInBtn" data-action="google-signin" type="button" class="w-full min-h-[52px] px-4 py-3 rounded-2xl bg-white hover:bg-[#F4FAF6] active:scale-[0.99] border-2 border-[#14532D] text-[#132219] text-sm font-extrabold shadow-sm flex items-center justify-center gap-3 transition-all">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.08 3.56-5.15 3.56-8.65z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.87-3c-1.07.72-2.44 1.14-4.06 1.14-3.12 0-5.77-2.11-6.71-4.95H1.29v3.1A12 12 0 0 0 12 24z"/>
-              <path fill="#FBBC05" d="M5.29 14.28A7.2 7.2 0 0 1 4.91 12c0-.79.14-1.56.38-2.28v-3.1H1.29A12 12 0 0 0 0 12c0 1.94.46 3.77 1.29 5.38l4-3.1z"/>
-              <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.29 6.62l4 3.1C6.23 6.88 8.88 4.77 12 4.77z"/>
-            </svg>
-            <span id="googleSignInBtnLabel">Continue with Google (Gmail)</span>
-          </button>
-          <p class="text-[11px] text-center text-[#496052]">Fastest &amp; recommended for Students, Farmers, Professors &amp; Admins</p>
-        </div>
-
-        <!-- 3. OR Divider -->
-        <div class="relative flex items-center justify-center py-0.5">
-          <div class="border-t border-[#CDE0D3] w-full"></div>
-          <span class="bg-white px-3 text-xs font-extrabold tracking-wider text-[#496052]">OR</span>
-          <div class="border-t border-[#CDE0D3] w-full"></div>
-        </div>
-
-        <!-- 4. ALTERNATIVE LOGIN: Continue with Mobile Number (Real Firebase SMS OTP) -->
-        <div class="rounded-2xl border border-[#CDE0D3] bg-[#F7FBF8] p-4 space-y-3">
-          <div>
-            <h4 class="text-sm font-extrabold text-[#14532D]">Continue with Mobile Number</h4>
-            <p class="text-[11px] text-[#496052] mt-0.5">Verify with a 6-digit Firebase SMS OTP. Existing accounts keep all saved data.</p>
-          </div>
-
-          <!-- Country Code + 10-Digit Mobile Input -->
-          <div class="space-y-1">
-            <label for="phoneNumberInput" class="block text-xs font-bold text-[#132219]">Mobile Number *</label>
-            <div class="flex gap-2">
-              <select id="phoneCountryCode" aria-label="Country code" class="w-24 min-h-[46px] px-2.5 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-xs sm:text-sm font-extrabold text-[#14532D]">
-                <option value="+91" selected>+91 IN</option>
-                <option value="+880">+880 BD</option>
-                <option value="+977">+977 NP</option>
-                <option value="+1">+1 US</option>
-                <option value="+44">+44 UK</option>
-                <option value="+971">+971 AE</option>
-              </select>
-              <input id="phoneNumberInput" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" placeholder="10-digit mobile number" class="flex-1 min-w-0 min-h-[46px] px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-bold tracking-wide" />
-            </div>
-          </div>
-
-          <!-- 5 & 6. Full Name & Role Selection for New Users -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            <label class="block">
-              <span class="text-xs font-bold text-[#132219]">Full Name <span class="text-[10px] font-medium text-[#496052]">(New users)</span></span>
-              <input id="phoneNewUserName" type="text" maxlength="80" autocomplete="name" placeholder="Your full name" class="mt-1 w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-sm" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-[#132219]">Role <span class="text-[10px] font-medium text-[#496052]">(New users)</span></span>
-              <select id="phoneNewUserRole" class="mt-1 w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-sm font-bold text-[#14532D]">
-                <option value="STUDENT">Student</option>
-                <option value="FARMER">Farmer</option>
-                <option value="PROFESSOR">Professor (Requires Approval)</option>
-              </select>
-            </label>
-          </div>
-          <p id="phoneProfRoleHint" class="hidden rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-semibold text-amber-950">
-            Professor privileges require Admin verification. Your account will be created with pending professor review status.
-          </p>
-
-          <!-- 7. Send OTP Button -->
-          <button id="sendSmsOtpBtn" type="button" class="w-full min-h-[48px] px-4 py-3 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] disabled:opacity-60 text-white text-sm font-extrabold shadow-sm transition-colors">
-            Send OTP
-          </button>
-
-          <!-- Invisible reCAPTCHA container -->
-          <div id="recaptcha-container"></div>
-
-          <!-- OTP Verification Interface (Shown after Firebase sends SMS) -->
-          <form id="verifyOtpForm" class="hidden pt-3 border-t border-[#CDE0D3] space-y-3">
-            <div class="flex items-center justify-between gap-2">
-              <label for="otpCodeInput" class="text-xs font-extrabold text-[#14532D]">Enter 6-Digit SMS OTP</label>
-              <button id="resendOtpBtn" type="button" disabled class="text-xs font-extrabold text-[#1E7E45] disabled:text-slate-400 hover:underline">
-                Resend OTP
-              </button>
-            </div>
-            <input id="otpCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" placeholder="Enter 6-digit code" class="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-base font-extrabold tracking-[0.35em] text-center" />
-            <button id="verifyOtpSubmitBtn" type="submit" class="w-full min-h-[48px] px-4 py-3 rounded-xl bg-[#1E7E45] hover:bg-[#14532D] text-white text-sm font-extrabold shadow-sm">
-              Verify &amp; Continue
-            </button>
-          </form>
-        </div>
-
-        <!-- 8. Privacy & Terms Notice -->
-        <p class="text-[11px] text-center text-[#496052] leading-relaxed">
-          Public study notes, Weather &amp; Market Prices require no login. By continuing, you agree that your personal Money Manager and private consultations stay encrypted under your own Firebase account.
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== FIRST-TIME PROFILE COMPLETION MODAL ==================== -->
-  <div id="onboardingModal" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="onboardingModalTitle">
-    <div class="bg-white w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl animate-fade-up">
-      <div class="p-5 bg-gradient-to-r from-[#0C3B20] to-[#1E7E45] text-white flex items-center justify-between gap-3">
-        <div>
-          <h3 id="onboardingModalTitle" class="font-display text-xl font-bold">Complete Your Profile</h3>
-          <p class="text-xs text-emerald-100 mt-0.5">One-time setup to personalize your Student, Farmer, or Professor dashboard.</p>
-        </div>
-        <button data-action="close-onboarding" type="button" class="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 font-bold" aria-label="Skip for now">✕</button>
-      </div>
-
-      <form id="onboardingForm" class="p-5 pb-10 space-y-3.5">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label class="block sm:col-span-2">
-            <span class="text-xs font-bold text-[#132219]">Full Name *</span>
-            <input id="onbFullName" type="text" required minlength="2" maxlength="80" placeholder="Enter your full name" class="mt-1 w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
-          </label>
-          <label class="block">
-            <span class="text-xs font-bold text-[#132219]">Role *</span>
-            <select id="onbRole" class="mt-1 w-full min-h-[44px] px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-bold text-[#14532D]">
-              <option value="STUDENT">Student</option>
-              <option value="FARMER">Farmer</option>
-              <option value="PROFESSOR">Professor (Admin Approval)</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="text-xs font-bold text-[#132219]">Mobile Number</span>
-            <input id="onbPhone" type="tel" maxlength="20" placeholder="+91 9876543210" class="mt-1 w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
-          </label>
-          <label class="block sm:col-span-2">
-            <span class="text-xs font-bold text-[#132219]">Email Address</span>
-            <input id="onbEmail" type="email" maxlength="120" placeholder="Auto-filled from Google (optional for mobile users)" class="mt-1 w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
-          </label>
-        </div>
-
-        <!-- Student Optional Fields -->
-        <div id="onbStudentFields" class="rounded-2xl bg-[#F4FAF6] border border-[#CDE0D3] p-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div class="sm:col-span-2 text-xs font-extrabold text-[#14532D]">Student Academic Details (Optional)</div>
-          <label class="block sm:col-span-2">
-            <span class="text-xs font-bold">College / University Name</span>
-            <input id="onbCollege" type="text" maxlength="120" placeholder="e.g. BCKV, UBKV, Visva-Bharati" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs sm:text-sm" />
-          </label>
-          <label class="block">
-            <span class="text-xs font-bold">Semester</span>
-            <select id="onbSemester" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs sm:text-sm font-bold">
-              <option value="1">Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option>
-              <option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="text-xs font-bold">Department</span>
-            <input id="onbStudentDept" type="text" maxlength="100" placeholder="e.g. B.Sc (Hons.) Agriculture" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs sm:text-sm" />
-          </label>
-        </div>
-
-        <!-- Farmer Optional Fields -->
-        <div id="onbFarmerFields" class="hidden rounded-2xl bg-amber-50/70 border border-amber-200 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div class="sm:col-span-3 text-xs font-extrabold text-amber-950">Farmer Location Details (Optional)</div>
-          <label class="block">
-            <span class="text-xs font-bold">Village</span>
-            <input id="onbVillage" type="text" maxlength="120" placeholder="Village / Block" class="mt-1 w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs sm:text-sm" />
-          </label>
-          <label class="block">
-            <span class="text-xs font-bold">District</span>
-            <input id="onbDistrict" type="text" maxlength="80" placeholder="e.g. Purba Bardhaman" class="mt-1 w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs sm:text-sm" />
-          </label>
-          <label class="block">
-            <span class="text-xs font-bold">State</span>
-            <input id="onbState" type="text" maxlength="80" value="West Bengal" placeholder="State" class="mt-1 w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-xs sm:text-sm" />
-          </label>
-        </div>
-
-        <!-- Professor Optional Fields + Security Notice -->
-        <div id="onbProfessorFields" class="hidden rounded-2xl bg-indigo-50/70 border border-indigo-200 p-3.5 space-y-2.5">
-          <div class="text-xs font-extrabold text-indigo-950">Professor Verification Request</div>
-          <div class="rounded-xl bg-amber-100/90 border border-amber-300 px-3 py-2 text-[11px] font-semibold text-amber-950">
-            Security Policy: Selecting Professor submits a verification request for Admin approval. Authorized faculty emails already listed in Guru Ji Vision receive immediate faculty access.
-          </div>
-          <label class="block">
-            <span class="text-xs font-bold">Institution / University</span>
-            <input id="onbProfInstitution" type="text" maxlength="120" placeholder="College or Research Institute" class="mt-1 w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-xs sm:text-sm" />
-          </label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <label class="block">
-              <span class="text-xs font-bold">Department</span>
-              <input id="onbProfDept" type="text" maxlength="100" placeholder="e.g. Plant Pathology" class="mt-1 w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-xs sm:text-sm" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold">Subject Specialization</span>
-              <input id="onbProfSpec" type="text" maxlength="160" placeholder="e.g. Soil Fertility, Agronomy" class="mt-1 w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-xs sm:text-sm" />
-            </label>
-          </div>
-        </div>
-
-        <button type="submit" class="w-full min-h-[48px] py-3 rounded-2xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-sm font-extrabold shadow-sm">
-          Save Profile &amp; Continue
+        <!-- Primary & Exclusive Button: Continue with Google -->
+        <button id="googleSignInBtn" data-action="google-signin" type="button" class="w-full min-h-[54px] px-5 py-3.5 rounded-2xl bg-white hover:bg-[#F4FAF6] active:scale-[0.99] border-2 border-[#14532D] text-[#132219] text-sm sm:text-base font-extrabold shadow-sm flex items-center justify-center gap-3 transition-all disabled:opacity-65">
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.08 3.56-5.15 3.56-8.65z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.87-3c-1.07.72-2.44 1.14-4.06 1.14-3.12 0-5.77-2.11-6.71-4.95H1.29v3.1A12 12 0 0 0 12 24z"/>
+            <path fill="#FBBC05" d="M5.29 14.28A7.2 7.2 0 0 1 4.91 12c0-.79.14-1.56.38-2.28v-3.1H1.29A12 12 0 0 0 0 12c0 1.94.46 3.77 1.29 5.38l4-3.1z"/>
+            <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.29 6.62l4 3.1C6.23 6.88 8.88 4.77 12 4.77z"/>
+          </svg>
+          <span id="googleSignInBtnLabel">Continue with Google</span>
         </button>
-      </form>
+
+        <!-- Safe Redirect Fallback Button (Shown only if desktop popup is blocked or closed prematurely) -->
+        <button id="googleRedirectFallbackBtn" data-action="google-signin-redirect" type="button" class="hidden w-full min-h-[46px] px-4 py-2.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold transition-colors">
+          Having trouble with popups? Sign in via Full-Page Google Redirect
+        </button>
+
+        <div class="text-center space-y-1.5 pt-1">
+          <p class="text-xs sm:text-sm font-semibold text-[#132219]">
+            Sign in or create your account securely using your Google Account.
+          </p>
+          <p class="text-xs text-[#1E7E45] font-bold">
+            New to Guru Ji Vision? No separate registration is required.
+          </p>
+        </div>
+
+        <div class="rounded-2xl bg-[#F7FBF8] border border-[#CDE0D3] p-3.5 text-[11px] text-[#496052] leading-relaxed text-center">
+          One click opens your dashboard immediately. You can update your Student, Farmer, or Professor role anytime inside <strong>Profile</strong>. Public study notes, Weather &amp; Market Prices always work without login.
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ==================== USER PROFILE & SECURE ACCOUNT LINKING MODAL ==================== -->
+  <!-- ==================== USER PROFILE & ROLE SETTINGS MODAL ==================== -->
   <div id="profileModal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
     <div class="bg-white w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl animate-fade-up">
       <div class="p-4 sm:p-5 bg-[#14532D] text-white flex items-center justify-between gap-2">
@@ -426,7 +261,7 @@
         <form id="profileForm" class="space-y-3">
           <label class="block"><span class="text-xs font-bold">Full Name *</span><input id="profFullName" type="text" required maxlength="80" class="mt-1 w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" /></label>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <label class="block"><span class="text-xs font-bold">Mobile Number</span><input id="profMobile" type="tel" maxlength="25" placeholder="+91 9876543210" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs sm:text-sm" /></label>
+            <label class="block"><span class="text-xs font-bold">Contact Phone (Optional)</span><input id="profMobile" type="tel" maxlength="25" placeholder="Optional contact number" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs sm:text-sm" /></label>
             <label class="block"><span class="text-xs font-bold">Role</span>
               <select id="profRole" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs sm:text-sm font-bold">
                 <option value="STUDENT">Student</option>
@@ -435,7 +270,7 @@
               </select>
             </label>
           </div>
-          <label class="block"><span class="text-xs font-bold">Email Address</span><input id="profEmail" type="email" maxlength="120" placeholder="Optional" class="mt-1 w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" /></label>
+          <label class="block"><span class="text-xs font-bold">Google Email Address</span><input id="profEmail" type="email" maxlength="120" placeholder="Google Account email" class="mt-1 w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" /></label>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <label class="block"><span class="text-xs font-bold">College / Institution / Village</span><input id="profCollege" type="text" maxlength="120" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs sm:text-sm" /></label>
             <label class="block"><span class="text-xs font-bold">District</span><input id="profDistrict" type="text" maxlength="80" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs sm:text-sm" /></label>
@@ -461,40 +296,17 @@
           </div>
         </form>
 
-        <!-- Secure Account Linking Section (Preserves Same Firebase UID & All User Data) -->
-        <div class="rounded-2xl border border-[#CDE0D3] bg-[#F7FBF8] p-4 space-y-3">
-          <div>
-            <h4 class="text-xs font-extrabold uppercase tracking-wider text-[#14532D]">Linked Sign-In Methods (Same Account UID)</h4>
-            <p class="text-[11px] text-[#496052] mt-0.5">Link Google and Mobile Number to the same account so your Money Manager, Chats &amp; Notes stay unified.</p>
-          </div>
+        <!-- Google Account Verification & Legacy Account Linking -->
+        <div class="rounded-2xl border border-[#CDE0D3] bg-[#F7FBF8] p-4 space-y-2.5">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-[#14532D]">Google Account Connection</div>
           <div id="linkFeedbackBox" class="hidden rounded-xl p-2.5 text-xs font-semibold"></div>
-
           <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span id="linkedGoogleStatus" class="font-bold text-[#132219]">Google: Checking...</span>
+            <span id="linkedGoogleStatus" class="font-bold text-[#132219]">Google Account: Checking...</span>
             <button id="linkGoogleBtn" data-action="link-google" type="button" class="hidden px-3 py-2 rounded-xl bg-white border border-[#14532D] text-[#14532D] text-xs font-extrabold">
-              Link Google (Gmail)
+              Link Google Account
             </button>
           </div>
-
-          <div class="space-y-2 pt-2 border-t border-[#CDE0D3]">
-            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span id="linkedPhoneStatus" class="font-bold text-[#132219]">Mobile Number: Checking...</span>
-            </div>
-            <div id="linkPhoneSection" class="hidden space-y-2">
-              <div class="flex gap-2">
-                <select id="linkPhoneCountryCode" aria-label="Link country code" class="w-20 px-2 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-extrabold">
-                  <option value="+91" selected>+91</option><option value="+880">+880</option><option value="+977">+977</option><option value="+1">+1</option>
-                </select>
-                <input id="linkPhoneInput" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile" class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold" />
-                <button id="sendLinkPhoneOtpBtn" type="button" class="px-3 py-2 rounded-xl bg-[#14532D] text-white text-xs font-extrabold shrink-0">Send OTP</button>
-              </div>
-              <div id="link-recaptcha-container"></div>
-              <form id="verifyLinkPhoneForm" class="hidden flex gap-2">
-                <input id="linkOtpInput" type="text" inputmode="numeric" maxlength="6" required placeholder="6-digit OTP" class="flex-1 px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-extrabold tracking-widest" />
-                <button type="submit" class="px-3.5 py-2 rounded-xl bg-[#1E7E45] text-white text-xs font-extrabold">Verify &amp; Link</button>
-              </form>
-            </div>
-          </div>
+          <p class="text-[11px] text-[#496052]">Your existing Firebase UID, Money Manager, consultations, and saved records stay securely linked to your Google Account.</p>
         </div>
       </div>
     </div>
@@ -518,6 +330,15 @@
         <a id="readerPdfBtn" href="#" target="_blank" rel="noopener noreferrer" class="hidden gv-btn px-4 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Open / Download PDF ↗</a>
         <button data-action="close-reader" type="button" class="px-4 py-2.5 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Auth Redirect / Session Restore Loading Overlay -->
+  <div id="authLoadingOverlay" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-center justify-center p-4" role="status" aria-live="polite">
+    <div class="bg-white rounded-3xl shadow-2xl px-6 py-5 max-w-xs w-full text-center space-y-3 border border-[#CDE0D3]">
+      <div class="w-10 h-10 mx-auto rounded-full border-4 border-[#D8F3DC] border-t-[#14532D] animate-spin"></div>
+      <div id="authLoadingTitle" class="font-display text-base font-bold text-[#14532D]">Signing you in...</div>
+      <p id="authLoadingSub" class="text-xs text-[#496052]">Verifying your Google Account with Guru Ji Vision.</p>
     </div>
   </div>
 

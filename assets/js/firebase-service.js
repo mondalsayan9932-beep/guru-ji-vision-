@@ -16,6 +16,9 @@ import { buildDoubtChatId, getTimestampMs, isValidGoogleMeetUrl, parseMeetingEpo
 
 const FB_CDN = "https://www.gstatic.com/firebasejs/10.14.1";
 
+const REDIRECT_PENDING_KEY = "gjv_google_redirect_pending";
+const REDIRECT_PENDING_TTL_MS = 5 * 60 * 1000;
+
 class FirebaseService {
   constructor() {
     this.ready = false;
@@ -24,12 +27,60 @@ class FirebaseService {
     this.db = null;
     this.storage = null;
     this.mods = null;
-    this.recaptchaVerifier = null;
-    this.linkRecaptchaVerifier = null;
-    this.phoneConfirmationResult = null;
-    this.phoneLinkConfirmationResult = null;
     this.authInFlight = false;
+    this.redirectHandled = false;
+    this.lastRedirectReturnedEmpty = false;
     this.activeUnsubs = new Map();
+  }
+
+  getEffectiveFirebaseConfig() {
+    const cfg = { ...FIREBASE_CONFIG };
+    if (
+      typeof window !== "undefined" &&
+      window.GJV_USE_SAME_ORIGIN_AUTH_DOMAIN === true &&
+      window.location?.protocol === "https:" &&
+      window.location?.hostname
+    ) {
+      cfg.authDomain = window.location.hostname;
+    }
+    return cfg;
+  }
+
+  isMobileOrStandaloneBrowser() {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    const isMobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+    const isStandalone =
+      Boolean(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      Boolean(navigator.standalone);
+    return isMobileUa || isStandalone;
+  }
+
+  markRedirectPending() {
+    try {
+      sessionStorage.setItem(REDIRECT_PENDING_KEY, String(Date.now()));
+    } catch (_) {}
+  }
+
+  clearRedirectPending() {
+    try {
+      sessionStorage.removeItem(REDIRECT_PENDING_KEY);
+    } catch (_) {}
+  }
+
+  hasPendingRedirect() {
+    try {
+      const raw = sessionStorage.getItem(REDIRECT_PENDING_KEY);
+      if (!raw) return false;
+      const ts = Number(raw);
+      if (!Number.isFinite(ts) || Date.now() - ts > REDIRECT_PENDING_TTL_MS) {
+        sessionStorage.removeItem(REDIRECT_PENDING_KEY);
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   async init(onAuthCallback, onPublicUpdate, onRedirectOutcome) {
@@ -41,15 +92,16 @@ class FirebaseService {
         import(`${FB_CDN}/firebase-storage.js`)
       ]);
 
-      // Initialize Firebase strictly once
-      this.app = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
+      // Initialize Firebase strictly once — never create a second app instance
+      const effectiveConfig = this.getEffectiveFirebaseConfig();
+      this.app = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(effectiveConfig);
       this.auth = authMod.getAuth(this.app);
       this.db = fsMod.getFirestore(this.app, FIRESTORE_DATABASE_ID);
       this.storage = storageMod.getStorage(this.app);
       this.mods = { appMod, authMod, fsMod, storageMod };
       this.ready = true;
 
-      // Persist authenticated session cleanly across page refreshes & mobile tabs
+      // Persist authenticated session reliably across page refreshes & mobile tabs
       try {
         await authMod.setPersistence(this.auth, authMod.browserLocalPersistence);
       } catch (persistErr) {
@@ -61,15 +113,38 @@ class FirebaseService {
         this.subscribePublicCollections({ isAdmin: false, isSuperAdmin: false, isAuthorizedMeetingHost: false, onUpdate: onPublicUpdate });
       }
 
-      // Handle Google Sign-In / Account Linking redirect results on return
-      try {
-        const redirectRes = await authMod.getRedirectResult(this.auth);
-        if (redirectRes?.user && onRedirectOutcome) {
-          onRedirectOutcome({ ok: true, user: redirectRes.user, fromRedirect: true });
-        }
-      } catch (redirectErr) {
-        if (onRedirectOutcome) {
-          onRedirectOutcome({ ok: false, error: this.formatAuthError(redirectErr, "google") });
+      // Process Google Sign-In redirect result strictly ONCE during app initialization
+      if (!this.redirectHandled) {
+        this.redirectHandled = true;
+        const wasRedirectPending = this.hasPendingRedirect();
+        this.clearRedirectPending();
+
+        try {
+          const redirectRes = await authMod.getRedirectResult(this.auth);
+          if (redirectRes?.user) {
+            this.lastRedirectReturnedEmpty = false;
+            if (onRedirectOutcome) {
+              onRedirectOutcome({ ok: true, user: redirectRes.user, fromRedirect: true });
+            }
+          } else if (wasRedirectPending && !this.auth.currentUser) {
+            // Browser blocked third-party redirect storage (e.g. strict mobile/Safari cookie blocking)
+            this.lastRedirectReturnedEmpty = true;
+            if (onRedirectOutcome) {
+              onRedirectOutcome({
+                ok: false,
+                redirectEmpty: true,
+                error: "Your browser blocked login cookies during full-page redirect. Tap 'Continue with Google' again to sign in via direct Google popup."
+              });
+            }
+          }
+        } catch (redirectErr) {
+          if (onRedirectOutcome) {
+            onRedirectOutcome({
+              ok: false,
+              code: redirectErr?.code || "",
+              error: this.formatAuthError(redirectErr)
+            });
+          }
         }
       }
 
@@ -86,107 +161,51 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // AUTHENTICATION: Primary Google Sign-In (Popup + Redirect Fallback) +
-  // Real Firebase Phone SMS OTP + Secure Account Linking
+  // GOOGLE-ONLY AUTHENTICATION (Desktop Popup + Mobile Redirect + Safe Linking)
   // --------------------------------------------------------------------------
-  formatAuthError(err, channel = "auth") {
+  formatAuthError(err) {
     const code = err?.code || "";
     if (code === "auth/unauthorized-domain") {
-      return "This website domain is not yet authorized in Firebase Console → Authentication → Settings → Authorized domains. Please add this Netlify domain in Firebase Console.";
+      const host = typeof window !== "undefined" ? window.location.hostname : "this domain";
+      return `The domain "${host}" is not yet listed in Firebase Console → Authentication → Settings → Authorized domains. Add it in Firebase Console to enable Google Sign-In.`;
+    }
+    if (code === "auth/popup-blocked") {
+      return "Your browser blocked the Google Sign-In popup. Switching to full-page Google Sign-In...";
     }
     if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-      return "Google Sign-In window was closed before completing. Tap 'Continue with Google (Gmail)' to try again.";
+      return "Google Sign-In was closed before finishing. Tap 'Continue with Google' to try again, or use the full-page redirect option below.";
     }
     if (code === "auth/network-request-failed") {
-      return "Network connection error. Check your internet connection and try again.";
+      return "Network connection error. Please check your internet connection and try again.";
     }
     if (code === "auth/account-exists-with-different-credential") {
-      return "An account already exists with this email under another sign-in method. Sign in with your original method first, then link accounts in Profile.";
+      return "An account already exists with this email under another sign-in method. Please sign in with your existing account to link Google safely.";
     }
     if (code === "auth/credential-already-in-use") {
-      return "This mobile number or Google account is already linked to a different Guru Ji Vision account. Sign out and sign in with that credential instead to preserve its data.";
+      return "This Google Account is already linked to another Guru Ji Vision account. Sign out and continue with that Google Account directly to preserve its data.";
     }
     if (code === "auth/provider-already-linked") {
-      return "This sign-in method is already linked to your Guru Ji Vision account.";
+      return "Your Google Account is already linked to this Guru Ji Vision profile.";
     }
     if (code === "auth/operation-not-allowed") {
-      return channel === "phone"
-        ? "Mobile SMS sign-in is not currently enabled in Firebase Console (Authentication → Sign-in method → Phone). Please use 'Continue with Google (Gmail)' above."
-        : "Google Sign-In is not yet enabled in Firebase Console → Authentication → Sign-in method.";
-    }
-    if (code === "auth/quota-exceeded" || code === "auth/billing-not-enabled") {
-      return "SMS OTP quota or Firebase billing limit has been reached for phone verification right now. Please use 'Continue with Google (Gmail)' above for instant sign-in.";
+      return "Google Sign-In is not enabled in Firebase Console → Authentication → Sign-in method → Google.";
     }
     if (code === "auth/too-many-requests") {
-      return "Too many OTP or login attempts from this device. Please wait a few minutes or sign in immediately with 'Continue with Google (Gmail)'.";
+      return "Too many sign-in attempts from this device. Please wait a moment and try again.";
     }
-    if (code === "auth/invalid-phone-number") {
-      return "Please enter a valid mobile number (e.g., 10-digit Indian mobile number starting with 6–9).";
+    if (code === "auth/web-storage-unsupported") {
+      return "Browser cookies or storage are disabled. Please enable cookies for this site and try again.";
     }
-    if (code === "auth/captcha-check-failed" || code === "auth/missing-client-identifier") {
-      return "Security verification (reCAPTCHA) failed. Please refresh and try again, or use 'Continue with Google (Gmail)'.";
-    }
-    if (code === "auth/invalid-verification-code") {
-      return "Incorrect 6-digit OTP code. Please check the SMS and enter the exact code.";
-    }
-    if (code === "auth/code-expired" || code === "auth/session-expired") {
-      return "This OTP has expired. Please tap 'Resend OTP' to receive a new code.";
-    }
-    return err?.message || "Authentication failed. Please try again.";
+    return err?.message || "Google Sign-In could not be completed. Please try again.";
   }
 
-  validateMobileNumber(countryCode, rawNumber) {
-    const cc = String(countryCode || "+91").trim();
-    const digits = String(rawNumber || "").replace(/[^\d]/g, "");
-    if (!/^\+\d{1,4}$/.test(cc)) {
-      return { ok: false, error: "Select a valid country code (e.g. +91)." };
+  async signInWithGoogle({ forceMethod = "" } = {}) {
+    if (!this.ready) {
+      return { ok: false, error: "Firebase Authentication is currently offline. Please check your internet connection." };
     }
-    if (cc === "+91") {
-      if (!/^[6-9]\d{9}$/.test(digits)) {
-        return { ok: false, error: "Enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)." };
-      }
-    } else if (digits.length < 7 || digits.length > 15) {
-      return { ok: false, error: "Enter a valid mobile number (7–15 digits)." };
+    if (this.authInFlight) {
+      return { ok: false, inFlight: true, error: "Google Sign-In is already in progress. Please wait..." };
     }
-    return { ok: true, e164: `${cc}${digits}`, digits };
-  }
-
-  resetRecaptcha(target = "login") {
-    const isLink = target === "link";
-    const verifier = isLink ? this.linkRecaptchaVerifier : this.recaptchaVerifier;
-    const containerId = isLink ? "link-recaptcha-container" : "recaptcha-container";
-    if (verifier) {
-      try { verifier.clear(); } catch (_) {}
-      if (isLink) this.linkRecaptchaVerifier = null;
-      else this.recaptchaVerifier = null;
-    }
-    if (typeof document !== "undefined") {
-      const el = document.getElementById(containerId);
-      if (el) el.innerHTML = "";
-    }
-  }
-
-  async prepareInvisibleRecaptcha(containerId, target = "login", onExpired = null) {
-    const { RecaptchaVerifier } = this.mods.authMod;
-    // Always clear any stale verifier instance cleanly to avoid duplicate render errors
-    this.resetRecaptcha(target);
-    const verifier = new RecaptchaVerifier(this.auth, containerId, {
-      size: "invisible",
-      callback: () => {},
-      "expired-callback": () => {
-        this.resetRecaptcha(target);
-        if (typeof onExpired === "function") onExpired();
-      }
-    });
-    if (target === "link") this.linkRecaptchaVerifier = verifier;
-    else this.recaptchaVerifier = verifier;
-    await verifier.render();
-    return verifier;
-  }
-
-  async signInWithGoogle() {
-    if (!this.ready) return { ok: false, error: "Firebase Authentication is currently offline. Please check your internet connection." };
-    if (this.authInFlight) return { ok: false, inFlight: true, error: "Sign-in is already in progress. Please wait..." };
 
     this.authInFlight = true;
     try {
@@ -194,133 +213,94 @@ class FirebaseService {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
 
+      // On Android Chrome, mobile browsers, and installed PWAs, prefer signInWithRedirect()
+      // to prevent popup blocking & accidental popup closure.
+      // If a previous redirect returned empty due to strict third-party cookie blocking, fall back to popup.
+      const shouldUseRedirect =
+        forceMethod === "redirect" ||
+        (forceMethod !== "popup" && this.isMobileOrStandaloneBrowser() && !this.lastRedirectReturnedEmpty);
+
+      if (shouldUseRedirect) {
+        this.markRedirectPending();
+        await signInWithRedirect(this.auth, provider);
+        return { ok: true, redirecting: true };
+      }
+
+      // Desktop browsers (or popup fallback)
       try {
         const res = await signInWithPopup(this.auth, provider);
+        this.lastRedirectReturnedEmpty = false;
         return { ok: true, user: res.user };
       } catch (popupErr) {
         const code = popupErr?.code || "";
-        // Automatic reliable redirect fallback when popups are blocked or unsupported (e.g. Android WebViews / strict browsers)
+        // Automatic safe redirect fallback for browser popup limitations
         if (
           code === "auth/popup-blocked" ||
           code === "auth/operation-not-supported-in-this-environment" ||
-          code === "auth/web-storage-unsupported"
+          code === "auth/web-storage-unsupported" ||
+          code === "auth/internal-error"
         ) {
+          this.markRedirectPending();
           await signInWithRedirect(this.auth, provider);
           return { ok: true, redirecting: true };
         }
-        return { ok: false, code, error: this.formatAuthError(popupErr, "google") };
+        const offerRedirectFallback =
+          code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request";
+        return {
+          ok: false,
+          code,
+          offerRedirectFallback,
+          error: this.formatAuthError(popupErr)
+        };
       }
-    } finally {
-      this.authInFlight = false;
-    }
-  }
-
-  async sendFirebaseSmsOtp(countryCode, rawNumber, recaptchaContainerId = "recaptcha-container", onExpired = null) {
-    if (!this.ready) return { ok: false, error: "Firebase Authentication is currently offline." };
-    if (this.authInFlight) return { ok: false, inFlight: true, error: "Please wait for the current request to finish." };
-
-    const check = this.validateMobileNumber(countryCode, rawNumber);
-    if (!check.ok) return check;
-
-    this.authInFlight = true;
-    try {
-      const { signInWithPhoneNumber } = this.mods.authMod;
-      const verifier = await this.prepareInvisibleRecaptcha(recaptchaContainerId, "login", onExpired);
-      this.phoneConfirmationResult = await signInWithPhoneNumber(this.auth, check.e164, verifier);
-      return { ok: true, phoneE164: check.e164 };
     } catch (err) {
-      this.resetRecaptcha("login");
-      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
+      this.clearRedirectPending();
+      return { ok: false, code: err?.code || "", error: this.formatAuthError(err) };
     } finally {
       this.authInFlight = false;
     }
   }
 
-  async verifyFirebaseSmsOtp(code) {
-    if (!this.phoneConfirmationResult) {
-      return { ok: false, error: "Please request an SMS OTP first." };
-    }
-    const cleanCode = String(code || "").replace(/[^\d]/g, "");
-    if (cleanCode.length !== 6) {
-      return { ok: false, error: "Enter the 6-digit OTP code sent to your mobile number." };
-    }
-    if (this.authInFlight) return { ok: false, inFlight: true, error: "Verifying OTP..." };
-
-    this.authInFlight = true;
-    try {
-      const cred = await this.phoneConfirmationResult.confirm(cleanCode);
-      this.phoneConfirmationResult = null;
-      this.resetRecaptcha("login");
-      return { ok: true, user: cred.user };
-    } catch (err) {
-      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
-    } finally {
-      this.authInFlight = false;
-    }
-  }
-
-  // Secure Account Linking: Link Google to Phone account OR Link Mobile OTP to Google account (same UID!)
+  // Safe migration helper: allows any legacy non-Google session to link Google to the same UID
   async linkGoogleAccount() {
-    if (!this.ready || !this.auth.currentUser) return { ok: false, error: "Sign in first to link your Google account." };
-    if (this.authInFlight) return { ok: false, inFlight: true, error: "Request already in progress." };
+    if (!this.ready || !this.auth.currentUser) {
+      return { ok: false, error: "Sign in first to link your Google Account." };
+    }
+    if (this.authInFlight) {
+      return { ok: false, inFlight: true, error: "Request already in progress." };
+    }
 
     this.authInFlight = true;
     try {
       const { GoogleAuthProvider, linkWithPopup, linkWithRedirect } = this.mods.authMod;
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
+
+      if (this.isMobileOrStandaloneBrowser() && !this.lastRedirectReturnedEmpty) {
+        this.markRedirectPending();
+        await linkWithRedirect(this.auth.currentUser, provider);
+        return { ok: true, redirecting: true };
+      }
+
       try {
         const res = await linkWithPopup(this.auth.currentUser, provider);
         return { ok: true, user: res.user };
       } catch (err) {
-        if (err?.code === "auth/popup-blocked" || err?.code === "auth/operation-not-supported-in-this-environment") {
+        const code = err?.code || "";
+        if (
+          code === "auth/popup-blocked" ||
+          code === "auth/operation-not-supported-in-this-environment" ||
+          code === "auth/web-storage-unsupported"
+        ) {
+          this.markRedirectPending();
           await linkWithRedirect(this.auth.currentUser, provider);
           return { ok: true, redirecting: true };
         }
-        return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "google") };
+        return { ok: false, code, error: this.formatAuthError(err) };
       }
-    } finally {
-      this.authInFlight = false;
-    }
-  }
-
-  async sendPhoneLinkOtp(countryCode, rawNumber, recaptchaContainerId = "link-recaptcha-container", onExpired = null) {
-    if (!this.ready || !this.auth.currentUser) return { ok: false, error: "Sign in first to link a mobile number." };
-    if (this.authInFlight) return { ok: false, inFlight: true, error: "Request already in progress." };
-
-    const check = this.validateMobileNumber(countryCode, rawNumber);
-    if (!check.ok) return check;
-
-    this.authInFlight = true;
-    try {
-      const { linkWithPhoneNumber } = this.mods.authMod;
-      const verifier = await this.prepareInvisibleRecaptcha(recaptchaContainerId, "link", onExpired);
-      this.phoneLinkConfirmationResult = await linkWithPhoneNumber(this.auth.currentUser, check.e164, verifier);
-      return { ok: true, phoneE164: check.e164 };
     } catch (err) {
-      this.resetRecaptcha("link");
-      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
-    } finally {
-      this.authInFlight = false;
-    }
-  }
-
-  async confirmPhoneLinkOtp(code) {
-    if (!this.phoneLinkConfirmationResult) {
-      return { ok: false, error: "Request a verification OTP first." };
-    }
-    const cleanCode = String(code || "").replace(/[^\d]/g, "");
-    if (cleanCode.length !== 6) {
-      return { ok: false, error: "Enter the 6-digit OTP code." };
-    }
-    this.authInFlight = true;
-    try {
-      const res = await this.phoneLinkConfirmationResult.confirm(cleanCode);
-      this.phoneLinkConfirmationResult = null;
-      this.resetRecaptcha("link");
-      return { ok: true, user: res.user };
-    } catch (err) {
-      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
+      this.clearRedirectPending();
+      return { ok: false, code: err?.code || "", error: this.formatAuthError(err) };
     } finally {
       this.authInFlight = false;
     }
@@ -328,10 +308,8 @@ class FirebaseService {
 
   async signOutUser() {
     this.unsubscribePrivate();
-    this.phoneConfirmationResult = null;
-    this.phoneLinkConfirmationResult = null;
-    this.resetRecaptcha("login");
-    this.resetRecaptcha("link");
+    this.clearRedirectPending();
+    this.lastRedirectReturnedEmpty = false;
     if (this.ready && this.auth.currentUser) {
       await this.mods.authMod.signOut(this.auth);
     }
@@ -460,6 +438,51 @@ class FirebaseService {
       return snap.exists() ? { id: snap.id, ...snap.data() } : null;
     } catch (_) {
       return null;
+    }
+  }
+
+  // Zero-Friction Automatic Google Profile Provisioning:
+  // - Returning users: returns existing Firestore profile UNTOUCHED (never overwrites role or saved data).
+  // - First-time Google users: creates a safe basic profile immediately so they enter the app in one click.
+  async ensureGoogleUserProfile(user, defaultLanguage = "EN") {
+    if (!this.ready || !user) return { profile: null, isNewUser: false };
+    const existing = await this.getUserProfileOnce(user.uid);
+    if (existing) {
+      return { profile: existing, isNewUser: false };
+    }
+
+    const { doc, setDoc, serverTimestamp } = this.mods.fsMod;
+    const email = (user.email || `${user.uid.slice(0, 12)}@user.gurujivision.app`).trim().slice(0, 120);
+    const displayName = (user.displayName || (user.email ? user.email.split("@")[0] : "Scholar")).trim().slice(0, 80) || "Scholar";
+    const language = defaultLanguage === "BN" ? "BN" : "EN";
+
+    const newProfile = {
+      userId: user.uid,
+      displayName,
+      email,
+      phoneNumber: String(user.phoneNumber || "").trim().slice(0, 25),
+      role: "STUDENT",
+      requestedRole: "STUDENT",
+      professorApprovalStatus: "NONE",
+      institutionOrVillage: "",
+      district: "",
+      state: "",
+      department: "",
+      subjectSpecialization: "",
+      semester: 1,
+      language,
+      photoUrl: String(user.photoURL || "").slice(0, 500),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastActiveAt: serverTimestamp()
+    };
+
+    try {
+      await setDoc(doc(this.db, "users", user.uid), newProfile);
+      return { profile: { id: user.uid, ...newProfile }, isNewUser: true };
+    } catch (err) {
+      console.warn("Auto-creating initial Google user profile failed:", err);
+      return { profile: null, isNewUser: true };
     }
   }
 

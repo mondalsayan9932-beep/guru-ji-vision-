@@ -703,8 +703,8 @@ export function renderFarmerAdvisorView(state) {
         <div class="lg:col-span-6 gv-card p-5 space-y-3.5">
           <h3 class="text-base font-extrabold text-[#14532D]">ফসলের সমস্যা বা প্রশ্ন পাঠান / Ask an Agri Expert</h3>
           ${!state.user ? `
-            <p class="text-xs sm:text-sm text-[#496052]">Sign in with your Mobile Number (OTP) or Email to send crop photos and questions directly to agricultural experts.</p>
-            <button data-action="open-auth" class="w-full py-3 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">লগইন করুন / Sign In to Ask Expert</button>
+            <p class="text-xs sm:text-sm text-[#496052]">Sign in with your Google Account to send crop photos and questions directly to agricultural experts.</p>
+            <button data-action="open-auth" class="w-full py-3 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">লগইন করুন / Continue with Google</button>
           ` : `
             <form id="farmerAdvisorForm" class="space-y-3">
               <label class="block">

@@ -181,13 +181,9 @@ const state = {
   aiHistory: [],
   aiBusy: false,
 
-  // Auth & Onboarding Flow State
-  otpPhoneE164: "",
-  otpCooldownSec: 0,
-  otpAttempts: 0,
-  pendingNewPhoneSignup: { name: "", role: "STUDENT" },
+  // Google Auth Session State
+  authInitializing: true,
   justSignedInFromAuth: false,
-  onboardingDismissedForUid: "",
 
   // PWA Install & Update State
   deferredInstallPrompt: null,
@@ -420,8 +416,8 @@ function renderShellChrome() {
       drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold";
     } else {
       drawerName.textContent = "Guest Visitor";
-      drawerSub.textContent = "Public access active • Sign in for private tools";
-      drawerAuthAction.textContent = "Sign In / Sign Up";
+      drawerSub.textContent = "Public access active • Sign in with Google for private tools";
+      drawerAuthAction.textContent = "Continue with Google";
       drawerAuthAction.dataset.action = "open-auth";
       drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold";
     }
@@ -502,17 +498,39 @@ function closeDrawer() {
   document.getElementById("mobileDrawer")?.classList.add("-translate-x-full");
 }
 
+const PROTECTED_ROUTES = new Set(["money", "doubt", "career-guidance", "farmer-advisor", "professor", "admin", "owner"]);
+
+function setAuthLoadingOverlay(show, title = "Signing you in...", sub = "Verifying your Google Account with Guru Ji Vision.") {
+  const overlay = document.getElementById("authLoadingOverlay");
+  if (!overlay) return;
+  if (show) {
+    const t = document.getElementById("authLoadingTitle");
+    const s = document.getElementById("authLoadingSub");
+    if (t) t.textContent = title;
+    if (s) s.textContent = sub;
+    overlay.classList.remove("hidden");
+  } else {
+    overlay.classList.add("hidden");
+  }
+}
+
 function clearAuthMessages() {
   document.getElementById("authErrorBox")?.classList.add("hidden");
   document.getElementById("authInfoBox")?.classList.add("hidden");
+  document.getElementById("googleRedirectFallbackBtn")?.classList.add("hidden");
 }
 
-function showAuthError(msg) {
+function showAuthError(msg, offerRedirectFallback = false) {
   document.getElementById("authInfoBox")?.classList.add("hidden");
   const box = document.getElementById("authErrorBox");
-  if (!box) return;
-  box.textContent = msg;
-  box.classList.remove("hidden");
+  if (box) {
+    box.textContent = msg;
+    box.classList.remove("hidden");
+  }
+  const fallbackBtn = document.getElementById("googleRedirectFallbackBtn");
+  if (fallbackBtn) {
+    fallbackBtn.classList.toggle("hidden", !offerRedirectFallback);
+  }
 }
 
 function showAuthInfo(msg) {
@@ -525,70 +543,21 @@ function showAuthInfo(msg) {
 
 function setGoogleBtnLoading(loading) {
   const btn = document.getElementById("googleSignInBtn");
+  const fallbackBtn = document.getElementById("googleRedirectFallbackBtn");
   const label = document.getElementById("googleSignInBtnLabel");
   if (btn) btn.disabled = loading;
-  if (label) label.textContent = loading ? "Signing in with Google..." : "Continue with Google (Gmail)";
-}
-
-function setSendOtpBtnLoading(loading) {
-  const smsBtn = document.getElementById("sendSmsOtpBtn");
-  if (!smsBtn) return;
-  if (loading) {
-    smsBtn.disabled = true;
-    smsBtn.textContent = "Sending OTP...";
-  } else if (state.otpCooldownSec <= 0) {
-    smsBtn.disabled = false;
-    smsBtn.textContent = "Send OTP";
-  }
+  if (fallbackBtn) fallbackBtn.disabled = loading;
+  if (label) label.textContent = loading ? "Signing in with Google..." : "Continue with Google";
 }
 
 function openAuthModal() {
   clearAuthMessages();
   setGoogleBtnLoading(false);
-  if (state.otpCooldownSec <= 0) {
-    setSendOtpBtnLoading(false);
-    document.getElementById("verifyOtpForm")?.classList.add("hidden");
-    const otpInput = document.getElementById("otpCodeInput");
-    if (otpInput) otpInput.value = "";
-  }
   document.getElementById("authModal")?.classList.remove("hidden");
 }
 
 function closeAuthModal() {
   document.getElementById("authModal")?.classList.add("hidden");
-}
-
-function toggleOnboardingRoleFields(role) {
-  const clean = String(role || "STUDENT").toUpperCase();
-  document.getElementById("onbStudentFields")?.classList.toggle("hidden", clean !== "STUDENT");
-  document.getElementById("onbFarmerFields")?.classList.toggle("hidden", clean !== "FARMER");
-  document.getElementById("onbProfessorFields")?.classList.toggle("hidden", clean !== "PROFESSOR");
-}
-
-function openOnboardingModal(user, prefill = {}) {
-  if (!user) return;
-  const fullNameEl = document.getElementById("onbFullName");
-  const roleEl = document.getElementById("onbRole");
-  const phoneEl = document.getElementById("onbPhone");
-  const emailEl = document.getElementById("onbEmail");
-  const defaultRole = prefill.role || (state.facultyIdentity?.isAuthorizedProfessor ? "PROFESSOR" : "STUDENT");
-
-  if (fullNameEl) fullNameEl.value = prefill.name || user.displayName || "";
-  if (roleEl) roleEl.value = ["STUDENT", "FARMER", "PROFESSOR"].includes(defaultRole) ? defaultRole : "STUDENT";
-  if (phoneEl) phoneEl.value = user.phoneNumber || prefill.phone || "";
-  if (emailEl) {
-    const email = user.email && !user.email.endsWith(".gurujivision.app") ? user.email : "";
-    emailEl.value = email;
-  }
-  toggleOnboardingRoleFields(roleEl?.value || "STUDENT");
-  document.getElementById("onboardingModal")?.classList.remove("hidden");
-}
-
-function closeOnboardingModal(markDismissed = false) {
-  document.getElementById("onboardingModal")?.classList.add("hidden");
-  if (markDismissed && state.user) {
-    state.onboardingDismissedForUid = state.user.uid;
-  }
 }
 
 function showLinkFeedback(msg, isError = false) {
@@ -603,30 +572,16 @@ function showLinkFeedback(msg, isError = false) {
 function renderLinkedProvidersState(user) {
   const providers = user?.providerData || [];
   const googleProvider = providers.find((p) => p.providerId === "google.com");
-  const phoneProvider = providers.find((p) => p.providerId === "phone");
 
   const googleStatus = document.getElementById("linkedGoogleStatus");
   const linkGoogleBtn = document.getElementById("linkGoogleBtn");
   if (googleStatus && linkGoogleBtn) {
     if (googleProvider) {
-      googleStatus.textContent = `Google (Gmail): Linked (${googleProvider.email || user.email || "Verified"})`;
+      googleStatus.textContent = `Google Account: Connected (${googleProvider.email || user.email || "Verified"})`;
       linkGoogleBtn.classList.add("hidden");
     } else {
-      googleStatus.textContent = "Google (Gmail): Not linked yet";
+      googleStatus.textContent = "Google Account: Not linked yet (Legacy session)";
       linkGoogleBtn.classList.remove("hidden");
-    }
-  }
-
-  const phoneStatus = document.getElementById("linkedPhoneStatus");
-  const linkPhoneSection = document.getElementById("linkPhoneSection");
-  if (phoneStatus && linkPhoneSection) {
-    if (phoneProvider || user?.phoneNumber) {
-      phoneStatus.textContent = `Mobile Number: Linked (${phoneProvider?.phoneNumber || user.phoneNumber})`;
-      linkPhoneSection.classList.add("hidden");
-    } else {
-      phoneStatus.textContent = "Mobile Number: Not linked yet";
-      linkPhoneSection.classList.remove("hidden");
-      document.getElementById("verifyLinkPhoneForm")?.classList.add("hidden");
     }
   }
 }
@@ -638,7 +593,7 @@ function openProfileModal() {
   }
   const p = state.userProfile || {};
   document.getElementById("profFullName").value = p.displayName || state.user.displayName || "";
-  document.getElementById("profMobile").value = state.user.phoneNumber || p.phoneNumber || "";
+  document.getElementById("profMobile").value = p.phoneNumber || state.user.phoneNumber || "";
   document.getElementById("profEmail").value = p.email && !p.email.endsWith(".gurujivision.app") ? p.email : (state.user.email || "");
   const effectiveSelectRole = (p.role === "PROFESSOR" || p.requestedRole === "PROFESSOR")
     ? "PROFESSOR"
@@ -711,30 +666,30 @@ function redirectAfterSignIn(profile) {
   }
 }
 
-// ----------------------------------------------------------------------------
-// OTP COOLDOWN TIMER (Firebase Phone Auth)
-// ----------------------------------------------------------------------------
-let otpCooldownInterval = null;
-function startOtpCooldown(seconds = 45) {
-  state.otpCooldownSec = seconds;
-  clearInterval(otpCooldownInterval);
-  const updateBtn = () => {
-    const smsBtn = document.getElementById("sendSmsOtpBtn");
-    const resendBtn = document.getElementById("resendOtpBtn");
-    if (state.otpCooldownSec > 0) {
-      if (smsBtn) { smsBtn.disabled = true; smsBtn.textContent = `Wait ${state.otpCooldownSec}s`; }
-      if (resendBtn) { resendBtn.disabled = true; resendBtn.textContent = `Resend OTP in ${state.otpCooldownSec}s`; }
-    } else {
-      if (smsBtn) { smsBtn.disabled = false; smsBtn.textContent = "Send OTP"; }
-      if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = "Resend OTP"; }
+async function handleGoogleSignIn(forceMethod = "") {
+  clearAuthMessages();
+  setGoogleBtnLoading(true);
+  let redirecting = false;
+  try {
+    const res = await firebaseService.signInWithGoogle({ forceMethod });
+    if (res.redirecting) {
+      redirecting = true;
+      showAuthInfo("Redirecting securely to Google Sign-In...");
+      setAuthLoadingOverlay(true, "Opening Google Sign-In...", "Select your Google Account to enter Guru Ji Vision.");
+      return;
     }
-  };
-  updateBtn();
-  otpCooldownInterval = setInterval(() => {
-    state.otpCooldownSec = Math.max(0, state.otpCooldownSec - 1);
-    updateBtn();
-    if (state.otpCooldownSec <= 0) clearInterval(otpCooldownInterval);
-  }, 1000);
+    if (res.ok && res.user) {
+      state.justSignedInFromAuth = true;
+      closeAuthModal();
+    } else if (!res.inFlight) {
+      showAuthError(
+        res.error || "Google Sign-In could not be completed. Please try again.",
+        Boolean(res.offerRedirectFallback)
+      );
+    }
+  } finally {
+    if (!redirecting) setGoogleBtnLoading(false);
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -768,26 +723,23 @@ function handleRedirectOutcome(res) {
     closeAuthModal();
     if (!document.getElementById("profileModal")?.classList.contains("hidden")) {
       renderLinkedProvidersState(res.user);
-      showLinkFeedback("Google (Gmail) account linked successfully!", false);
+      showLinkFeedback("Google Account linked successfully!", false);
     }
-    showToast(`Welcome, ${res.user.displayName || res.user.email || "Guru Ji Member"}!`);
   } else if (!res.ok && res.error) {
+    setAuthLoadingOverlay(false);
+    openAuthModal();
+    showAuthError(res.error, false);
     showToast(res.error, true);
-    if (!document.getElementById("authModal")?.classList.contains("hidden")) {
-      showAuthError(res.error);
-    }
   }
 }
 
 async function handleAuthStateChange(user) {
+  state.authInitializing = false;
+
   if (!user) {
+    setAuthLoadingOverlay(false);
     clearPrivateStateOnLogout();
     state.justSignedInFromAuth = false;
-    state.onboardingDismissedForUid = "";
-    state.pendingNewPhoneSignup = { name: "", role: "STUDENT" };
-    clearInterval(otpCooldownInterval);
-    state.otpCooldownSec = 0;
-    closeOnboardingModal(false);
     // Re-subscribe public collections in guest mode so live public data stays connected
     firebaseService.subscribePublicCollections({
       isAdmin: false,
@@ -801,19 +753,21 @@ async function handleAuthStateChange(user) {
 
   state.user = user;
   state.openingBalance = loadOpeningBalanceForUid(user.uid);
-  const [roles, existingProfile] = await Promise.all([
+  const [roles, profileResult] = await Promise.all([
     firebaseService.resolveUserRoles(user),
-    firebaseService.getUserProfileOnce(user.uid)
+    firebaseService.ensureGoogleUserProfile(user, state.lang.toUpperCase())
   ]);
+
   state.isAdmin = roles.isAdmin;
   state.isSuperAdmin = roles.isSuperAdmin;
   state.facultyIdentity = roles.facultyIdentity;
   state.cloudConnected = true;
 
-  if (existingProfile) {
-    state.userProfile = existingProfile;
-    if (!state.moneyLedgerScope && existingProfile.role) {
-      state.moneyLedgerScope = existingProfile.role === "FARMER" ? "FARMER" : "STUDENT";
+  const activeProfile = profileResult.profile;
+  if (activeProfile) {
+    state.userProfile = activeProfile;
+    if (!state.moneyLedgerScope && activeProfile.role) {
+      state.moneyLedgerScope = activeProfile.role === "FARMER" ? "FARMER" : "STUDENT";
     }
   }
 
@@ -862,13 +816,22 @@ async function handleAuthStateChange(user) {
     });
   }
 
-  // First-time user onboarding vs returning user preservation
-  if (!existingProfile && state.onboardingDismissedForUid !== user.uid) {
-    openOnboardingModal(user, state.pendingNewPhoneSignup);
-  } else if (existingProfile && state.justSignedInFromAuth) {
+  closeAuthModal();
+  setAuthLoadingOverlay(false);
+
+  // One-click seamless dashboard entry (zero blocking registration forms)
+  if (state.justSignedInFromAuth) {
     state.justSignedInFromAuth = false;
-    redirectAfterSignIn(existingProfile);
-    return;
+    const firstName = (activeProfile?.displayName || user.displayName || user.email || "Scholar").split(" ")[0];
+    showToast(
+      profileResult.isNewUser
+        ? `Welcome to Guru Ji Vision, ${firstName}! You can customize your role anytime in Profile.`
+        : `Welcome back, ${firstName}!`
+    );
+    if (state.route === "home") {
+      redirectAfterSignIn(activeProfile);
+      return;
+    }
   }
 
   renderActiveView();
@@ -985,7 +948,6 @@ function bindGlobalEvents() {
   document.addEventListener("click", async (e) => {
     // Modal dark backdrop clicks
     if (e.target.id === "authModal") { closeAuthModal(); return; }
-    if (e.target.id === "onboardingModal") { closeOnboardingModal(true); return; }
     if (e.target.id === "profileModal") { closeProfileModal(); return; }
     if (e.target.id === "readerModal") { closeReaderModal(); return; }
 
@@ -1103,7 +1065,6 @@ function bindGlobalEvents() {
         case "close-drawer": closeDrawer(); return;
         case "open-auth": closeDrawer(); openAuthModal(); return;
         case "close-auth": closeAuthModal(); return;
-        case "close-onboarding": closeOnboardingModal(true); return;
         case "open-profile": closeDrawer(); openProfileModal(); return;
         case "close-profile": closeProfileModal(); return;
         case "close-reader": closeReaderModal(); return;
@@ -1121,29 +1082,12 @@ function bindGlobalEvents() {
             renderActiveView();
           }
           return;
-        case "google-signin": {
-          clearAuthMessages();
-          setGoogleBtnLoading(true);
-          let redirecting = false;
-          try {
-            const res = await firebaseService.signInWithGoogle();
-            if (res.redirecting) {
-              redirecting = true;
-              showAuthInfo("Redirecting securely to Google Sign-In...");
-              return;
-            }
-            if (res.ok && res.user) {
-              state.justSignedInFromAuth = true;
-              closeAuthModal();
-              showToast(`Welcome, ${res.user.displayName || res.user.email}!`);
-            } else {
-              showAuthError(res.error || "Google Sign-In failed. Please try again.");
-            }
-          } finally {
-            if (!redirecting) setGoogleBtnLoading(false);
-          }
+        case "google-signin":
+          await handleGoogleSignIn("");
           return;
-        }
+        case "google-signin-redirect":
+          await handleGoogleSignIn("redirect");
+          return;
         case "link-google": {
           const btn = document.getElementById("linkGoogleBtn");
           if (btn) { btn.disabled = true; btn.textContent = "Linking..."; }
@@ -1157,10 +1101,10 @@ function bindGlobalEvents() {
             }
             if (res.ok && res.user) {
               renderLinkedProvidersState(res.user);
-              showLinkFeedback("Google (Gmail) linked to this account! All your data remains unified.", false);
-              showToast("Google account linked successfully!");
+              showLinkFeedback("Google Account linked to this account! All your data remains unified.", false);
+              showToast("Google Account linked successfully!");
             } else {
-              showLinkFeedback(res.error || "Could not link Google account.", true);
+              showLinkFeedback(res.error || "Could not link Google Account.", true);
             }
           } finally {
             if (!redirecting && btn) {
@@ -1820,7 +1764,6 @@ function bindGlobalEvents() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeAuthModal();
-      closeOnboardingModal(true);
       closeProfileModal();
       closeReaderModal();
       closeDrawer();
@@ -1868,35 +1811,9 @@ function bindGlobalEvents() {
     }
   });
 
-  // Change Delegation (Select filters + Auth/Onboarding fields + Image/PDF Uploads)
+  // Change Delegation (Select filters + Image/PDF Uploads)
   document.addEventListener("change", async (e) => {
     const id = e.target.id;
-    if (id === "onbRole") {
-      toggleOnboardingRoleFields(e.target.value);
-      return;
-    }
-    if (id === "phoneNewUserRole") {
-      document.getElementById("phoneProfRoleHint")?.classList.toggle("hidden", e.target.value !== "PROFESSOR");
-      return;
-    }
-    if (id === "phoneCountryCode") {
-      const inp = document.getElementById("phoneNumberInput");
-      if (inp) {
-        const isIndia = e.target.value === "+91";
-        inp.maxLength = isIndia ? 10 : 15;
-        inp.placeholder = isIndia ? "10-digit mobile number" : "Mobile number (digits only)";
-      }
-      return;
-    }
-    if (id === "linkPhoneCountryCode") {
-      const inp = document.getElementById("linkPhoneInput");
-      if (inp) {
-        const isIndia = e.target.value === "+91";
-        inp.maxLength = isIndia ? 10 : 15;
-        inp.placeholder = isIndia ? "10-digit mobile" : "Mobile number";
-      }
-      return;
-    }
     if (id === "marketStateSelect") {
       state.marketFilterState = e.target.value;
       state.marketFilterDistrict = "ALL";
@@ -2483,57 +2400,6 @@ function bindGlobalEvents() {
         return;
       }
 
-      // First-Time User Profile Completion (Onboarding Modal)
-      if (form.id === "onboardingForm" && state.user) {
-        await withBusySubmit(form, async () => {
-          const selectedRole = document.getElementById("onbRole").value;
-          const isStudent = selectedRole === "STUDENT";
-          const isFarmer = selectedRole === "FARMER";
-          const isProf = selectedRole === "PROFESSOR";
-
-          const institutionOrVillage = isStudent
-            ? document.getElementById("onbCollege")?.value || ""
-            : (isFarmer
-              ? document.getElementById("onbVillage")?.value || ""
-              : document.getElementById("onbProfInstitution")?.value || "");
-
-          const department = isStudent
-            ? document.getElementById("onbStudentDept")?.value || ""
-            : (isProf ? document.getElementById("onbProfDept")?.value || "" : "");
-
-          await firebaseService.saveUserProfile(
-            state.user,
-            {
-              displayName: document.getElementById("onbFullName").value,
-              email: document.getElementById("onbEmail").value,
-              phoneNumber: document.getElementById("onbPhone").value,
-              role: selectedRole,
-              requestedRole: selectedRole,
-              institutionOrVillage,
-              district: isFarmer ? (document.getElementById("onbDistrict")?.value || "") : "",
-              state: isFarmer ? (document.getElementById("onbState")?.value || "") : "",
-              department,
-              subjectSpecialization: isProf ? (document.getElementById("onbProfSpec")?.value || "") : "",
-              semester: isStudent ? document.getElementById("onbSemester").value : 0,
-              language: state.lang.toUpperCase()
-            },
-            null
-          );
-
-          state.pendingNewPhoneSignup = { name: "", role: "STUDENT" };
-          state.justSignedInFromAuth = false;
-          closeOnboardingModal(false);
-
-          if (isProf && !state.facultyIdentity?.isAuthorizedProfessor) {
-            showToast("Profile saved! Your Professor request is pending Super Admin verification.");
-          } else {
-            showToast("Profile saved! Welcome to Guru Ji Vision.");
-          }
-          redirectAfterSignIn({ role: isFarmer ? "FARMER" : "STUDENT" });
-        });
-        return;
-      }
-
       // User Profile Save (Preserves existing UID & prevents self-escalation)
       if (form.id === "profileForm" && state.user) {
         await withBusySubmit(form, async () => {
@@ -2565,138 +2431,9 @@ function bindGlobalEvents() {
         });
         return;
       }
-
-      // Firebase SMS OTP Verification Form (Real Firebase Phone Auth)
-      if (form.id === "verifyOtpForm") {
-        await withBusySubmit(form, async () => {
-          if (state.otpAttempts >= 5) {
-            showAuthError("Too many verification attempts. Please request a fresh OTP.");
-            return;
-          }
-          state.otpAttempts++;
-          clearAuthMessages();
-          const code = document.getElementById("otpCodeInput").value.trim();
-          const res = await firebaseService.verifyFirebaseSmsOtp(code);
-          if (res.ok && res.user) {
-            state.otpAttempts = 0;
-            state.justSignedInFromAuth = true;
-            document.getElementById("otpCodeInput").value = "";
-            document.getElementById("verifyOtpForm")?.classList.add("hidden");
-            closeAuthModal();
-            showToast("Mobile number verified! Welcome to Guru Ji Vision.");
-          } else {
-            showAuthError(res.error || "Incorrect OTP code. Please try again.");
-          }
-        });
-        return;
-      }
-
-      // Account Linking: Verify & Link Mobile Number OTP to Signed-In Account (Same UID)
-      if (form.id === "verifyLinkPhoneForm" && state.user) {
-        await withBusySubmit(form, async () => {
-          const code = document.getElementById("linkOtpInput").value.trim();
-          const res = await firebaseService.confirmPhoneLinkOtp(code);
-          if (res.ok && res.user) {
-            document.getElementById("linkOtpInput").value = "";
-            document.getElementById("verifyLinkPhoneForm")?.classList.add("hidden");
-            if (state.userProfile && res.user.phoneNumber) {
-              await firebaseService.saveUserProfile(
-                res.user,
-                { ...state.userProfile, phoneNumber: res.user.phoneNumber },
-                state.userProfile
-              ).catch(() => {});
-            }
-            const mobileEl = document.getElementById("profMobile");
-            if (mobileEl && res.user.phoneNumber) mobileEl.value = res.user.phoneNumber;
-            renderLinkedProvidersState(res.user);
-            showLinkFeedback(`Mobile number ${res.user.phoneNumber || ""} verified and linked to your account!`, false);
-            showToast("Mobile number linked successfully!");
-          } else {
-            showLinkFeedback(res.error || "Could not verify OTP code.", true);
-          }
-        });
-        return;
-      }
     } catch (err) {
       console.error("Action failed:", err);
       showToast(err?.message || "Operation failed. Check permissions or internet connection.", true);
-    }
-  });
-
-  // Shared Firebase Phone Auth SMS OTP Sender (Used by Send OTP & Resend OTP)
-  async function triggerSendSmsOtp() {
-    clearAuthMessages();
-    const cc = (document.getElementById("phoneCountryCode")?.value || "+91").trim();
-    const num = (document.getElementById("phoneNumberInput")?.value || "").trim();
-    const newName = (document.getElementById("phoneNewUserName")?.value || "").trim();
-    const newRole = document.getElementById("phoneNewUserRole")?.value || "STUDENT";
-
-    const check = firebaseService.validateMobileNumber(cc, num);
-    if (!check.ok) {
-      showAuthError(check.error);
-      return;
-    }
-
-    state.pendingNewPhoneSignup = { name: newName, role: newRole };
-    setSendOtpBtnLoading(true);
-    const resendBtn = document.getElementById("resendOtpBtn");
-    if (resendBtn) resendBtn.disabled = true;
-
-    const res = await firebaseService.sendFirebaseSmsOtp(
-      cc,
-      num,
-      "recaptcha-container",
-      () => showAuthError("Security verification (reCAPTCHA) expired. Please tap Send OTP again.")
-    );
-
-    if (res.ok) {
-      state.otpPhoneE164 = res.phoneE164;
-      state.otpAttempts = 0;
-      document.getElementById("verifyOtpForm")?.classList.remove("hidden");
-      document.getElementById("otpCodeInput")?.focus();
-      startOtpCooldown(45);
-      showAuthInfo(`6-digit verification SMS sent to ${res.phoneE164}. Enter the code below.`);
-      showToast(`SMS OTP sent to ${res.phoneE164}`);
-    } else {
-      setSendOtpBtnLoading(false);
-      if (resendBtn && state.otpCooldownSec <= 0) resendBtn.disabled = false;
-      showAuthError(res.error || "Unable to send SMS OTP right now. Please try 'Continue with Google (Gmail)' above.");
-    }
-  }
-
-  document.getElementById("sendSmsOtpBtn")?.addEventListener("click", triggerSendSmsOtp);
-  document.getElementById("resendOtpBtn")?.addEventListener("click", () => {
-    if (state.otpCooldownSec > 0) return;
-    triggerSendSmsOtp();
-  });
-
-  // Account Linking: Send Mobile OTP inside Profile Modal
-  document.getElementById("sendLinkPhoneOtpBtn")?.addEventListener("click", async () => {
-    const btn = document.getElementById("sendLinkPhoneOtpBtn");
-    const cc = (document.getElementById("linkPhoneCountryCode")?.value || "+91").trim();
-    const num = (document.getElementById("linkPhoneInput")?.value || "").trim();
-    const check = firebaseService.validateMobileNumber(cc, num);
-    if (!check.ok) {
-      showLinkFeedback(check.error, true);
-      return;
-    }
-    if (btn) { btn.disabled = true; btn.textContent = "Sending..."; }
-    try {
-      const res = await firebaseService.sendPhoneLinkOtp(
-        cc,
-        num,
-        "link-recaptcha-container",
-        () => showLinkFeedback("reCAPTCHA expired. Tap Send OTP again.", true)
-      );
-      if (res.ok) {
-        document.getElementById("verifyLinkPhoneForm")?.classList.remove("hidden");
-        document.getElementById("linkOtpInput")?.focus();
-        showLinkFeedback(`OTP sent to ${res.phoneE164}. Enter the 6-digit code to link this mobile number.`, false);
-      } else {
-        showLinkFeedback(res.error || "Could not send linking OTP.", true);
-      }
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "Send OTP"; }
     }
   });
 
@@ -2730,6 +2467,14 @@ if (initialHash && VALID_ROUTES.has(initialHash)) {
 } else {
   renderActiveView();
 }
+
+// Show auth session loading overlay ONLY when returning from Google Redirect or opening a protected route
+if (firebaseService.hasPendingRedirect()) {
+  setAuthLoadingOverlay(true, "Completing Google Sign-In...", "Loading your Guru Ji Vision dashboard...");
+} else if (PROTECTED_ROUTES.has(state.route)) {
+  setAuthLoadingOverlay(true, "Restoring your session...", "Checking your Google Account status...");
+}
+
 firebaseService.init(handleAuthStateChange, handleCollectionUpdate, handleRedirectOutcome);
 
 if ("serviceWorker" in navigator) {

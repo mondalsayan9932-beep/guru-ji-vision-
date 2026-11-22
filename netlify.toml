@@ -11,6 +11,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Frame-Options = "SAMEORIGIN"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
 
 [[headers]]
   for = "/manifest.json"
@@ -21,6 +22,18 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[redirects]]
+  from = "/__/auth/*"
+  to = "https://guru-ji-vision.firebaseapp.com/__/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/__/firebase/init.json"
+  to = "https://guru-ji-vision.firebaseapp.com/__/firebase/init.json"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/.netlify/functions/*"

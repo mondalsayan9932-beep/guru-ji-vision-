@@ -1,4 +1,4 @@
-const CACHE_NAME = "guruji-vision-static-v5";
+const CACHE_NAME = "guruji-vision-static-v6";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -48,6 +48,7 @@ self.addEventListener("fetch", (event) => {
   // STRICT PRIVACY & LIVE DATA RULE:
   // Never cache Firebase Auth/Firestore, Netlify serverless functions, Weather APIs, or Market APIs.
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/__/")) return;
   if (url.pathname.startsWith("/.netlify/")) return;
 
   event.respondWith(
