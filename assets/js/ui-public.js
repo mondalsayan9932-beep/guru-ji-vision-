@@ -9,6 +9,7 @@ import {
   CAREER_CATEGORIES,
   COMMUNITY_TOPICS,
   CROP_PRESETS,
+  GREEN_HEAVEN_CONFIG,
   ICAR_SYLLABUS,
   STUDY_CATEGORIES
 } from "./config.js";
@@ -21,6 +22,43 @@ import {
   isUpcomingMeeting,
   safeUrl
 } from "./calculators.js";
+
+const GREEN_HEAVEN_LOGO_SVG = `
+  <span class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-[#14532D] text-emerald-100 shadow-sm shrink-0" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 20a10 10 0 0 0 10-10 25.9 25.9 0 0 0-1.04-7.281 1 1 0 0 0-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0 0 11 20"></path>
+      <path d="M2 21a5 5 0 0 1 2.911-4.544C7.613 15.212 8.351 15.24 11 13"></path>
+    </svg>
+  </span>
+`;
+
+function renderGreenHeavenCompactCard() {
+  const gh = GREEN_HEAVEN_CONFIG;
+  return `
+    <div class="rounded-3xl border border-emerald-300/80 bg-gradient-to-r from-[#ECFDF5] via-white to-[#F0FDF4] p-4 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5 min-w-0">
+        ${GREEN_HEAVEN_LOGO_SVG}
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm sm:text-base font-extrabold text-[#14532D]">${escapeHtml(gh.sectionTitle)}</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-200/80 text-[#0C3B20] text-[10px] font-extrabold uppercase tracking-wide">Open Access • No Login Needed</span>
+          </div>
+          <p class="text-xs sm:text-sm text-[#496052] mt-0.5">
+            Shop verified Indoor, Flowering, Outdoor &amp; Succulent plants, Gladiolus bulbs, and organic Vermi Compost directly on Green Heaven.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <a href="${escapeHtml(gh.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+          <span>Shop Now ↗</span>
+        </a>
+        <button data-nav="marketplace" type="button" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#EDF4EE] border border-[#CDE0D3] text-[#14532D] text-xs font-extrabold transition-colors">
+          View Categories
+        </button>
+      </div>
+    </div>
+  `;
+}
 
 // ----------------------------------------------------------------------------
 // 1. HOME DASHBOARD
@@ -39,6 +77,7 @@ export function renderHomeView(state) {
   const moduleCards = [
     { tab: "weather", title: "Weather Report & Forecast", sub: "আবহাওয়া পূর্বাভাস • Hourly, 7-Day & Agri Alerts", icon: "⛅", bg: "bg-sky-50 border-sky-200" },
     { tab: "market", title: "Crop Market Price (বাজারদর)", sub: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates", icon: "📊", bg: "bg-amber-50 border-amber-200" },
+    { tab: "marketplace", title: "Green Heaven Marketplace", sub: "Official Plant Store • Indoor, Flowering, Bulbs & Vermi Compost", icon: "🌿", bg: "bg-emerald-50 border-emerald-300" },
     { tab: "student", title: "Student Academic Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: "🎓", bg: "bg-emerald-50 border-emerald-200" },
     { tab: "career-guidance", title: "Student Career Guidance", sub: unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors", icon: "🧭", bg: "bg-indigo-50 border-indigo-200" },
     { tab: "farmer-advisor", title: "Farmer Advisor Expert", sub: "কৃষক পরামর্শ বিশেষজ্ঞ • Crop Photos & Q&A", icon: "👨‍🌾", bg: "bg-lime-50 border-lime-200" },
@@ -131,6 +170,7 @@ export function renderHomeView(state) {
             <button data-nav="student" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Notes</button>
             <button data-nav="career-guidance" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Career Guidance</button>
             <button data-nav="money" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Money Manager</button>
+            <button data-nav="marketplace" class="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-[#0C3B20] text-xs font-extrabold">🌿 Green Heaven</button>
           </div>
         </div>
 
@@ -139,11 +179,12 @@ export function renderHomeView(state) {
             <h3 class="text-sm font-extrabold text-[#14532D]">🌾 For Farmers (কৃষক বন্ধু)</h3>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-950">বাংলা সহায়ক</span>
           </div>
-          <p class="text-xs text-[#496052]">Live Weather &amp; Rain alerts, Crop Market Prices (বাজারদর), Expert Crop Advice &amp; Private Farm Accounts.</p>
+          <p class="text-xs text-[#496052]">Live Weather &amp; Rain alerts, Crop Market Prices (বাজারদর), Expert Crop Advice, Green Heaven Store &amp; Private Farm Accounts.</p>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <button data-nav="weather" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">আবহাওয়া</button>
             <button data-nav="market" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">বাজারদর</button>
             <button data-nav="farmer-advisor" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">বিশেষজ্ঞ পরামর্শ</button>
+            <button data-nav="marketplace" class="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-[#0C3B20] text-xs font-extrabold">🌿 Green Heaven</button>
           </div>
         </div>
 
@@ -159,6 +200,43 @@ export function renderHomeView(state) {
           </div>
         </div>
       </div>
+
+      <!-- Featured Partner Store: Agricultural Marketplace – Green Heaven -->
+      <section class="relative overflow-hidden rounded-3xl border-2 border-[#1E7E45]/35 bg-gradient-to-br from-[#F0FDF4] via-white to-[#ECFDF5] p-5 sm:p-6 shadow-sm">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div class="space-y-2.5 max-w-2xl">
+            <div class="flex flex-wrap items-center gap-2.5">
+              ${GREEN_HEAVEN_LOGO_SVG}
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-extrabold uppercase tracking-wider text-[#1E7E45]">GREEN HEAVEN • OFFICIAL STORE</span>
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-[#14532D] text-[10px] font-extrabold">No Login Required</span>
+                </div>
+                <h3 class="font-display text-lg sm:text-xl font-bold text-[#14532D]">${escapeHtml(GREEN_HEAVEN_CONFIG.sectionTitle)}</h3>
+              </div>
+            </div>
+            <p class="text-xs sm:text-sm text-[#496052] leading-relaxed">
+              Bring nature home with our official plant &amp; gardening marketplace. Explore live Indoor, Flowering, Succulent &amp; Outdoor plants, Gladiolus planting bulbs, organic Vermi Compost, and plant care guides—with independent cart &amp; checkout.
+            </p>
+            <div class="flex flex-wrap gap-1.5 pt-0.5">
+              ${GREEN_HEAVEN_CONFIG.verifiedCategories.slice(0, 5).map((cat) => `
+                <a href="${escapeHtml(cat.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#D8F3DC] border border-[#CDE0D3] text-[#14532D] text-[11px] font-bold transition-colors">
+                  <span>${cat.icon}</span><span>${escapeHtml(cat.name)}</span>
+                </a>
+              `).join("")}
+            </div>
+          </div>
+
+          <div class="flex flex-wrap sm:flex-nowrap lg:flex-col gap-2.5 shrink-0">
+            <a href="${escapeHtml(GREEN_HEAVEN_CONFIG.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs sm:text-sm font-extrabold shadow-md transition-colors">
+              <span>🌿 Shop Now at Green Heaven ↗</span>
+            </a>
+            <button data-nav="marketplace" type="button" class="px-4 py-2.5 rounded-2xl bg-white hover:bg-[#EDF4EE] border border-[#CDE0D3] text-[#14532D] text-xs font-extrabold transition-colors">
+              Explore Marketplace Section →
+            </button>
+          </div>
+        </div>
+      </section>
 
       <!-- Active Notices Banner -->
       ${activeNotices.length > 0 ? `
@@ -360,6 +438,8 @@ export function renderStudentView(state) {
       ` : ""}
 
       ${sub === "quiz" ? renderQuizSection(state, activeQuizzes) : ""}
+
+      ${renderGreenHeavenCompactCard()}
     </div>
   `;
 }
@@ -488,13 +568,16 @@ export function renderFarmerView(state) {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/15">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-white/15">
           <button data-nav="weather" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">⛅ আবহাওয়া / Weather</button>
           <button data-nav="market" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">📊 বাজারদর / Mandi Price</button>
+          <button data-nav="marketplace" class="px-3 py-2.5 rounded-xl bg-amber-400/95 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold text-left">🌿 Green Heaven Store</button>
           <button data-nav="farmer-advisor" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">👨‍🌾 বিশেষজ্ঞ পরামর্শ</button>
           <button data-nav="money" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">🔒 কৃষি আয়-ব্যয় হিসাব</button>
         </div>
       </div>
+
+      ${renderGreenHeavenCompactCard()}
 
       <!-- Crop Production, Disease & IPM Knowledge Base (All 6 Original Crops) -->
       <div class="space-y-3">
@@ -747,6 +830,117 @@ export function renderToolsView(state) {
           </div>
         </div>
       </div>
+
+      ${renderGreenHeavenCompactCard()}
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// 4B. AGRICULTURAL MARKETPLACE – GREEN HEAVEN (Official Connected Storefront)
+// ----------------------------------------------------------------------------
+export function renderMarketplaceView() {
+  const gh = GREEN_HEAVEN_CONFIG;
+
+  return `
+    <div class="space-y-5 animate-fade-up">
+      <!-- Green Heaven Branded Hero -->
+      <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0C3B20] via-[#14532D] to-[#1E7E45] text-white p-5 sm:p-7 shadow-lg">
+        <div class="absolute -right-12 -bottom-12 w-56 h-56 rounded-full bg-emerald-300/15 blur-2xl pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div class="space-y-3 max-w-2xl">
+            <div class="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/15 text-xs font-bold text-emerald-100">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 20a10 10 0 0 0 10-10 25.9 25.9 0 0 0-1.04-7.281 1 1 0 0 0-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0 0 11 20"></path>
+                <path d="M2 21a5 5 0 0 1 2.911-4.544C7.613 15.212 8.351 15.24 11 13"></path>
+              </svg>
+              <span>GREEN HEAVEN • OFFICIAL CONNECTED MARKETPLACE</span>
+            </div>
+            <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">${escapeHtml(gh.sectionTitle)}</h2>
+            <p class="text-xs sm:text-sm text-emerald-100 font-semibold">${escapeHtml(gh.sectionTitleBn)} — ${escapeHtml(gh.tagline)}</p>
+            <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+              Open to all students, farmers, and visitors with zero Guru Ji Vision login required. Tapping any button below opens the official Green Heaven store directly so your cart, products, and checkout work smoothly on Android phones, tablets, and desktops.
+            </p>
+            <div class="flex flex-wrap gap-2.5 pt-1">
+              <a href="${escapeHtml(gh.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs sm:text-sm font-extrabold shadow-md transition-colors">
+                <span>🌿 Shop Now — Green Heaven ↗</span>
+              </a>
+              <a href="${escapeHtml(gh.shopUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
+                <span>Browse All Products ↗</span>
+              </a>
+              <a href="${escapeHtml(gh.careGuideUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
+                <span>💧 Plant Care Guide ↗</span>
+              </a>
+              <a href="${escapeHtml(gh.cartUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
+                <span>🛒 View Cart ↗</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="rounded-2xl bg-white/10 border border-white/20 p-4 space-y-2 lg:w-72 shrink-0">
+            <div class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Official Store Address</div>
+            <div class="text-xs sm:text-sm font-bold break-all text-white">green-heaven-a.netlify.app</div>
+            <ul class="text-[11px] text-emerald-100 space-y-1 pt-1">
+              <li>✓ Publicly accessible — no login needed</li>
+              <li>✓ Independent cart, account &amp; checkout</li>
+              <li>✓ Local delivery &amp; plant care support</li>
+              <li>✓ Easy return to Guru Ji Vision anytime</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Verified Available Categories on Green Heaven -->
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D]">Verified Categories Available on Green Heaven</h3>
+            <p class="text-xs text-[#496052]">Direct links to active Green Heaven store sections. Live stock and prices always load directly on Green Heaven.</p>
+          </div>
+          <a href="${escapeHtml(gh.shopUrl)}" target="_blank" rel="noopener noreferrer" class="text-xs font-extrabold text-[#1E7E45] hover:underline">
+            Open Full Catalog ↗
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${gh.verifiedCategories.map((cat) => `
+            <a href="${escapeHtml(cat.url)}" target="_blank" rel="noopener noreferrer" class="group rounded-2xl border p-4 sm:p-5 flex flex-col justify-between gap-3 transition-all hover:shadow-md ${cat.accent}">
+              <div class="space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-2xl leading-none">${cat.icon}</span>
+                    <div>
+                      <h4 class="text-sm sm:text-base font-extrabold text-[#132219] group-hover:text-[#14532D]">${escapeHtml(cat.name)}</h4>
+                      <div class="text-[11px] font-semibold text-[#1E7E45]">${escapeHtml(cat.nameBn)}</div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-extrabold text-[#14532D] opacity-75 group-hover:opacity-100">↗</span>
+                </div>
+                <p class="text-xs text-[#496052] leading-relaxed">${escapeHtml(cat.description)}</p>
+              </div>
+              <div class="inline-flex items-center justify-between pt-2 border-t border-black/5 text-xs font-extrabold text-[#14532D]">
+                <span>Open on Green Heaven</span>
+                <span>Shop Now →</span>
+              </div>
+            </a>
+          `).join("")}
+        </div>
+      </section>
+
+      <!-- Transparency & Quick Return to Guru Ji Vision -->
+      <section class="gv-card p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1 max-w-2xl">
+          <h3 class="text-sm sm:text-base font-extrabold text-[#14532D]">Seamless Experience Across Both Platforms</h3>
+          <p class="text-xs sm:text-sm text-[#496052] leading-relaxed">
+            Green Heaven opens in a dedicated browser tab so its shopping cart, login, and checkout remain 100% independent and secure on Android phones, tablets, and computers. Use your phone&apos;s Back button or browser tab bar to return to Guru Ji Vision at any time.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 shrink-0">
+          <button data-nav="home" type="button" class="px-3.5 py-2.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">← Home Dashboard</button>
+          <button data-nav="weather" type="button" class="px-3.5 py-2.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">⛅ Weather</button>
+          <button data-nav="farmer" type="button" class="px-3.5 py-2.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">🌾 Farmer Help</button>
+        </div>
+      </section>
     </div>
   `;
 }

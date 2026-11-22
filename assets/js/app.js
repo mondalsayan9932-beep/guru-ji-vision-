@@ -30,6 +30,7 @@ import {
   renderCommunityView,
   renderFarmerView,
   renderHomeView,
+  renderMarketplaceView,
   renderStudentView,
   renderToolsView
 } from "./ui-public.js";
@@ -57,6 +58,7 @@ const VALID_ROUTES = new Set([
   "home",
   "weather",
   "market",
+  "marketplace",
   "student",
   "farmer",
   "tools",
@@ -434,6 +436,7 @@ function renderActiveView() {
     case "home": html = renderHomeView(state); break;
     case "weather": html = renderWeatherView(state); break;
     case "market": html = renderMarketPriceView(state); break;
+    case "marketplace": html = renderMarketplaceView(state); break;
     case "student": html = renderStudentView(state); break;
     case "farmer": html = renderFarmerView(state); break;
     case "tools": html = renderToolsView(state); break;

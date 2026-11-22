@@ -596,7 +596,77 @@ export const FALLBACK_ANNOUNCEMENTS = [
   }
 ];
 
-// Bilingual EN / BN UI Labels (migrated from L10n.kt + expanded for Weather, Market, Career & Farmer Advisor)
+// Verified Green Heaven Agricultural & Plant Marketplace Configuration
+// Inspected directly from https://green-heaven-a.netlify.app/ — ONLY verified live categories are listed.
+export const GREEN_HEAVEN_CONFIG = {
+  brandName: "Green Heaven",
+  sectionTitle: "Agricultural Marketplace – Green Heaven",
+  sectionTitleBn: "কৃষি মার্কেটপ্লেস – গ্রিন হেভেন",
+  tagline: "Bring Nature Home • Plants, Planting Bulbs & Organic Vermi Compost",
+  baseUrl: "https://green-heaven-a.netlify.app/",
+  shopUrl: "https://green-heaven-a.netlify.app/shop",
+  careGuideUrl: "https://green-heaven-a.netlify.app/care-guide",
+  cartUrl: "https://green-heaven-a.netlify.app/cart",
+  accountUrl: "https://green-heaven-a.netlify.app/account/login",
+  verifiedCategories: [
+    {
+      id: "indoor",
+      name: "Indoor Plants",
+      nameBn: "ইনডোর গাছ",
+      icon: "🪴",
+      description: "Air-purifying & foliage plants including Monstera, Snake Plant, Money Plant & Bud of Paradise.",
+      url: "https://green-heaven-a.netlify.app/shop?category=Indoor",
+      accent: "bg-emerald-50 border-emerald-200 text-emerald-950"
+    },
+    {
+      id: "flowering",
+      name: "Flowering Plants",
+      nameBn: "ফুলের গাছ",
+      icon: "🌺",
+      description: "Seasonal & ornamental blooms including Peace Lily, Marigold & Garden Flower Mix.",
+      url: "https://green-heaven-a.netlify.app/shop?category=Flowering",
+      accent: "bg-rose-50 border-rose-200 text-rose-950"
+    },
+    {
+      id: "succulents",
+      name: "Succulents",
+      nameBn: "সাকুলেন্ট গাছ",
+      icon: "🌵",
+      description: "Low-maintenance compact succulents including Jade Plant & curated Succulent Sets.",
+      url: "https://green-heaven-a.netlify.app/shop?category=Succulents",
+      accent: "bg-lime-50 border-lime-200 text-lime-950"
+    },
+    {
+      id: "outdoor",
+      name: "Outdoor Plants",
+      nameBn: "আউটডোর ও বাগানের গাছ",
+      icon: "🌿",
+      description: "Sun-loving garden favourites including Hibiscus & Chrysanthemum for home gardens.",
+      url: "https://green-heaven-a.netlify.app/shop?category=Outdoor",
+      accent: "bg-teal-50 border-teal-200 text-teal-950"
+    },
+    {
+      id: "compost-bulbs",
+      name: "Organic Compost & Planting Bulbs",
+      nameBn: "ভার্‌মি কম্পোস্ট ও রোপণ বাল্ব",
+      icon: "🌱",
+      description: "Verified Vermi Compost (organic manure) and Gladiolus Bulbs available in the Outdoor collection.",
+      url: "https://green-heaven-a.netlify.app/shop?category=Outdoor",
+      accent: "bg-amber-50 border-amber-200 text-amber-950"
+    },
+    {
+      id: "care-guide",
+      name: "Plant Care Guide",
+      nameBn: "গাছের যত্ন গাইড",
+      icon: "💧",
+      description: "Official Green Heaven watering, sunlight, and climate care instructions for healthy growth.",
+      url: "https://green-heaven-a.netlify.app/care-guide",
+      accent: "bg-sky-50 border-sky-200 text-sky-950"
+    }
+  ]
+};
+
+// Bilingual EN / BN UI Labels (migrated from L10n.kt + expanded for Weather, Market, Marketplace, Career & Farmer Advisor)
 export const I18N = {
   en: {
     brand: "Guru Ji Vision",
@@ -605,6 +675,7 @@ export const I18N = {
     navStudent: "Student",
     navWeather: "Weather",
     navMarket: "Mandi Price",
+    navMarketplace: "Green Heaven Store",
     navFarmer: "Farmer",
     navTools: "Tools",
     navAi: "AI Guru",
@@ -627,6 +698,7 @@ export const I18N = {
     navStudent: "ছাত্র পোর্টাল",
     navWeather: "আবহাওয়া",
     navMarket: "বাজারদর",
+    navMarketplace: "গ্রিন হেভেন স্টোর",
     navFarmer: "কৃষক সহায়তা",
     navTools: "কৃষি টুলস",
     navAi: "এআই গুরু",

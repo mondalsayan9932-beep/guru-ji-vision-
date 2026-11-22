@@ -52,6 +52,11 @@
       "name": "Student Portal",
       "short_name": "Study Hub",
       "url": "./index.html#student"
+    },
+    {
+      "name": "Green Heaven Marketplace",
+      "short_name": "Green Heaven",
+      "url": "./index.html#marketplace"
     }
   ]
 }
