@@ -1,0 +1,21 @@
+{
+  "name": "Guru Ji Vision — Agricultural Study Hub",
+  "short_name": "Guru Ji Vision",
+  "description": "ICAR B.Sc Agriculture study notes, PDFs, previous year questions, notices, and practical farming calculators.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F4FBF6",
+  "theme_color": "#14532D",
+  "lang": "en",
+  "categories": ["education", "books", "productivity"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

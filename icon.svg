@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Guru Ji Vision Icon">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14532D"/>
+      <stop offset="55%" stop-color="#166534"/>
+      <stop offset="100%" stop-color="#15803D"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DCFCE7"/>
+      <stop offset="100%" stop-color="#86EFAC"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <circle cx="256" cy="172" r="78" fill="url(#goldGrad)" opacity="0.22"/>
+  <circle cx="256" cy="172" r="48" fill="url(#goldGrad)"/>
+  <!-- Sprouting crop leaves -->
+  <path d="M256 348 C256 265, 200 205, 134 218 C142 288, 196 336, 256 348 Z" fill="url(#leafGrad)"/>
+  <path d="M256 348 C256 265, 312 205, 378 218 C370 288, 316 336, 256 348 Z" fill="#FFFFFF"/>
+  <!-- Open study book base -->
+  <path d="M116 334 C168 322, 222 330, 256 356 C290 330, 344 322, 396 334 L396 392 C344 380, 290 388, 256 412 C222 388, 168 380, 116 392 Z" fill="#F0FDF4" opacity="0.96"/>
+  <path d="M256 232 L256 408" stroke="#14532D" stroke-width="10" stroke-linecap="round"/>
+</svg>
