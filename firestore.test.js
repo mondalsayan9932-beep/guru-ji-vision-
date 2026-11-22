@@ -1289,6 +1289,95 @@ test("Farmer Advisor Expert thread (__farmer) & emailDeliveryStatus tracking wor
   await assertFails(adminDb.collection("doubtChats").doc(chatId).get());
 });
 
+test("Professor Role Security: self-granting PROFESSOR or APPROVED is blocked; PENDING request + Founder approval succeed", async () => {
+  const applicantUid = "prof_applicant_777";
+  const applicantDb = testEnv.authenticatedContext(applicantUid, {
+    email: "newprof@agri.edu.in",
+    email_verified: true,
+  }).firestore();
+  const ownerDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  const ts = pastTime(5000);
+
+  // Applicant CANNOT directly create a profile with role=PROFESSOR
+  await assertFails(
+    applicantDb.collection("users").doc(applicantUid).set({
+      userId: applicantUid,
+      displayName: "Dr. New Applicant",
+      email: "newprof@agri.edu.in",
+      role: "PROFESSOR",
+      institutionOrVillage: "BCKV",
+      district: "Nadia",
+      semester: 0,
+      language: "EN",
+      requestedRole: "PROFESSOR",
+      professorApprovalStatus: "PENDING",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Applicant CANNOT self-approve professorApprovalStatus=APPROVED
+  await assertFails(
+    applicantDb.collection("users").doc(applicantUid).set({
+      userId: applicantUid,
+      displayName: "Dr. New Applicant",
+      email: "newprof@agri.edu.in",
+      role: "STUDENT",
+      institutionOrVillage: "BCKV",
+      district: "Nadia",
+      semester: 0,
+      language: "EN",
+      requestedRole: "PROFESSOR",
+      professorApprovalStatus: "APPROVED",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Applicant CAN submit a safe PENDING professor verification request (base role stays STUDENT)
+  await assertSucceeds(
+    applicantDb.collection("users").doc(applicantUid).set({
+      userId: applicantUid,
+      displayName: "Dr. New Applicant",
+      email: "newprof@agri.edu.in",
+      phoneNumber: "+919876543210",
+      role: "STUDENT",
+      requestedRole: "PROFESSOR",
+      professorApprovalStatus: "PENDING",
+      institutionOrVillage: "BCKV Mohanpur",
+      department: "Agronomy",
+      subjectSpecialization: "Weed Science & Cropping Systems",
+      district: "Nadia",
+      state: "West Bengal",
+      semester: 0,
+      language: "EN",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Applicant CANNOT escalate themselves on update either
+  await assertFails(
+    applicantDb.collection("users").doc(applicantUid).update({
+      role: "PROFESSOR",
+      professorApprovalStatus: "APPROVED",
+      updatedAt: pastTime(1000),
+    })
+  );
+
+  // Founder (Super Admin) CAN approve the professor request
+  await assertSucceeds(
+    ownerDb.collection("users").doc(applicantUid).update({
+      role: "PROFESSOR",
+      professorApprovalStatus: "APPROVED",
+      updatedAt: pastTime(500),
+    })
+  );
+});
+
 
 
 

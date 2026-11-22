@@ -10,8 +10,7 @@ import {
   FOUNDER_EMAIL,
   OFFICIAL_FACULTY,
   KNOWN_FACULTY_EMAILS,
-  DEFAULT_APP_SETTINGS,
-  WHATSAPP_OTP_ENDPOINT
+  DEFAULT_APP_SETTINGS
 } from "./config.js";
 import { buildDoubtChatId, getTimestampMs, isValidGoogleMeetUrl, parseMeetingEpochMs } from "./calculators.js";
 
@@ -26,11 +25,14 @@ class FirebaseService {
     this.storage = null;
     this.mods = null;
     this.recaptchaVerifier = null;
+    this.linkRecaptchaVerifier = null;
     this.phoneConfirmationResult = null;
+    this.phoneLinkConfirmationResult = null;
+    this.authInFlight = false;
     this.activeUnsubs = new Map();
   }
 
-  async init(onAuthCallback, onPublicUpdate) {
+  async init(onAuthCallback, onPublicUpdate, onRedirectOutcome) {
     try {
       const [appMod, authMod, fsMod, storageMod] = await Promise.all([
         import(`${FB_CDN}/firebase-app.js`),
@@ -39,16 +41,36 @@ class FirebaseService {
         import(`${FB_CDN}/firebase-storage.js`)
       ]);
 
-      this.app = appMod.initializeApp(FIREBASE_CONFIG);
+      // Initialize Firebase strictly once
+      this.app = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(FIREBASE_CONFIG);
       this.auth = authMod.getAuth(this.app);
       this.db = fsMod.getFirestore(this.app, FIRESTORE_DATABASE_ID);
       this.storage = storageMod.getStorage(this.app);
       this.mods = { appMod, authMod, fsMod, storageMod };
       this.ready = true;
 
-      // Immediately subscribe to public collections so visitors see live admin updates without login
+      // Persist authenticated session cleanly across page refreshes & mobile tabs
+      try {
+        await authMod.setPersistence(this.auth, authMod.browserLocalPersistence);
+      } catch (persistErr) {
+        console.warn("Auth persistence fallback:", persistErr);
+      }
+
+      // Immediately subscribe to public collections so visitors see live updates without login
       if (onPublicUpdate) {
         this.subscribePublicCollections({ isAdmin: false, isSuperAdmin: false, isAuthorizedMeetingHost: false, onUpdate: onPublicUpdate });
+      }
+
+      // Handle Google Sign-In / Account Linking redirect results on return
+      try {
+        const redirectRes = await authMod.getRedirectResult(this.auth);
+        if (redirectRes?.user && onRedirectOutcome) {
+          onRedirectOutcome({ ok: true, user: redirectRes.user, fromRedirect: true });
+        }
+      } catch (redirectErr) {
+        if (onRedirectOutcome) {
+          onRedirectOutcome({ ok: false, error: this.formatAuthError(redirectErr, "google") });
+        }
       }
 
       authMod.onAuthStateChanged(this.auth, async (user) => {
@@ -64,138 +86,252 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // AUTHENTICATION: WhatsApp OTP Backend Hook + Real Firebase Phone Auth +
-  // Optional Google / Email Sign-In (NO fake OTPs, NO hardcoded secrets)
+  // AUTHENTICATION: Primary Google Sign-In (Popup + Redirect Fallback) +
+  // Real Firebase Phone SMS OTP + Secure Account Linking
   // --------------------------------------------------------------------------
-  hasWhatsAppOtpBackend() {
-    return Boolean(WHATSAPP_OTP_ENDPOINT && WHATSAPP_OTP_ENDPOINT.startsWith("https://"));
+  formatAuthError(err, channel = "auth") {
+    const code = err?.code || "";
+    if (code === "auth/unauthorized-domain") {
+      return "This website domain is not yet authorized in Firebase Console → Authentication → Settings → Authorized domains. Please add this Netlify domain in Firebase Console.";
+    }
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      return "Google Sign-In window was closed before completing. Tap 'Continue with Google (Gmail)' to try again.";
+    }
+    if (code === "auth/network-request-failed") {
+      return "Network connection error. Check your internet connection and try again.";
+    }
+    if (code === "auth/account-exists-with-different-credential") {
+      return "An account already exists with this email under another sign-in method. Sign in with your original method first, then link accounts in Profile.";
+    }
+    if (code === "auth/credential-already-in-use") {
+      return "This mobile number or Google account is already linked to a different Guru Ji Vision account. Sign out and sign in with that credential instead to preserve its data.";
+    }
+    if (code === "auth/provider-already-linked") {
+      return "This sign-in method is already linked to your Guru Ji Vision account.";
+    }
+    if (code === "auth/operation-not-allowed") {
+      return channel === "phone"
+        ? "Mobile SMS sign-in is not currently enabled in Firebase Console (Authentication → Sign-in method → Phone). Please use 'Continue with Google (Gmail)' above."
+        : "Google Sign-In is not yet enabled in Firebase Console → Authentication → Sign-in method.";
+    }
+    if (code === "auth/quota-exceeded" || code === "auth/billing-not-enabled") {
+      return "SMS OTP quota or Firebase billing limit has been reached for phone verification right now. Please use 'Continue with Google (Gmail)' above for instant sign-in.";
+    }
+    if (code === "auth/too-many-requests") {
+      return "Too many OTP or login attempts from this device. Please wait a few minutes or sign in immediately with 'Continue with Google (Gmail)'.";
+    }
+    if (code === "auth/invalid-phone-number") {
+      return "Please enter a valid mobile number (e.g., 10-digit Indian mobile number starting with 6–9).";
+    }
+    if (code === "auth/captcha-check-failed" || code === "auth/missing-client-identifier") {
+      return "Security verification (reCAPTCHA) failed. Please refresh and try again, or use 'Continue with Google (Gmail)'.";
+    }
+    if (code === "auth/invalid-verification-code") {
+      return "Incorrect 6-digit OTP code. Please check the SMS and enter the exact code.";
+    }
+    if (code === "auth/code-expired" || code === "auth/session-expired") {
+      return "This OTP has expired. Please tap 'Resend OTP' to receive a new code.";
+    }
+    return err?.message || "Authentication failed. Please try again.";
   }
 
-  async requestWhatsAppOtp(phoneE164) {
-    if (!this.hasWhatsAppOtpBackend()) {
-      return {
-        ok: false,
-        needsBackend: true,
-        error: "WhatsApp Business OTP backend endpoint is not yet configured on this site. Use Real Firebase SMS Phone OTP below or deploy a Cloud Function for official WhatsApp Business Cloud API."
-      };
+  validateMobileNumber(countryCode, rawNumber) {
+    const cc = String(countryCode || "+91").trim();
+    const digits = String(rawNumber || "").replace(/[^\d]/g, "");
+    if (!/^\+\d{1,4}$/.test(cc)) {
+      return { ok: false, error: "Select a valid country code (e.g. +91)." };
     }
-    try {
-      const res = await fetch(`${WHATSAPP_OTP_ENDPOINT.replace(/\/$/, "")}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneE164, channel: "whatsapp" })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Failed to send WhatsApp OTP.");
-      return { ok: true, sessionId: data.sessionId || "" };
-    } catch (err) {
-      return { ok: false, error: err.message || "WhatsApp OTP delivery failed." };
+    if (cc === "+91") {
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+        return { ok: false, error: "Enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)." };
+      }
+    } else if (digits.length < 7 || digits.length > 15) {
+      return { ok: false, error: "Enter a valid mobile number (7–15 digits)." };
+    }
+    return { ok: true, e164: `${cc}${digits}`, digits };
+  }
+
+  resetRecaptcha(target = "login") {
+    const isLink = target === "link";
+    const verifier = isLink ? this.linkRecaptchaVerifier : this.recaptchaVerifier;
+    const containerId = isLink ? "link-recaptcha-container" : "recaptcha-container";
+    if (verifier) {
+      try { verifier.clear(); } catch (_) {}
+      if (isLink) this.linkRecaptchaVerifier = null;
+      else this.recaptchaVerifier = null;
+    }
+    if (typeof document !== "undefined") {
+      const el = document.getElementById(containerId);
+      if (el) el.innerHTML = "";
     }
   }
 
-  async verifyWhatsAppOtp(phoneE164, code, sessionId = "") {
-    if (!this.hasWhatsAppOtpBackend() || !this.ready) {
-      return { ok: false, error: "WhatsApp OTP backend is not configured." };
-    }
-    try {
-      const res = await fetch(`${WHATSAPP_OTP_ENDPOINT.replace(/\/$/, "")}/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneE164, code, sessionId })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.customToken) {
-        throw new Error(data.error || "Invalid or expired OTP.");
+  async prepareInvisibleRecaptcha(containerId, target = "login", onExpired = null) {
+    const { RecaptchaVerifier } = this.mods.authMod;
+    // Always clear any stale verifier instance cleanly to avoid duplicate render errors
+    this.resetRecaptcha(target);
+    const verifier = new RecaptchaVerifier(this.auth, containerId, {
+      size: "invisible",
+      callback: () => {},
+      "expired-callback": () => {
+        this.resetRecaptcha(target);
+        if (typeof onExpired === "function") onExpired();
       }
-      const cred = await this.mods.authMod.signInWithCustomToken(this.auth, data.customToken);
-      return { ok: true, user: cred.user };
-    } catch (err) {
-      return { ok: false, error: err.message || "OTP verification failed." };
+    });
+    if (target === "link") this.linkRecaptchaVerifier = verifier;
+    else this.recaptchaVerifier = verifier;
+    await verifier.render();
+    return verifier;
+  }
+
+  async signInWithGoogle() {
+    if (!this.ready) return { ok: false, error: "Firebase Authentication is currently offline. Please check your internet connection." };
+    if (this.authInFlight) return { ok: false, inFlight: true, error: "Sign-in is already in progress. Please wait..." };
+
+    this.authInFlight = true;
+    try {
+      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = this.mods.authMod;
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      try {
+        const res = await signInWithPopup(this.auth, provider);
+        return { ok: true, user: res.user };
+      } catch (popupErr) {
+        const code = popupErr?.code || "";
+        // Automatic reliable redirect fallback when popups are blocked or unsupported (e.g. Android WebViews / strict browsers)
+        if (
+          code === "auth/popup-blocked" ||
+          code === "auth/operation-not-supported-in-this-environment" ||
+          code === "auth/web-storage-unsupported"
+        ) {
+          await signInWithRedirect(this.auth, provider);
+          return { ok: true, redirecting: true };
+        }
+        return { ok: false, code, error: this.formatAuthError(popupErr, "google") };
+      }
+    } finally {
+      this.authInFlight = false;
     }
   }
 
-  async sendFirebaseSmsOtp(phoneE164, recaptchaContainerId) {
-    if (!this.ready) return { ok: false, error: "Firebase Auth is offline." };
+  async sendFirebaseSmsOtp(countryCode, rawNumber, recaptchaContainerId = "recaptcha-container", onExpired = null) {
+    if (!this.ready) return { ok: false, error: "Firebase Authentication is currently offline." };
+    if (this.authInFlight) return { ok: false, inFlight: true, error: "Please wait for the current request to finish." };
+
+    const check = this.validateMobileNumber(countryCode, rawNumber);
+    if (!check.ok) return check;
+
+    this.authInFlight = true;
     try {
-      const { RecaptchaVerifier, signInWithPhoneNumber } = this.mods.authMod;
-      if (this.recaptchaVerifier) {
-        try { this.recaptchaVerifier.clear(); } catch (_) {}
-      }
-      this.recaptchaVerifier = new RecaptchaVerifier(this.auth, recaptchaContainerId, {
-        size: "invisible"
-      });
-      this.phoneConfirmationResult = await signInWithPhoneNumber(this.auth, phoneE164, this.recaptchaVerifier);
-      return { ok: true };
+      const { signInWithPhoneNumber } = this.mods.authMod;
+      const verifier = await this.prepareInvisibleRecaptcha(recaptchaContainerId, "login", onExpired);
+      this.phoneConfirmationResult = await signInWithPhoneNumber(this.auth, check.e164, verifier);
+      return { ok: true, phoneE164: check.e164 };
     } catch (err) {
-      const code = err?.code || "";
-      if (code === "auth/operation-not-allowed") {
-        return { ok: false, error: "Enable 'Phone' sign-in provider in Firebase Console → Authentication → Sign-in method first." };
-      }
-      if (code === "auth/unauthorized-domain") {
-        return { ok: false, error: "Add your Netlify domain in Firebase Console → Authentication → Settings → Authorized domains." };
-      }
-      return { ok: false, error: err?.message || "Failed to send SMS OTP." };
+      this.resetRecaptcha("login");
+      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
+    } finally {
+      this.authInFlight = false;
     }
   }
 
   async verifyFirebaseSmsOtp(code) {
     if (!this.phoneConfirmationResult) {
-      return { ok: false, error: "Request an OTP first." };
+      return { ok: false, error: "Please request an SMS OTP first." };
     }
+    const cleanCode = String(code || "").replace(/[^\d]/g, "");
+    if (cleanCode.length !== 6) {
+      return { ok: false, error: "Enter the 6-digit OTP code sent to your mobile number." };
+    }
+    if (this.authInFlight) return { ok: false, inFlight: true, error: "Verifying OTP..." };
+
+    this.authInFlight = true;
     try {
-      const cred = await this.phoneConfirmationResult.confirm(String(code).trim());
+      const cred = await this.phoneConfirmationResult.confirm(cleanCode);
       this.phoneConfirmationResult = null;
+      this.resetRecaptcha("login");
       return { ok: true, user: cred.user };
     } catch (err) {
-      return { ok: false, error: "Invalid or expired verification code." };
+      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
+    } finally {
+      this.authInFlight = false;
     }
   }
 
-  async signInWithGoogle() {
-    if (!this.ready) return { ok: false, error: "Firebase is offline." };
+  // Secure Account Linking: Link Google to Phone account OR Link Mobile OTP to Google account (same UID!)
+  async linkGoogleAccount() {
+    if (!this.ready || !this.auth.currentUser) return { ok: false, error: "Sign in first to link your Google account." };
+    if (this.authInFlight) return { ok: false, inFlight: true, error: "Request already in progress." };
+
+    this.authInFlight = true;
     try {
-      const { GoogleAuthProvider, signInWithPopup } = this.mods.authMod;
+      const { GoogleAuthProvider, linkWithPopup, linkWithRedirect } = this.mods.authMod;
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      const res = await signInWithPopup(this.auth, provider);
+      try {
+        const res = await linkWithPopup(this.auth.currentUser, provider);
+        return { ok: true, user: res.user };
+      } catch (err) {
+        if (err?.code === "auth/popup-blocked" || err?.code === "auth/operation-not-supported-in-this-environment") {
+          await linkWithRedirect(this.auth.currentUser, provider);
+          return { ok: true, redirecting: true };
+        }
+        return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "google") };
+      }
+    } finally {
+      this.authInFlight = false;
+    }
+  }
+
+  async sendPhoneLinkOtp(countryCode, rawNumber, recaptchaContainerId = "link-recaptcha-container", onExpired = null) {
+    if (!this.ready || !this.auth.currentUser) return { ok: false, error: "Sign in first to link a mobile number." };
+    if (this.authInFlight) return { ok: false, inFlight: true, error: "Request already in progress." };
+
+    const check = this.validateMobileNumber(countryCode, rawNumber);
+    if (!check.ok) return check;
+
+    this.authInFlight = true;
+    try {
+      const { linkWithPhoneNumber } = this.mods.authMod;
+      const verifier = await this.prepareInvisibleRecaptcha(recaptchaContainerId, "link", onExpired);
+      this.phoneLinkConfirmationResult = await linkWithPhoneNumber(this.auth.currentUser, check.e164, verifier);
+      return { ok: true, phoneE164: check.e164 };
+    } catch (err) {
+      this.resetRecaptcha("link");
+      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
+    } finally {
+      this.authInFlight = false;
+    }
+  }
+
+  async confirmPhoneLinkOtp(code) {
+    if (!this.phoneLinkConfirmationResult) {
+      return { ok: false, error: "Request a verification OTP first." };
+    }
+    const cleanCode = String(code || "").replace(/[^\d]/g, "");
+    if (cleanCode.length !== 6) {
+      return { ok: false, error: "Enter the 6-digit OTP code." };
+    }
+    this.authInFlight = true;
+    try {
+      const res = await this.phoneLinkConfirmationResult.confirm(cleanCode);
+      this.phoneLinkConfirmationResult = null;
+      this.resetRecaptcha("link");
       return { ok: true, user: res.user };
     } catch (err) {
-      const code = err?.code || "";
-      if (code === "auth/unauthorized-domain") {
-        return { ok: false, error: "Add this Netlify domain under Firebase Console → Authentication → Settings → Authorized domains." };
-      }
-      if (code === "auth/popup-closed-by-user") {
-        return { ok: false, error: "Sign-in cancelled." };
-      }
-      return { ok: false, error: err?.message || "Google Sign-In failed." };
-    }
-  }
-
-  async signInWithEmail(email, password) {
-    if (!this.ready) return { ok: false, error: "Firebase is offline." };
-    try {
-      const cred = await this.mods.authMod.signInWithEmailAndPassword(this.auth, email.trim(), password);
-      return { ok: true, user: cred.user };
-    } catch (err) {
-      return { ok: false, error: err?.message || "Email sign-in failed." };
-    }
-  }
-
-  async registerWithEmail(email, password, displayName) {
-    if (!this.ready) return { ok: false, error: "Firebase is offline." };
-    try {
-      const cred = await this.mods.authMod.createUserWithEmailAndPassword(this.auth, email.trim(), password);
-      if (displayName) {
-        await this.mods.authMod.updateProfile(cred.user, { displayName: displayName.trim().slice(0, 80) });
-      }
-      return { ok: true, user: cred.user };
-    } catch (err) {
-      return { ok: false, error: err?.message || "Email registration failed." };
+      return { ok: false, code: err?.code || "", error: this.formatAuthError(err, "phone") };
+    } finally {
+      this.authInFlight = false;
     }
   }
 
   async signOutUser() {
     this.unsubscribePrivate();
+    this.phoneConfirmationResult = null;
+    this.phoneLinkConfirmationResult = null;
+    this.resetRecaptcha("login");
+    this.resetRecaptcha("link");
     if (this.ready && this.auth.currentUser) {
       await this.mods.authMod.signOut(this.auth);
     }
@@ -315,8 +451,18 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // 1. USER PROFILE (/users/{uid})
+  // 1. USER PROFILE (/users/{uid}) — Preserves existing fields & anti-escalation
   // --------------------------------------------------------------------------
+  async getUserProfileOnce(uid) {
+    if (!this.ready || !uid) return null;
+    try {
+      const snap = await this.mods.fsMod.getDoc(this.mods.fsMod.doc(this.db, "users", uid));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   subscribeUserProfile(uid, onData) {
     if (!this.ready || !uid) return;
     const { doc, onSnapshot } = this.mods.fsMod;
@@ -328,48 +474,75 @@ class FirebaseService {
     this.setSub("userProfile", unsub);
   }
 
-  async saveUserProfile(user, profileData, isExisting) {
+  async saveUserProfile(user, profileData, existingProfile = null) {
     if (!this.ready || !user) throw new Error("Sign in required.");
     const { doc, setDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const ref = doc(this.db, "users", user.uid);
+    const isExisting = Boolean(existingProfile);
 
     // Schema requires email string 3..120; preserve real email if present or generate phone-scoped address
     const fallbackEmail = user.phoneNumber
       ? `${user.phoneNumber.replace(/[^\d]/g, "")}@phone.gurujivision.app`
       : `${user.uid.slice(0, 12)}@user.gurujivision.app`;
-    const email = (profileData.email || user.email || fallbackEmail).trim().slice(0, 120);
-    const displayName = (profileData.displayName || user.displayName || "Scholar").trim().slice(0, 80) || "Scholar";
-    const role = profileData.role === "FARMER" ? "FARMER" : "STUDENT";
-    const semester = Math.min(8, Math.max(0, parseInt(profileData.semester, 10) || 1));
+    const email = (profileData.email || user.email || existingProfile?.email || fallbackEmail).trim().slice(0, 120);
+    const displayName = (profileData.displayName || user.displayName || existingProfile?.displayName || "Scholar").trim().slice(0, 80) || "Scholar";
+
+    // STRICT PROFESSOR ROLE SECURITY:
+    // Non-admin users can register as STUDENT or FARMER directly.
+    // Selecting PROFESSOR submits a PENDING verification request; base role stays STUDENT unless already APPROVED by Admin.
+    const selectedRole = String(profileData.requestedRole || profileData.role || "STUDENT").toUpperCase();
+    const isAlreadyApprovedProf = existingProfile?.role === "PROFESSOR" && existingProfile?.professorApprovalStatus === "APPROVED";
+
+    let safeRole = "STUDENT";
+    let requestedRole = "STUDENT";
+    let professorApprovalStatus = existingProfile?.professorApprovalStatus || "NONE";
+
+    if (selectedRole === "FARMER") {
+      safeRole = "FARMER";
+      requestedRole = "FARMER";
+      if (!isAlreadyApprovedProf) professorApprovalStatus = "NONE";
+    } else if (selectedRole === "PROFESSOR") {
+      safeRole = isAlreadyApprovedProf ? "PROFESSOR" : "STUDENT";
+      requestedRole = "PROFESSOR";
+      professorApprovalStatus = isAlreadyApprovedProf ? "APPROVED" : "PENDING";
+    } else {
+      safeRole = "STUDENT";
+      requestedRole = "STUDENT";
+      if (!isAlreadyApprovedProf) professorApprovalStatus = "NONE";
+    }
+
+    const semester = safeRole === "STUDENT"
+      ? Math.min(8, Math.max(0, parseInt(profileData.semester, 10) || 1))
+      : 0;
     const language = profileData.language === "BN" ? "BN" : "EN";
+    const phoneNumber = String(user.phoneNumber || profileData.phoneNumber || existingProfile?.phoneNumber || "").trim().slice(0, 25);
+
+    const payload = {
+      displayName,
+      email,
+      phoneNumber,
+      role: safeRole,
+      requestedRole,
+      professorApprovalStatus,
+      institutionOrVillage: String(profileData.institutionOrVillage || "").trim().slice(0, 120),
+      district: String(profileData.district || "").trim().slice(0, 80),
+      state: String(profileData.state || "").trim().slice(0, 80),
+      department: String(profileData.department || "").trim().slice(0, 100),
+      subjectSpecialization: String(profileData.subjectSpecialization || "").trim().slice(0, 160),
+      semester,
+      language,
+      photoUrl: String(profileData.photoUrl || user.photoURL || existingProfile?.photoUrl || "").slice(0, 500),
+      lastActiveAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
 
     if (isExisting) {
-      await updateDoc(ref, {
-        displayName,
-        email,
-        role,
-        institutionOrVillage: String(profileData.institutionOrVillage || "").trim().slice(0, 120),
-        district: String(profileData.district || "").trim().slice(0, 80),
-        semester,
-        language,
-        photoUrl: String(profileData.photoUrl || user.photoURL || "").slice(0, 500),
-        lastActiveAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      await updateDoc(ref, payload);
     } else {
       await setDoc(ref, {
         userId: user.uid,
-        displayName,
-        email,
-        role,
-        institutionOrVillage: String(profileData.institutionOrVillage || "").trim().slice(0, 120),
-        district: String(profileData.district || "").trim().slice(0, 80),
-        semester,
-        language,
-        photoUrl: String(profileData.photoUrl || user.photoURL || "").slice(0, 500),
-        lastActiveAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        ...payload,
+        createdAt: serverTimestamp()
       });
     }
   }
@@ -1311,6 +1484,57 @@ class FirebaseService {
 
   async deleteProfessorAsAdmin(id) {
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "professors", id));
+  }
+
+  // Super Admin Approval for Pending Professor Role Requests
+  async approveProfessorRequest(adminUid, applicantUser) {
+    if (!this.ready || !adminUid || !applicantUser?.id) throw new Error("Super Admin sign-in required.");
+    const { doc, setDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const targetUid = applicantUser.id;
+    const profId = `prof_${targetUid.slice(0, 24).replace(/[^a-zA-Z0-9_]/g, "_")}`;
+    const cleanEmail = (applicantUser.email || "").endsWith(".gurujivision.app")
+      ? ""
+      : String(applicantUser.email || "").trim().toLowerCase().slice(0, 120);
+
+    await updateDoc(doc(this.db, "users", targetUid), {
+      role: "PROFESSOR",
+      professorApprovalStatus: "APPROVED",
+      updatedAt: serverTimestamp()
+    });
+
+    await setDoc(doc(this.db, "professorAccounts", targetUid), {
+      professorId: profId,
+      email: cleanEmail,
+      canHostMeetings: true,
+      active: true,
+      addedBy: adminUid,
+      createdAt: serverTimestamp()
+    });
+
+    await setDoc(doc(this.db, "professors", profId), {
+      name: String(applicantUser.displayName || "Professor").trim().slice(0, 100),
+      designation: "Faculty Advisor",
+      qualification: "",
+      subject: String(applicantUser.subjectSpecialization || "Agriculture").trim().slice(0, 80),
+      department: String(applicantUser.department || applicantUser.institutionOrVillage || "Agricultural Sciences").trim().slice(0, 100),
+      email: cleanEmail,
+      specialization: String(applicantUser.subjectSpecialization || "Agricultural Guidance & Research").trim().slice(0, 200),
+      avatarUrl: String(applicantUser.photoUrl || "").slice(0, 500),
+      authorizedUid: targetUid,
+      canHostMeetings: true,
+      active: true,
+      displayOrder: 20,
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async rejectProfessorRequest(targetUid) {
+    if (!this.ready || !targetUid) throw new Error("Super Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "users", targetUid), {
+      professorApprovalStatus: "REJECTED",
+      updatedAt: serverTimestamp()
+    });
   }
 
   // Firebase Storage Upload (for Admin PDF uploads)

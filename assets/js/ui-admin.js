@@ -376,12 +376,13 @@ function renderAdminFarmerQueries(state) {
 }
 
 function renderAdminProfessors(state) {
+  const pendingProfRequests = (state.ownerUsers || []).filter((u) => u.professorApprovalStatus === "PENDING");
   return `
     <div class="space-y-4">
       <div class="gv-card p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 class="text-base font-extrabold text-[#14532D]">Faculty &amp; Advisor Directory (9 Official Advisors)</h3>
-          <p class="text-xs text-[#496052]">Founder can sync all 9 authoritative advisors to Firestore and link Firebase UIDs. Emails are shown only inside Founder Admin Studio (hidden from public pages).</p>
+          <p class="text-xs text-[#496052]">Founder can sync all 9 authoritative advisors to Firestore, link Firebase UIDs, and approve pending Professor verification requests. Emails stay hidden from public pages.</p>
         </div>
         ${state.isSuperAdmin ? `
           <button data-action="sync-9-professors" class="px-4 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">
@@ -389,6 +390,31 @@ function renderAdminProfessors(state) {
           </button>
         ` : ""}
       </div>
+
+      ${state.isSuperAdmin && pendingProfRequests.length > 0 ? `
+        <div class="rounded-3xl border-2 border-amber-300 bg-amber-50/80 p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="text-sm sm:text-base font-extrabold text-amber-950">Pending Professor Verification Requests (${pendingProfRequests.length})</h4>
+            <span class="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-950 text-[10px] font-extrabold">Admin Review Required</span>
+          </div>
+          <div class="space-y-2.5">
+            ${pendingProfRequests.map((u) => `
+              <div class="rounded-2xl bg-white border border-amber-200 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="min-w-0 space-y-0.5">
+                  <div class="text-sm font-extrabold text-[#14532D]">${escapeHtml(u.displayName || "Applicant")}</div>
+                  <div class="text-xs text-[#496052]">${escapeHtml(u.institutionOrVillage || "Institution not specified")}${u.department ? ` • ${escapeHtml(u.department)}` : ""}</div>
+                  <div class="text-xs text-[#132219]"><strong>Specialization:</strong> ${escapeHtml(u.subjectSpecialization || "—")}</div>
+                  <div class="text-[11px] text-[#496052] break-all">${escapeHtml(u.email || "")}${u.phoneNumber ? ` • ${escapeHtml(u.phoneNumber)}` : ""} • UID: ${escapeHtml(u.id)}</div>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                  <button type="button" data-approve-prof="${escapeHtml(u.id)}" class="px-3.5 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">Approve Professor</button>
+                  <button type="button" data-reject-prof="${escapeHtml(u.id)}" class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold">Reject</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
 
       ${state.isSuperAdmin ? `
         <form id="adminProfForm" class="gv-card p-5 grid grid-cols-1 sm:grid-cols-3 gap-2.5">

@@ -16,12 +16,6 @@ export const FIREBASE_CONFIG = {
 export const FIRESTORE_DATABASE_ID = "ai-studio-android-gurujivi-641f324c-f73f-4600-a445-e4253ef6fa80";
 export const FOUNDER_EMAIL = "mondalsayan9932@gmail.com";
 
-// Optional server-side WhatsApp Business OTP Cloud Function endpoint.
-// NEVER put WhatsApp Business API secrets or access tokens in frontend JS.
-// Configure window.GJV_WHATSAPP_OTP_ENDPOINT = "https://<region>-guru-ji-vision.cloudfunctions.net/whatsappOtp"
-// once your official Meta WhatsApp Cloud API / Twilio Verify backend is deployed.
-export const WHATSAPP_OTP_ENDPOINT = (typeof window !== "undefined" && window.GJV_WHATSAPP_OTP_ENDPOINT) || "";
-
 export const DEFAULT_APP_SETTINGS = {
   whatsappNumber: "+919000000000",
   whatsappGroupInviteUrl: "https://chat.whatsapp.com/FUtzkunI4u097tdsa1dIxl?s=cl&p=a&iam=2",

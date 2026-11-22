@@ -105,11 +105,17 @@ service cloud.firestore {
       return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
         data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
         data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
-        data.role in ['STUDENT', 'FARMER'] &&
+        data.role in ['STUDENT', 'FARMER', 'PROFESSOR'] &&
         data.institutionOrVillage is string && data.institutionOrVillage.size() <= 120 &&
         data.district is string && data.district.size() <= 80 &&
         data.semester is int && data.semester >= 0 && data.semester <= 8 &&
         data.language in ['EN', 'BN'] &&
+        (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 25)) &&
+        (!('state' in data) || (data.state is string && data.state.size() <= 80)) &&
+        (!('department' in data) || (data.department is string && data.department.size() <= 100)) &&
+        (!('subjectSpecialization' in data) || (data.subjectSpecialization is string && data.subjectSpecialization.size() <= 160)) &&
+        (!('requestedRole' in data) || data.requestedRole in ['STUDENT', 'FARMER', 'PROFESSOR']) &&
+        (!('professorApprovalStatus' in data) || data.professorApprovalStatus in ['NONE', 'PENDING', 'APPROVED', 'REJECTED']) &&
         (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
         (!('lastActiveAt' in data) || isValidTimestamp(data.lastActiveAt)) &&
         isValidTimestamp(data.createdAt) &&
@@ -447,8 +453,14 @@ service cloud.firestore {
         isValidId(userId) &&
         request.auth.uid == userId &&
         incoming().userId == request.auth.uid &&
+        incoming().role in ['STUDENT', 'FARMER'] &&
+        (!('professorApprovalStatus' in incoming()) || incoming().professorApprovalStatus in ['NONE', 'PENDING']) &&
         incoming().keys().hasAll(['userId', 'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'createdAt', 'updatedAt']) &&
-        incoming().keys().hasOnly(['userId', 'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'photoUrl', 'lastActiveAt', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly([
+          'userId', 'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language',
+          'phoneNumber', 'state', 'department', 'subjectSpecialization', 'requestedRole', 'professorApprovalStatus',
+          'photoUrl', 'lastActiveAt', 'createdAt', 'updatedAt'
+        ]) &&
         isValidUserProfile(incoming());
 
       allow update: if isSignedIn() &&
@@ -457,8 +469,28 @@ service cloud.firestore {
         incoming().userId == existing().userId &&
         incoming().createdAt == existing().createdAt &&
         (
-          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'photoUrl', 'lastActiveAt', 'updatedAt'])) ||
-          (isSuperAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'updatedAt']))
+          (
+            isOwner(userId) &&
+            (incoming().role in ['STUDENT', 'FARMER'] || incoming().role == existing().role) &&
+            (
+              !('professorApprovalStatus' in incoming()) ||
+              incoming().professorApprovalStatus in ['NONE', 'PENDING'] ||
+              (('professorApprovalStatus' in existing()) && incoming().professorApprovalStatus == existing().professorApprovalStatus)
+            ) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language',
+              'phoneNumber', 'state', 'department', 'subjectSpecialization', 'requestedRole', 'professorApprovalStatus',
+              'photoUrl', 'lastActiveAt', 'updatedAt'
+            ])
+          ) ||
+          (
+            isSuperAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language',
+              'phoneNumber', 'state', 'department', 'subjectSpecialization', 'requestedRole', 'professorApprovalStatus',
+              'updatedAt'
+            ])
+          )
         );
 
       allow delete: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
