@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Guru Ji Vision Logo">
+  <defs>
+    <linearGradient id="gvBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0C3B20"/>
+      <stop offset="55%" stop-color="#14532D"/>
+      <stop offset="100%" stop-color="#1E7E45"/>
+    </linearGradient>
+    <linearGradient id="gvGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="gvLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D8F3DC"/>
+      <stop offset="100%" stop-color="#74DC9B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#gvBg)"/>
+  <circle cx="256" cy="172" r="82" fill="url(#gvGold)" opacity="0.20"/>
+  <circle cx="256" cy="172" r="46" fill="url(#gvGold)"/>
+  <path d="M256 346 C256 264, 198 206, 134 218 C142 288, 196 336, 256 346 Z" fill="url(#gvLeaf)"/>
+  <path d="M256 346 C256 264, 314 206, 378 218 C370 288, 316 336, 256 346 Z" fill="#FFFFFF"/>
+  <path d="M116 334 C168 322, 222 330, 256 356 C290 330, 344 322, 396 334 L396 392 C344 380, 290 388, 256 412 C222 388, 168 380, 116 392 Z" fill="#F7F9F5" opacity="0.96"/>
+  <path d="M256 232 L256 408" stroke="#0C3B20" stroke-width="10" stroke-linecap="round"/>
+</svg>

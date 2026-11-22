@@ -1,0 +1,90 @@
+/* Guru Ji Vision — Organic Agricultural Emerald, Sunlit Ivory & Harvest Gold Theme */
+:root {
+  --gv-forest: #14532D;
+  --gv-canopy: #0C3B20;
+  --gv-leaf: #1E7E45;
+  --gv-sage: #D8F3DC;
+  --gv-on-sage: #0A2E18;
+  --gv-amber: #D97706;
+  --gv-amber-bg: #FEF3C7;
+  --gv-terracotta: #9A3412;
+  --gv-ivory: #F7F9F5;
+  --gv-surface: #FFFFFF;
+  --gv-tint: #EDF4EE;
+  --gv-card: #F1F7F2;
+  --gv-ink: #132219;
+  --gv-muted: #496052;
+  --gv-border: #CDE0D3;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+  background-color: var(--gv-ivory);
+  color: var(--gv-ink);
+  font-family: "Plus Jakarta Sans", "Noto Sans Bengali", system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-display {
+  font-family: "Fraunces", "Plus Jakarta Sans", "Noto Sans Bengali", Georgia, serif;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.gv-card {
+  background: var(--gv-surface);
+  border: 1px solid var(--gv-border);
+  border-radius: 1.5rem;
+}
+
+.gv-card-tinted {
+  background: var(--gv-card);
+  border: 1px solid var(--gv-border);
+  border-radius: 1.5rem;
+}
+
+@keyframes gvFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: gvFadeUp 0.2s ease-out both;
+}
+
+/* Mobile-friendly touch targets (min 44px) */
+button, a.gv-btn, select, input[type="submit"] {
+  min-height: 40px;
+}
+
+/* Chat bubble alignment */
+.chat-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Print / PDF Report Mode */
+@media print {
+  header, nav, #mobileDrawer, #toast, .no-print {
+    display: none !important;
+  }
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  .gv-card, .gv-card-tinted {
+    border: 1px solid #CCCCCC !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

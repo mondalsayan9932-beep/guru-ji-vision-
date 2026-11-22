@@ -3,2107 +3,287 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Guru Ji Vision — Agricultural Study Hub</title>
-  <meta name="description" content="Guru Ji Vision: Instant access to ICAR B.Sc Agriculture study notes, PDFs, previous year questions, notices, and practical farming calculators." />
+  <title>Guru Ji Vision — Indian Agriculture &amp; B.Sc Agri Ecosystem</title>
+  <meta name="description" content="Guru Ji Vision: Complete B.Sc Agriculture study hub, ICAR syllabus, MCQ exams, agriculture calculators, farmer help desk, private student money manager, meeting zone, and 1-on-1 professor doubt zone." />
   <meta name="theme-color" content="#14532D" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Guru Ji Vision" />
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
-  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg" />
+  <link rel="apple-touch-icon" href="./assets/icons/logo.svg" />
 
-  <!-- Fonts with instant system fallback -->
+  <!-- Original Guru Ji Vision Typography: Fraunces + Plus Jakarta Sans + Noto Sans Bengali -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Noto+Sans+Bengali:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- Tailwind CSS via CDN (Zero build step required) -->
+  <!-- Tailwind CSS via CDN (Zero build step) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', '"Noto Sans Bengali"', 'system-ui', '-apple-system', 'sans-serif']
-          },
-          colors: {
-            brand: {
-              50: '#F0FDF4',
-              100: '#DCFCE7',
-              200: '#BBF7D0',
-              500: '#22C55E',
-              600: '#16A34A',
-              700: '#15803D',
-              800: '#166534',
-              900: '#14532D'
-            },
-            harvest: {
-              50: '#FFFBEB',
-              100: '#FEF3C7',
-              500: '#F59E0B',
-              600: '#D97706'
-            }
-          }
-        }
-      }
-    };
-  </script>
-
-  <style>
-    html, body {
-      max-width: 100%;
-      overflow-x: hidden;
-      background-color: #F4FBF6;
-      color: #0F2417;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    .safe-bottom {
-      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-up {
-      animation: fadeUp 0.22s ease-out both;
-    }
-  </style>
+  <link rel="stylesheet" href="./assets/css/styles.css" />
 </head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-brand-200 selection:text-brand-900">
+<body class="min-h-screen flex flex-col">
 
-  <!-- Sticky Top App Bar -->
-  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-100 shadow-sm">
-    <div class="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
-      <!-- Brand -->
-      <button id="brandHomeBtn" type="button" class="flex items-center gap-2.5 min-w-0 text-left focus:outline-none">
-        <img src="./icon.svg" alt="Guru Ji Vision" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-sm shrink-0" />
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 truncate">Guru Ji Vision</h1>
-            <span id="syncStatusPill" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0" title="Data sync status">
-              <span id="syncDot" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              <span id="syncStatusText">Local</span>
-            </span>
+  <!-- ==================== STICKY TOP APP BAR ==================== -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#CDE0D3] shadow-sm">
+    <div class="max-w-7xl mx-auto px-3 sm:px-5 h-16 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <!-- Mobile Drawer Trigger -->
+        <button data-action="open-drawer" type="button" class="lg:hidden w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center shrink-0" aria-label="Open navigation menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+
+        <!-- Brand Logo -->
+        <button data-nav="home" type="button" class="flex items-center gap-2.5 min-w-0 text-left">
+          <img src="./assets/icons/logo.svg" alt="Guru Ji Vision Logo" class="w-9 h-9 rounded-xl shadow-sm shrink-0" />
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span data-i18n="brand" class="font-display text-base sm:text-lg font-bold text-[#14532D] truncate">Guru Ji Vision</span>
+              <span id="syncStatusPill" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 shrink-0">Public</span>
+            </div>
+            <p data-i18n="tagline" class="hidden sm:block text-[11px] text-[#496052] font-medium truncate">Indian Agriculture &amp; B.Sc Agri Ecosystem</p>
           </div>
-          <p data-i18n="tagline" class="text-[11px] sm:text-xs text-emerald-700 font-medium truncate">ICAR B.Sc Agriculture Study Hub</p>
-        </div>
-      </button>
+        </button>
+      </div>
 
-      <!-- Desktop Navigation -->
-      <nav class="hidden md:flex items-center gap-1 bg-emerald-50/80 p-1 rounded-xl border border-emerald-100" aria-label="Primary navigation">
-        <button data-tab="notes" class="nav-tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors">
-          <span data-i18n="navNotes">Notes &amp; PDFs</span>
-        </button>
-        <button data-tab="notices" class="nav-tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors">
-          <span data-i18n="navNotices">Notices</span>
-        </button>
-        <button data-tab="tools" class="nav-tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors">
-          <span data-i18n="navTools">Agri Tools</span>
-        </button>
-        <button data-tab="admin" class="nav-tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors">
-          <span data-i18n="navAdmin">Admin</span>
-        </button>
-      </nav>
-
-      <!-- Right Controls -->
+      <!-- Top Bar Quick Actions (Matching AppNavigation.kt) -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <button id="installAppBtn" type="button" class="hidden items-center gap-1.5 px-2.5 py-2 min-h-[40px] rounded-xl bg-harvest-100 text-amber-900 hover:bg-amber-200 text-xs font-bold transition-colors" title="Install App">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 18h16"/></svg>
-          <span class="hidden sm:inline" data-i18n="installApp">Install</span>
+        <button data-nav="meeting" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Meeting Zone">
+          <span class="text-base">📹</span>
+          <span data-badge="meetings" class="hidden absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#14532D] text-white text-[9px] font-extrabold leading-none"></span>
         </button>
 
-        <button id="langToggleBtn" type="button" class="px-2.5 py-2 min-h-[40px] min-w-[40px] rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-brand-900 text-xs font-bold transition-colors" title="Switch Language">
+        <button data-nav="doubt" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Doubt Zone — Ask Your Professor">
+          <span class="text-base">💬</span>
+          <span data-badge="doubts" class="hidden absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold leading-none"></span>
+        </button>
+
+        <button id="installAppBtn" data-action="install-app" type="button" class="hidden items-center gap-1 px-2.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-extrabold">
+          <span>⬇️</span><span class="hidden sm:inline" data-i18n="installApp">Install</span>
+        </button>
+
+        <button id="langToggleBtn" data-action="toggle-lang" type="button" class="px-2.5 py-2 rounded-xl border border-[#CDE0D3] bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">
           বাংলা
         </button>
 
-        <button id="googleSyncBtn" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-emerald-200 bg-white hover:bg-emerald-50 text-brand-900 text-xs font-bold transition-colors" title="Sign in with Google for Live Cloud Sync">
-          <svg class="w-4 h-4 text-brand-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-          <span id="googleSyncLabel" data-i18n="cloudSync">Cloud Sync</span>
-        </button>
-
-        <button id="headerAdminBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-xs font-bold shadow-sm transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          <span id="headerAdminLabel" data-i18n="adminLogin">Admin</span>
+        <button id="headerAuthBtn" data-action="open-auth" type="button" class="px-3 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold shadow-sm max-w-[130px] truncate">
+          Sign In
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 pt-4 pb-24 md:pb-10">
-
-    <!-- ==================== TAB 1: NOTES & PDFs (PUBLIC INSTANT DASHBOARD) ==================== -->
-    <section id="view-notes" class="space-y-5 animate-fade-up">
-      <!-- Hero Card -->
-      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 text-white p-5 sm:p-7 shadow-lg">
-        <div class="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-amber-300/15 blur-2xl pointer-events-none"></div>
-        <div class="absolute -left-10 -bottom-12 w-52 h-52 rounded-full bg-emerald-300/15 blur-2xl pointer-events-none"></div>
-
-        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-          <div class="space-y-2 max-w-2xl">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold text-emerald-100">
-              <span class="w-2 h-2 rounded-full bg-amber-300"></span>
-              <span data-i18n="heroBadge">Open Access • Semester 1–8 Study Materials</span>
-            </div>
-            <h2 data-i18n="heroTitle" class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">
-              Agriculture Notes, PDFs &amp; Exam Resources
-            </h2>
-            <p data-i18n="heroSub" class="text-sm sm:text-base text-emerald-100/95 leading-relaxed">
-              Read curated ICAR B.Sc (Hons.) Agriculture notes, previous year papers, and practical manuals instantly on any phone or desktop.
-            </p>
-          </div>
-
-          <!-- Compact KPI Counters -->
-          <div class="grid grid-cols-3 gap-2.5 sm:gap-3 shrink-0">
-            <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-2.5 text-center backdrop-blur-sm">
-              <div id="statNotesCount" class="text-xl sm:text-2xl font-extrabold text-white">0</div>
-              <div data-i18n="statNotes" class="text-[11px] font-medium text-emerald-100">Notes</div>
-            </div>
-            <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-2.5 text-center backdrop-blur-sm">
-              <div id="statPdfCount" class="text-xl sm:text-2xl font-extrabold text-amber-300">0</div>
-              <div data-i18n="statPdfs" class="text-[11px] font-medium text-emerald-100">PDF Links</div>
-            </div>
-            <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-2.5 text-center backdrop-blur-sm">
-              <div id="statNoticeCount" class="text-xl sm:text-2xl font-extrabold text-emerald-200">0</div>
-              <div data-i18n="statNotices" class="text-[11px] font-medium text-emerald-100">Notices</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Search Bar + Quick Actions -->
-        <div class="relative z-10 mt-5 flex flex-col sm:flex-row gap-2.5">
-          <div class="relative flex-1">
-            <svg class="w-5 h-5 text-emerald-700 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
-            <input
-              id="searchNotesInput"
-              type="search"
-              placeholder="Search Agronomy, Soil Science, Pathology, PYQ..."
-              class="w-full pl-11 pr-4 py-3 rounded-2xl bg-white text-brand-900 placeholder:text-slate-400 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-            />
-          </div>
-          <div class="flex gap-2">
-            <button id="mobileCloudSyncBtn" type="button" class="sm:hidden flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs font-bold transition-colors">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-              <span id="mobileCloudSyncLabel">Cloud Sync</span>
-            </button>
-            <a
-              href="https://chat.whatsapp.com/FUtzkunI4u097tdsa1dIxl?s=cl&p=a&iam=2"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-brand-900 text-xs sm:text-sm font-extrabold shadow-sm transition-colors whitespace-nowrap"
-            >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.03 2C6.51 2 2.04 6.47 2.04 12c0 1.77.46 3.49 1.34 5.01L2 22l5.13-1.35A9.94 9.94 0 0012.03 22c5.52 0 10-4.47 10-10s-4.48-10-10-10zm5.82 14.13c-.25.7-1.45 1.34-2 1.42-.52.08-1.18.11-1.9-.12-.44-.14-1-.33-1.72-.64-3.03-1.31-5.01-4.37-5.16-4.57-.15-.2-1.23-1.64-1.23-3.13 0-1.49.78-2.22 1.06-2.52.28-.3.61-.38.81-.38.2 0 .41 0 .59.01.19.01.44-.07.69.53.25.6.86 2.1.94 2.25.08.15.13.33.03.53-.1.2-.15.33-.3.51-.15.18-.32.4-.45.54-.15.15-.31.32-.13.62.18.3.78 1.29 1.68 2.09 1.15 1.02 2.13 1.34 2.43 1.49.3.15.48.13.66-.08.18-.2.76-.89.96-1.19.2-.3.41-.25.68-.15.28.1 1.77.83 2.07.98.3.15.51.23.58.35.08.13.08.73-.17 1.43z"/></svg>
-              <span data-i18n="joinWhatsapp">WhatsApp Group</span>
-            </a>
-          </div>
+  <!-- ==================== MOBILE COLLAPSIBLE DRAWER ==================== -->
+  <div id="mobileDrawerBackdrop" data-action="close-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
+  <aside id="mobileDrawer" class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-[#CDE0D3] shadow-2xl transform -translate-x-full transition-transform duration-200 ease-out flex flex-col lg:hidden">
+    <div class="p-4 border-b border-[#CDE0D3] bg-[#EDF4EE] flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <img src="./assets/icons/logo.svg" alt="Logo" class="w-10 h-10 rounded-xl shrink-0" />
+        <div class="min-w-0">
+          <div id="drawerUserName" class="text-sm font-extrabold text-[#14532D] truncate">Guest Visitor</div>
+          <div id="drawerUserSub" class="text-[11px] text-[#496052] truncate">Public access active</div>
         </div>
       </div>
+      <button data-action="close-drawer" type="button" class="w-9 h-9 rounded-xl bg-white text-[#14532D] font-bold">✕</button>
+    </div>
 
-      <!-- Latest Notice Strip -->
-      <div id="latestNoticeBanner" class="hidden rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start sm:items-center justify-between gap-3">
-        <div class="flex items-start gap-3 min-w-0">
-          <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-amber-200/80 text-amber-900 shrink-0 mt-0.5 sm:mt-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-          </span>
-          <div class="min-w-0">
-            <p id="latestNoticeTitle" class="text-sm font-bold text-amber-950 truncate"></p>
-            <p id="latestNoticeMsg" class="text-xs text-amber-900/90 line-clamp-2"></p>
-          </div>
-        </div>
-        <button id="viewAllNoticesBtn" type="button" class="shrink-0 px-3 py-2 rounded-xl bg-amber-200/70 hover:bg-amber-300/80 text-amber-950 text-xs font-bold transition-colors">
-          <span data-i18n="allNotices">All Notices</span>
-        </button>
-      </div>
-
-      <!-- Filters Card -->
-      <div class="bg-white rounded-2xl border border-emerald-100 p-3.5 sm:p-4 shadow-sm space-y-3">
-        <!-- Semester Pills -->
-        <div>
-          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-2" data-i18n="filterSemester">Semester</div>
-          <div id="semesterFilterBar" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5"></div>
-        </div>
-        <!-- Category Pills -->
-        <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-emerald-50">
-          <div id="categoryFilterBar" class="flex flex-wrap items-center gap-1.5"></div>
-          <span id="resultsCountLabel" class="ml-auto text-xs font-semibold text-slate-500"></span>
-        </div>
-      </div>
-
-      <!-- Study Notes Grid -->
-      <div id="notesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
-      <!-- Empty State -->
-      <div id="notesEmptyState" class="hidden bg-white rounded-3xl border border-emerald-100 p-8 text-center space-y-3">
-        <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-50 text-brand-700 flex items-center justify-center">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-        </div>
-        <h3 class="text-base font-bold text-brand-900" data-i18n="noNotesTitle">No matching study materials</h3>
-        <p class="text-sm text-slate-600" data-i18n="noNotesDesc">Try clearing your search or switching the semester/category filter.</p>
-        <button id="resetFiltersBtn" type="button" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand-900 text-white text-xs font-bold hover:bg-brand-800 transition-colors">
-          <span data-i18n="resetFilters">Reset Filters</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- ==================== TAB 2: NOTICES & ANNOUNCEMENTS ==================== -->
-    <section id="view-notices" class="hidden space-y-4 animate-fade-up">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-2xl border border-emerald-100 p-4 shadow-sm">
-        <div>
-          <h2 class="text-xl font-extrabold text-brand-900" data-i18n="noticesHeading">Official Notices &amp; Updates</h2>
-          <p class="text-xs sm:text-sm text-slate-600" data-i18n="noticesSub">Exam alerts, syllabus updates, and farmer advisories.</p>
-        </div>
-        <div id="audienceFilterBar" class="flex flex-wrap gap-1.5"></div>
-      </div>
-
-      <div id="noticesList" class="space-y-3"></div>
-    </section>
-
-    <!-- ==================== TAB 3: AGRI TOOLS ==================== -->
-    <section id="view-tools" class="hidden space-y-5 animate-fade-up">
-      <div class="bg-white rounded-2xl border border-emerald-100 p-4 sm:p-5 shadow-sm">
-        <h2 class="text-xl font-extrabold text-brand-900" data-i18n="toolsHeading">Practical Agriculture Calculators</h2>
-        <p class="text-xs sm:text-sm text-slate-600 mt-0.5" data-i18n="toolsSub">Offline-ready calculators for B.Sc Agriculture practicals and field visits.</p>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <!-- NPK Fertilizer Calculator -->
-        <div class="bg-white rounded-3xl border border-emerald-100 p-5 shadow-sm space-y-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-brand-800 flex items-center justify-center shrink-0">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-            </div>
-            <div>
-              <h3 class="text-base font-extrabold text-brand-900" data-i18n="npkTitle">NPK Fertilizer Calculator</h3>
-              <p class="text-xs text-slate-500">Converts N:P2O5:K2O (kg/ha) into Urea (46% N), DAP (18% N, 46% P), and MOP (60% K).</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-2.5">
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">N (kg/ha)</span>
-              <input id="npkN" type="number" min="0" value="120" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">P2O5 (kg/ha)</span>
-              <input id="npkP" type="number" min="0" value="60" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">K2O (kg/ha)</span>
-              <input id="npkK" type="number" min="0" value="40" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5">
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Field Area</span>
-              <input id="npkArea" type="number" min="0.05" step="0.1" value="1" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Unit</span>
-              <select id="npkUnit" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500">
-                <option value="ha">Hectare (10,000 m²)</option>
-                <option value="acre">Acre (0.4047 ha)</option>
-                <option value="bigha">Bigha — WB (0.1338 ha)</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="grid grid-cols-3 gap-2.5 pt-2">
-            <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3 text-center">
-              <div class="text-[11px] font-bold text-emerald-700">UREA</div>
-              <div id="resUrea" class="text-lg font-extrabold text-brand-900 mt-0.5">0 kg</div>
-              <div id="resUreaBags" class="text-[11px] text-slate-500">0 bags</div>
-            </div>
-            <div class="rounded-2xl bg-amber-50 border border-amber-100 p-3 text-center">
-              <div class="text-[11px] font-bold text-amber-800">DAP</div>
-              <div id="resDap" class="text-lg font-extrabold text-amber-950 mt-0.5">0 kg</div>
-              <div id="resDapBags" class="text-[11px] text-slate-500">0 bags</div>
-            </div>
-            <div class="rounded-2xl bg-sky-50 border border-sky-100 p-3 text-center">
-              <div class="text-[11px] font-bold text-sky-800">MOP</div>
-              <div id="resMop" class="text-lg font-extrabold text-sky-950 mt-0.5">0 kg</div>
-              <div id="resMopBags" class="text-[11px] text-slate-500">0 bags</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Seed Rate & Plant Population Calculator -->
-        <div class="bg-white rounded-3xl border border-emerald-100 p-5 shadow-sm space-y-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-            </div>
-            <div>
-              <h3 class="text-base font-extrabold text-brand-900" data-i18n="seedTitle">Seed Rate &amp; Population Calculator</h3>
-              <p class="text-xs text-slate-500">Calculates required seed (kg/ha) from spacing, test weight, and germination %.</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5">
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Row Spacing (cm)</span>
-              <input id="seedRow" type="number" min="1" value="45" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Plant Spacing (cm)</span>
-              <input id="seedPlant" type="number" min="1" value="15" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">1000-Seed Wt (g)</span>
-              <input id="seedTestWt" type="number" min="0.5" step="0.5" value="25" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Germination (%)</span>
-              <input id="seedGerm" type="number" min="10" max="100" value="85" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5 pt-2">
-            <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3.5 text-center">
-              <div class="text-[11px] font-bold text-emerald-700">PLANT POPULATION / HA</div>
-              <div id="resPop" class="text-xl font-extrabold text-brand-900 mt-0.5">0</div>
-            </div>
-            <div class="rounded-2xl bg-amber-50 border border-amber-100 p-3.5 text-center">
-              <div class="text-[11px] font-bold text-amber-800">SEED RATE REQUIRED</div>
-              <div id="resSeedKg" class="text-xl font-extrabold text-amber-950 mt-0.5">0 kg/ha</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================== TAB 4: ADMIN PANEL ==================== -->
-    <section id="view-admin" class="hidden space-y-5 animate-fade-up">
-      <!-- Locked Gate inside Admin Tab (if user navigates via tab before unlocking) -->
-      <div id="adminLockedState" class="max-w-lg mx-auto bg-white rounded-3xl border border-emerald-100 p-6 sm:p-8 shadow-sm text-center space-y-4">
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-100 text-brand-900 flex items-center justify-center">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        </div>
-        <div>
-          <h2 class="text-xl font-extrabold text-brand-900">Admin Panel Access</h2>
-          <p class="text-sm text-slate-600 mt-1">Sign in with your authorized Firebase Admin Google account for live cloud sync across all phones, or unlock local browser management with Admin PIN.</p>
-        </div>
-        <button id="openAdminModalFromTabBtn" type="button" class="w-full py-3 px-5 rounded-2xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-bold shadow-sm transition-colors">
-          Open Admin Login
-        </button>
-      </div>
-
-      <!-- Unlocked Admin Workspace -->
-      <div id="adminUnlockedWorkspace" class="hidden space-y-5">
-        <!-- Admin Status Header -->
-        <div class="bg-white rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="space-y-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-xl font-extrabold text-brand-900">Admin Studio</h2>
-              <span id="adminModeBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-brand-900">
-                Live Firebase Sync
-              </span>
-            </div>
-            <p id="adminIdentityText" class="text-xs sm:text-sm text-slate-600"></p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <button id="adminGoogleUpgradeBtn" type="button" class="hidden px-3.5 py-2.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-bold transition-colors">
-              Connect Firebase Cloud
-            </button>
-            <button id="resetDemoDataBtn" type="button" class="px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-brand-900 text-xs font-bold transition-colors">
-              Restore Starter Notes
-            </button>
-            <button id="adminLogoutBtn" type="button" class="px-3.5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors">
-              Logout Admin
-            </button>
-          </div>
-        </div>
-
-        <!-- Admin Sub-tabs -->
-        <div class="flex gap-2 bg-white p-1.5 rounded-2xl border border-emerald-100 w-full sm:w-fit">
-          <button id="adminSubNotesBtn" type="button" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors bg-brand-900 text-white">
-            Manage Notes &amp; PDFs
-          </button>
-          <button id="adminSubNoticesBtn" type="button" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors text-slate-600 hover:bg-emerald-50">
-            Manage Notices
-          </button>
-        </div>
-
-        <!-- Admin Sub-view: Study Notes CRUD -->
-        <div id="adminNotesSection" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <!-- Form -->
-          <form id="noteForm" class="lg:col-span-5 bg-white rounded-3xl border border-emerald-100 p-5 shadow-sm space-y-3.5 h-fit">
-            <div class="flex items-center justify-between">
-              <h3 id="noteFormTitle" class="text-base font-extrabold text-brand-900">Add New Study Note / PDF</h3>
-              <button id="cancelNoteEditBtn" type="button" class="hidden text-xs font-bold text-rose-600 hover:underline">Cancel Edit</button>
-            </div>
-            <input id="noteEditId" type="hidden" value="" />
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Title *</span>
-              <input id="noteTitle" type="text" required minlength="2" maxlength="150" placeholder="e.g. Soil Colloids & Ion Exchange Notes" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <label class="block">
-                <span class="text-xs font-bold text-slate-700">Semester *</span>
-                <select id="noteSemester" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500">
-                  <option value="1">Semester 1</option>
-                  <option value="2">Semester 2</option>
-                  <option value="3">Semester 3</option>
-                  <option value="4">Semester 4</option>
-                  <option value="5">Semester 5</option>
-                  <option value="6">Semester 6</option>
-                  <option value="7">Semester 7</option>
-                  <option value="8">Semester 8</option>
-                </select>
-              </label>
-
-              <label class="block">
-                <span class="text-xs font-bold text-slate-700">Category *</span>
-                <select id="noteCategory" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500">
-                  <option value="NOTES_PDF">PDF Notes</option>
-                  <option value="PYQ">Previous Year Qs</option>
-                  <option value="PRACTICAL">Practical Manual</option>
-                  <option value="VIDEO_LECTURE">Video Lecture</option>
-                </select>
-              </label>
-            </div>
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Subject *</span>
-              <input id="noteSubject" type="text" required minlength="2" maxlength="80" placeholder="e.g. Soil Science / Agronomy" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">PDF / Google Drive / Video Link</span>
-              <input id="noteUrl" type="url" maxlength="400" placeholder="https://drive.google.com/..." class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Short Summary * (5–1000 chars)</span>
-              <textarea id="noteSummary" rows="2" required minlength="5" maxlength="1000" placeholder="Brief overview of topics covered in this PDF or chapter..." class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
-            </label>
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Full Study Notes Text (Optional, readable inline)</span>
-              <textarea id="noteContent" rows="4" maxlength="12000" placeholder="Paste key definitions, exam formulas, or bullet points..." class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
-            </label>
-
-            <label class="flex items-center gap-2.5 cursor-pointer select-none pt-1">
-              <input id="notePublished" type="checkbox" checked class="w-4 h-4 rounded accent-brand-700" />
-              <span class="text-xs font-bold text-slate-700">Published (Visible to all students)</span>
-            </label>
-
-            <button id="saveNoteBtn" type="submit" class="w-full py-3 rounded-2xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-extrabold shadow-sm transition-colors">
-              Save Study Note
-            </button>
-          </form>
-
-          <!-- Manage List -->
-          <div class="lg:col-span-7 bg-white rounded-3xl border border-emerald-100 p-5 shadow-sm space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="text-base font-extrabold text-brand-900">All Study Notes (<span id="adminNotesCount">0</span>)</h3>
-            </div>
-            <div id="adminNotesList" class="space-y-2.5 max-h-[640px] overflow-y-auto pr-1"></div>
-          </div>
-        </div>
-
-        <!-- Admin Sub-view: Notices CRUD -->
-        <div id="adminNoticesSection" class="hidden grid-cols-1 lg:grid-cols-12 gap-5">
-          <!-- Form -->
-          <form id="noticeForm" class="lg:col-span-5 bg-white rounded-3xl border border-emerald-100 p-5 shadow-sm space-y-3.5 h-fit">
-            <div class="flex items-center justify-between">
-              <h3 id="noticeFormTitle" class="text-base font-extrabold text-brand-900">Publish Notice / Announcement</h3>
-              <button id="cancelNoticeEditBtn" type="button" class="hidden text-xs font-bold text-rose-600 hover:underline">Cancel Edit</button>
-            </div>
-            <input id="noticeEditId" type="hidden" value="" />
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Notice Title *</span>
-              <input id="noticeTitle" type="text" required minlength="2" maxlength="120" placeholder="e.g. Semester 4 Practical Exam Schedule" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            </label>
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Target Audience *</span>
-              <select id="noticeAudience" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500">
-                <option value="ALL">All Users</option>
-                <option value="STUDENTS">Students Only</option>
-                <option value="FARMERS">Farmers Only</option>
-              </select>
-            </label>
-
-            <label class="block">
-              <span class="text-xs font-bold text-slate-700">Message * (3–500 chars)</span>
-              <textarea id="noticeMessage" rows="4" required minlength="3" maxlength="500" placeholder="Write clear details, dates, or instructions..." class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
-            </label>
-
-            <label class="flex items-center gap-2.5 cursor-pointer select-none pt-1">
-              <input id="noticeActive" type="checkbox" checked class="w-4 h-4 rounded accent-brand-700" />
-              <span class="text-xs font-bold text-slate-700">Active (Show publicly)</span>
-            </label>
-
-            <button id="saveNoticeBtn" type="submit" class="w-full py-3 rounded-2xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-extrabold shadow-sm transition-colors">
-              Save Notice
-            </button>
-          </form>
-
-          <!-- Manage List -->
-          <div class="lg:col-span-7 bg-white rounded-3xl border border-emerald-100 p-5 shadow-sm space-y-3">
-            <h3 class="text-base font-extrabold text-brand-900">All Notices (<span id="adminNoticesCount">0</span>)</h3>
-            <div id="adminNoticesList" class="space-y-2.5 max-h-[540px] overflow-y-auto pr-1"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Mobile Bottom Navigation Bar -->
-  <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-emerald-100 shadow-[0_-4px_20px_rgba(20,83,45,0.06)] safe-bottom" aria-label="Mobile navigation">
-    <div class="grid grid-cols-4 gap-1 px-2 pt-1.5 pb-1">
-      <button data-tab="notes" class="mobile-nav-btn flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[11px] font-bold transition-colors">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-        <span data-i18n="navNotesShort">Notes</span>
+    <div class="flex-1 overflow-y-auto p-3 space-y-1">
+      <button data-nav="home" class="drawer-nav-item"><span>🏠 Home Dashboard</span></button>
+      <button data-nav="student" class="drawer-nav-item"><span>🎓 Student Portal</span></button>
+      <button data-nav="farmer" class="drawer-nav-item"><span>🌾 Farmer Help Desk</span></button>
+      <button data-nav="tools" class="drawer-nav-item"><span>🧮 Agri Calculators</span></button>
+      <button data-nav="ai" class="drawer-nav-item"><span>✨ AI Guru Knowledge Base</span></button>
+      <button data-nav="community" class="drawer-nav-item"><span>🤝 Community &amp; Careers</span></button>
+      <hr class="my-2 border-[#CDE0D3]" />
+      <button data-nav="meeting" class="drawer-nav-item">
+        <span>📹 Meeting Zone</span>
+        <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-[#0C3B20] text-[10px] font-extrabold"></span>
       </button>
-      <button data-tab="notices" class="mobile-nav-btn flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[11px] font-bold transition-colors">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-        <span data-i18n="navNotices">Notices</span>
+      <button data-nav="doubt" class="drawer-nav-item">
+        <span>💬 Doubt Zone (9 Advisors)</span>
+        <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
       </button>
-      <button data-tab="tools" class="mobile-nav-btn flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[11px] font-bold transition-colors">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-        <span data-i18n="navToolsShort">Tools</span>
+      <button data-nav="money" class="drawer-nav-item"><span>🔒 Money Manager (₹)</span></button>
+      <div data-role-only="admin" class="hidden pt-2 border-t border-[#CDE0D3] space-y-1">
+        <button data-nav="admin" class="drawer-nav-item"><span>🛡️ Admin Panel</span></button>
+        <button data-nav="owner" data-role-only="owner" class="hidden drawer-nav-item"><span>📊 Owner Control Center</span></button>
+      </div>
+    </div>
+
+    <div class="p-3 border-t border-[#CDE0D3] space-y-2">
+      <button data-action="open-profile" type="button" class="w-full py-2 px-4 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">Edit My Profile</button>
+      <button id="drawerAuthAction" data-action="open-auth" type="button" class="w-full py-2.5 px-4 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Continue with WhatsApp / Sign In</button>
+    </div>
+  </aside>
+
+  <!-- ==================== BODY SHELL (DESKTOP RAIL + MAIN CONTENT) ==================== -->
+  <div class="flex-1 max-w-7xl w-full mx-auto flex">
+    <!-- Desktop Persistent Navigation Rail (Matching AppNavigation.kt) -->
+    <aside class="hidden lg:flex flex-col w-60 shrink-0 border-r border-[#CDE0D3] bg-white/80 p-3 space-y-1 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+      <button data-nav="home" class="rail-nav-item"><span>🏠 Home</span></button>
+      <button data-nav="student" class="rail-nav-item"><span>🎓 Student Portal</span></button>
+      <button data-nav="farmer" class="rail-nav-item"><span>🌾 Farmer Help</span></button>
+      <button data-nav="tools" class="rail-nav-item"><span>🧮 Agri Tools</span></button>
+      <button data-nav="ai" class="rail-nav-item"><span>✨ AI Guru</span></button>
+      <button data-nav="community" class="rail-nav-item"><span>🤝 Community &amp; Jobs</span></button>
+      <hr class="my-2 border-[#CDE0D3]" />
+      <button data-nav="meeting" class="rail-nav-item">
+        <span>📹 Meeting Zone</span>
+        <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-[#0C3B20] text-[10px] font-extrabold"></span>
       </button>
-      <button data-tab="admin" class="mobile-nav-btn flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[11px] font-bold transition-colors">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        <span data-i18n="navAdmin">Admin</span>
+      <button data-nav="doubt" class="rail-nav-item">
+        <span>💬 Doubt Zone</span>
+        <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
       </button>
+      <button data-nav="money" class="rail-nav-item"><span>🔒 Money Manager (₹)</span></button>
+
+      <div data-role-only="admin" class="hidden pt-2 mt-2 border-t border-[#CDE0D3] space-y-1">
+        <button data-nav="admin" class="rail-nav-item"><span>🛡️ Admin Panel</span></button>
+        <button data-nav="owner" data-role-only="owner" class="hidden rail-nav-item"><span>📊 Owner Center</span></button>
+      </div>
+    </aside>
+
+    <!-- Main Dynamic View Container -->
+    <main id="appMainContent" class="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-24 lg:pb-10"></main>
+  </div>
+
+  <!-- ==================== MOBILE 5-TAB BOTTOM NAVIGATION (Exact AppNavigation.kt parity) ==================== -->
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#CDE0D3] shadow-[0_-4px_16px_rgba(20,83,45,0.06)] safe-bottom" aria-label="Mobile bottom navigation">
+    <div class="grid grid-cols-5 gap-1 px-1.5 pt-1.5 pb-1">
+      <button data-nav="home" class="bottom-nav-item"><span class="text-base">🏠</span><span data-i18n="navHome">Home</span></button>
+      <button data-nav="student" class="bottom-nav-item"><span class="text-base">🎓</span><span data-i18n="navStudent">Student</span></button>
+      <button data-nav="farmer" class="bottom-nav-item"><span class="text-base">🌾</span><span data-i18n="navFarmer">Farmer</span></button>
+      <button data-nav="tools" class="bottom-nav-item"><span class="text-base">🧮</span><span data-i18n="navTools">Tools</span></button>
+      <button data-nav="ai" class="bottom-nav-item"><span class="text-base">✨</span><span data-i18n="navAi">AI Guru</span></button>
     </div>
   </nav>
 
-  <!-- ==================== READER MODAL (FULL STUDY NOTES) ==================== -->
-  <div id="readerModal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="readerTitle">
-    <div class="bg-white w-full sm:max-w-2xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-fade-up">
-      <div class="p-4 sm:p-5 border-b border-emerald-100 flex items-start justify-between gap-3 bg-emerald-50/60">
-        <div class="min-w-0">
-          <div id="readerBadges" class="flex flex-wrap items-center gap-1.5 mb-1.5"></div>
-          <h3 id="readerTitle" class="text-lg font-extrabold text-brand-900 leading-snug"></h3>
-          <p id="readerSubject" class="text-xs font-semibold text-emerald-700 mt-0.5"></p>
-        </div>
-        <button id="closeReaderBtn" type="button" class="w-10 h-10 rounded-xl bg-white border border-emerald-100 text-slate-600 hover:text-brand-900 flex items-center justify-center shrink-0" aria-label="Close reader">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <div class="p-4 sm:p-6 overflow-y-auto space-y-4 text-sm text-slate-700 leading-relaxed">
-        <div class="rounded-2xl bg-emerald-50/70 border border-emerald-100 p-3.5">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-1">Summary</div>
-          <p id="readerSummary" class="text-sm text-brand-900 font-medium"></p>
-        </div>
-        <div id="readerContentWrap">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Study Notes</div>
-          <div id="readerContent" class="whitespace-pre-line text-sm text-slate-800 leading-relaxed"></div>
-        </div>
-      </div>
-      <div class="p-4 border-t border-emerald-100 bg-white flex flex-wrap items-center justify-between gap-2">
-        <button id="copyNoteTextBtn" type="button" class="px-4 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-brand-900 text-xs font-bold transition-colors">
-          Copy Notes
-        </button>
-        <a id="readerResourceLink" href="#" target="_blank" rel="noopener noreferrer" class="hidden inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-xs font-bold shadow-sm transition-colors">
-          <span>Open PDF / Link</span>
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== ADMIN LOGIN MODAL ==================== -->
-  <div id="adminLoginModal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="adminLoginHeading">
-    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-fade-up">
-      <div class="p-5 bg-gradient-to-r from-brand-900 to-brand-700 text-white flex items-center justify-between">
+  <!-- ==================== AUTH MODAL: WHATSAPP / PHONE OTP + OPTIONAL EMAIL/GOOGLE ==================== -->
+  <div id="authModal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="bg-white w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl animate-fade-up">
+      <div class="p-5 bg-gradient-to-r from-[#0C3B20] to-[#1E7E45] text-white flex items-center justify-between">
         <div>
-          <h3 id="adminLoginHeading" class="text-lg font-extrabold">Admin Login</h3>
-          <p class="text-xs text-emerald-100">Manage Guru Ji Vision notes, PDFs &amp; notices</p>
+          <h3 class="font-display text-xl font-bold">Sign In to Guru Ji Vision</h3>
+          <p class="text-xs text-emerald-100">Public notes are open to all. Sign in for private Money Manager, Doubt Chat &amp; Cloud Sync.</p>
         </div>
-        <button id="closeAdminLoginBtn" type="button" class="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center" aria-label="Close login modal">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+        <button data-action="close-auth" type="button" class="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 font-bold">✕</button>
       </div>
 
       <div class="p-5 space-y-4">
-        <!-- Option 1: Live Firebase Google Admin Auth -->
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-brand-900">1. Live Cloud Admin (Recommended)</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-brand-900">Syncs All Phones</span>
+        <div id="authErrorBox" class="hidden rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-800"></div>
+
+        <!-- PRIMARY OPTION 1: Continue with WhatsApp / Phone Number (+91 India Default) -->
+        <div class="rounded-2xl border-2 border-[#16A34A]/40 bg-[#F0FDF4] p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-[#14532D]">1. Continue with WhatsApp / Phone</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-200 text-[#0C3B20] text-[10px] font-extrabold">Primary</span>
           </div>
-          <p class="text-xs text-slate-600 leading-relaxed">
-            Sign in with your Founder / Admin Google account to publish updates live to Firebase Firestore.
-          </p>
-          <button id="modalGoogleAdminBtn" type="button" class="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-bold shadow-sm transition-colors">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M21.35 11.1h-9.18v2.92h5.27c-.23 1.24-.92 2.29-1.97 3v2.49h3.18c1.86-1.71 2.94-4.24 2.94-7.24 0-.41-.04-.8-.24-1.17z"/><path d="M12.17 22c2.66 0 4.89-.88 6.52-2.39l-3.18-2.49c-.88.59-2 .94-3.34.94-2.57 0-4.74-1.73-5.52-4.06H3.37v2.56A9.83 9.83 0 0012.17 22z"/><path d="M6.65 14a5.91 5.91 0 010-3.8V7.64H3.37a9.84 9.84 0 000 8.92L6.65 14z"/><path d="M12.17 6.14c1.45 0 2.75.5 3.77 1.48l2.83-2.83C17.05 3.19 14.83 2.2 12.17 2.2A9.83 9.83 0 003.37 7.64l3.28 2.56c.78-2.33 2.95-4.06 5.52-4.06z"/></svg>
-            <span>Sign in with Google Admin</span>
-          </button>
+
+          <div class="flex gap-2">
+            <input id="phoneCountryCode" type="text" value="+91" maxlength="5" class="w-16 px-2.5 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-extrabold text-center" aria-label="Country code" />
+            <input id="phoneNumberInput" type="tel" inputmode="numeric" maxlength="15" placeholder="10-digit mobile number" class="flex-1 px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-bold" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button id="sendWaOtpBtn" type="button" class="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#1FB857] text-[#052E16] text-xs font-extrabold shadow-sm">
+              Continue with WhatsApp OTP
+            </button>
+            <button id="sendSmsOtpBtn" type="button" class="py-2.5 px-3 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold shadow-sm">
+              Send SMS OTP (Firebase)
+            </button>
+          </div>
+
+          <div id="waBackendNotice" class="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-950"></div>
+          <div id="recaptcha-container"></div>
+
+          <form id="verifyOtpForm" class="hidden pt-2 border-t border-emerald-200 space-y-2">
+            <label class="block text-xs font-bold text-[#14532D]">Enter 6-Digit Verification OTP</label>
+            <div class="flex gap-2">
+              <input id="otpCodeInput" type="text" inputmode="numeric" required maxlength="6" placeholder="123456" class="flex-1 px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-extrabold tracking-widest" />
+              <button type="submit" class="px-4 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Verify</button>
+            </div>
+          </form>
         </div>
 
         <div class="relative flex items-center justify-center">
-          <div class="border-t border-slate-200 w-full"></div>
-          <span class="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase">OR</span>
-          <div class="border-t border-slate-200 w-full"></div>
+          <div class="border-t border-[#CDE0D3] w-full"></div>
+          <span class="bg-white px-3 text-[11px] font-bold text-[#496052]">OPTIONAL ALTERNATIVE</span>
+          <div class="border-t border-[#CDE0D3] w-full"></div>
         </div>
 
-        <!-- Option 2: Local Admin PIN (Offline / Instant Preview Fallback) -->
-        <form id="adminPinForm" class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label for="adminPinInput" class="text-xs font-extrabold uppercase tracking-wide text-slate-700">2. Quick Local Admin PIN</label>
-            <span class="text-[11px] font-semibold text-slate-500">Default PIN: 2026</span>
-          </div>
-          <div class="flex gap-2">
-            <input id="adminPinInput" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter Admin PIN" class="flex-1 px-3.5 py-2.5 rounded-xl border border-emerald-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500" />
-            <button type="submit" class="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-brand-900 text-sm font-extrabold transition-colors">
-              Unlock
-            </button>
-          </div>
-          <p id="adminLoginError" class="hidden text-xs font-semibold text-rose-600"></p>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            Local PIN mode saves changes immediately to browser storage so you can manage content even offline. Sign in with Google Admin anytime to sync live with Firebase Firestore.
-          </p>
-        </form>
+        <!-- OPTION 2: Continue with Email / Google (Optional — Preserves existing Admin/Faculty UIDs) -->
+        <div class="space-y-3">
+          <div class="text-xs font-extrabold uppercase tracking-wide text-[#496052]">2. Continue with Email / Google (Optional)</div>
+          <button data-action="google-signin" type="button" class="w-full py-2.5 px-4 rounded-xl border border-[#CDE0D3] bg-white hover:bg-[#EDF4EE] text-[#132219] text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2">
+            <span>🔐 Continue with Google (Recommended for Admin &amp; Professors)</span>
+          </button>
+
+          <form id="emailAuthForm" class="space-y-2 pt-1">
+            <input id="authEmailInput" type="email" required placeholder="Email address (optional)" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-xs sm:text-sm" />
+            <input id="authPassInput" type="password" required minlength="6" placeholder="Password (min 6 chars)" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-xs sm:text-sm" />
+            <button id="authEmailSubmitBtn" type="submit" class="w-full py-2.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Sign In with Email</button>
+            <button id="authEmailModeToggle" data-mode="login" type="button" class="w-full text-[11px] font-bold text-[#1E7E45] hover:underline">Need a new email account? Register</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="hidden fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-brand-900 text-white text-xs sm:text-sm font-bold shadow-xl max-w-[92vw] text-center"></div>
-
-  <!-- ==================== APPLICATION SCRIPT (VANILLA JS + FIREBASE v10 CDN) ==================== -->
-  <script type="module">
-    // -------------------------------------------------------------------------
-    // 1. CONFIGURATION & CONSTANTS
-    // -------------------------------------------------------------------------
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyDw01fgwsEdK0AIy8pHwVTy60axkrho2TQ",
-      authDomain: "guru-ji-vision.firebaseapp.com",
-      projectId: "guru-ji-vision",
-      storageBucket: "guru-ji-vision.firebasestorage.app",
-      messagingSenderId: "725784257884",
-      appId: "1:725784257884:web:2fdb95a1d60b13aa5e8d99",
-      measurementId: "G-HQLCQGPN43"
-    };
-    const FIRESTORE_DATABASE_ID = "ai-studio-android-gurujivi-641f324c-f73f-4600-a445-e4253ef6fa80";
-    const FOUNDER_EMAIL = "mondalsayan9932@gmail.com";
-    const DEFAULT_ADMIN_PIN = "2026";
-
-    const STORAGE_KEYS = {
-      notes: "gjv_web_study_materials_v1",
-      notices: "gjv_web_announcements_v1",
-      lang: "gjv_web_lang_v1",
-      localAdminUnlocked: "gjv_web_local_admin_v1"
-    };
-
-    const CATEGORY_META = {
-      ALL: { en: "All Resources", bn: "সব রিসোর্স", badgeClass: "bg-slate-100 text-slate-700" },
-      NOTES_PDF: { en: "PDF Notes", bn: "পিডিএফ নোটস", badgeClass: "bg-emerald-100 text-emerald-900" },
-      PYQ: { en: "PYQ Papers", bn: "বিগত প্রশ্নপত্র", badgeClass: "bg-amber-100 text-amber-900" },
-      PRACTICAL: { en: "Practical", bn: "প্র্যাক্টিক্যাল", badgeClass: "bg-sky-100 text-sky-900" },
-      VIDEO_LECTURE: { en: "Video Lecture", bn: "ভিডিও লেকচার", badgeClass: "bg-purple-100 text-purple-900" }
-    };
-
-    const I18N = {
-      en: {
-        tagline: "ICAR B.Sc Agriculture Study Hub",
-        navNotes: "Notes & PDFs",
-        navNotesShort: "Notes",
-        navNotices: "Notices",
-        navTools: "Agri Tools",
-        navToolsShort: "Tools",
-        navAdmin: "Admin",
-        installApp: "Install",
-        cloudSync: "Cloud Sync",
-        adminLogin: "Admin",
-        heroBadge: "Open Access • Semester 1–8 Study Materials",
-        heroTitle: "Agriculture Notes, PDFs & Exam Resources",
-        heroSub: "Read curated ICAR B.Sc (Hons.) Agriculture notes, previous year papers, and practical manuals instantly on any phone or desktop.",
-        statNotes: "Notes",
-        statPdfs: "PDF Links",
-        statNotices: "Notices",
-        joinWhatsapp: "WhatsApp Group",
-        allNotices: "All Notices",
-        filterSemester: "Semester",
-        noNotesTitle: "No matching study materials",
-        noNotesDesc: "Try clearing your search or switching the semester/category filter.",
-        resetFilters: "Reset Filters",
-        noticesHeading: "Official Notices & Updates",
-        noticesSub: "Exam alerts, syllabus updates, and farmer advisories.",
-        toolsHeading: "Practical Agriculture Calculators",
-        toolsSub: "Offline-ready calculators for B.Sc Agriculture practicals and field visits.",
-        npkTitle: "NPK Fertilizer Calculator",
-        seedTitle: "Seed Rate & Population Calculator"
-      },
-      bn: {
-        tagline: "আইসিএআর বি.এসসি এগ্রিকালচার স্টাডি হাব",
-        navNotes: "নোটস ও পিডিএফ",
-        navNotesShort: "নোটস",
-        navNotices: "নোটিশ",
-        navTools: "কৃষি ক্যালকুলেটর",
-        navToolsShort: "টুলস",
-        navAdmin: "অ্যাডমিন",
-        installApp: "ইনস্টল",
-        cloudSync: "ক্লাউড সিঙ্ক",
-        adminLogin: "অ্যাডমিন",
-        heroBadge: "সবার জন্য উন্মুক্ত • সেমিস্টার ১–৮ স্টাডি মেটেরিয়াল",
-        heroTitle: "কৃষিবিজ্ঞান নোটস, পিডিএফ ও পরীক্ষার রিসোর্স",
-        heroSub: "যেকোনো মোবাইল বা কম্পিউটার থেকে সরাসরি ICAR B.Sc Agriculture নোটস, বিগত বছরের প্রশ্নপত্র ও প্র্যাক্টিক্যাল ম্যানুয়াল পড়ুন।",
-        statNotes: "মোট নোটস",
-        statPdfs: "পিডিএফ লিংক",
-        statNotices: "নোটিশ",
-        joinWhatsapp: "হোয়াটসঅ্যাপ গ্রুপ",
-        allNotices: "সব নোটিশ",
-        filterSemester: "সেমিস্টার",
-        noNotesTitle: "কোনো স্টাডি মেটেরিয়াল পাওয়া যায়নি",
-        noNotesDesc: "অনুসন্ধান মুছে ফেলুন বা অন্য সেমিস্টার নির্বাচন করুন।",
-        resetFilters: "ফিল্টার রিসেট",
-        noticesHeading: "অফিশিয়াল নোটিশ ও আপডেট",
-        noticesSub: "পরীক্ষার খবর, সিলেবাস আপডেট এবং কৃষি পরামর্শ।",
-        toolsHeading: "ব্যবহারিক কৃষি ক্যালকুলেটর",
-        toolsSub: "বি.এসসি এগ্রিকালচার প্র্যাক্টিক্যাল ও মাঠ পর্যায়ের জন্য অফলাইন ক্যালকুলেটর।",
-        npkTitle: "এনপিকে সার ক্যালকুলেটর",
-        seedTitle: "বীজের হার ও চারা সংখ্যা ক্যালকুলেটর"
-      }
-    };
-
-    // Starter authentic ICAR B.Sc Agriculture notes (instant fallback so app never blanks)
-    const SEED_NOTES = [
-      {
-        id: "seed-agr-101",
-        title: "Fundamentals of Agronomy — Tillage, Crop Geometry & Weeds",
-        semester: 1,
-        subject: "Agronomy (AGR-101)",
-        category: "NOTES_PDF",
-        summary: "Complete ICAR 5th Deans' Committee notes covering primary vs secondary tillage, tilth, plant density, critical weed competition period, and herbicide classification.",
-        contentText: "1. TILLAGE & TILTH\n• Primary Tillage: Deep opening of soil using MB plough, disc plough, or subsoiler to break hardpan and incorporate residues.\n• Secondary Tillage: Harrowing, planking, and leveling to create a fine seedbed.\n• Zero Tillage: Direct drilling of wheat after rice saves 25–30% fuel and advances sowing by 10–15 days.\n\n2. WEED MANAGEMENT\n• Critical Period of Crop-Weed Competition: First 1/3rd to 1/2 of crop life cycle (e.g., 15–45 DAS in direct-seeded rice).\n• Pre-emergence Herbicides: Pendimethalin, Pretilachlor, Atrazine.\n• Post-emergence Herbicides: 2,4-D, Bispyribac-sodium, Sulfosulfuron.\n\n3. EXAM QUICK FORMULA\n• Cropping Intensity (%) = (Gross Cropped Area / Net Sown Area) × 100.",
-        resourceUrl: "https://ecourses.icar.gov.in/",
-        published: true,
-        updatedAtMs: Date.now() - 86400000 * 6
-      },
-      {
-        id: "seed-ssac-101",
-        title: "Fundamentals of Soil Science — Soil Colloids, pH & CEC",
-        semester: 1,
-        subject: "Soil Science (SSAC-101)",
-        category: "NOTES_PDF",
-        summary: "Key revision notes on silicate clay minerals (1:1 Kaolinite vs 2:1 Montmorillonite), Cation Exchange Capacity (CEC), soil reaction, and reclamation of saline-alkali soils.",
-        contentText: "1. CLAY MINERALS & CEC (cmol(p+)/kg)\n• Kaolinite (1:1 non-expanding): CEC 3–15\n• Illite (2:1 non-expanding): CEC 15–40\n• Montmorillonite (2:1 expanding): CEC 80–120\n• Humus (Organic colloid): CEC 150–300\n\n2. PROBLEM SOILS & RECLAMATION\n• Acid Soil (pH < 6.5): Reclaim with Agricultural Lime (CaCO3) or Dolomite.\n• Saline Soil (EC > 4 dS/m, ESP < 15, pH < 8.5): Leaching with good quality water + drainage.\n• Sodic / Alkali Soil (EC < 4 dS/m, ESP > 15, pH > 8.5): Apply Gypsum (CaSO4·2H2O) followed by leaching.",
-        resourceUrl: "https://ecourses.icar.gov.in/",
-        published: true,
-        updatedAtMs: Date.now() - 86400000 * 5
-      },
-      {
-        id: "seed-path-201",
-        title: "Plant Pathology — Major Rice & Wheat Diseases Identification",
-        semester: 2,
-        subject: "Plant Pathology (PATH-201)",
-        category: "PRACTICAL",
-        summary: "Field identification table for Rice Blast, Brown Spot, Bacterial Leaf Blight, Wheat Rusts (Black, Brown, Yellow), causal organisms, symptoms, and integrated control.",
-        contentText: "MAJOR CROP DISEASES CHEAT SHEET\n1. Rice Blast (Magnaporthe oryzae): Spindle-shaped spots with grey centre and brown margin; neck blast causes chaffy panicles. Spray Tricyclazole 75 WP.\n2. Brown Spot of Rice (Bipolaris oryzae): Sesame-seed-like brown lesions; caused the 1943 Bengal Famine. Correct soil K/Zn deficiency + Mancozeb.\n3. Bacterial Leaf Blight (Xanthomonas oryzae pv. oryzae): Wavy yellow margins from leaf tip; positive bacterial ooze test in clear water.\n4. Wheat Rusts:\n   - Stem/Black Rust: Puccinia graminis tritici\n   - Leaf/Brown Rust: Puccinia triticina\n   - Stripe/Yellow Rust: Puccinia striiformis",
-        resourceUrl: "https://ecourses.icar.gov.in/",
-        published: true,
-        updatedAtMs: Date.now() - 86400000 * 4
-      },
-      {
-        id: "seed-cphy-301",
-        title: "Crop Physiology — C3, C4 & CAM Pathways + Plant Growth Regulators",
-        semester: 3,
-        subject: "Crop Physiology (CPHY-301)",
-        category: "NOTES_PDF",
-        summary: "High-yield comparison of C3, C4 (Kranz anatomy), and CAM photosynthesis, water potential, mineral deficiency keys, and practical uses of Auxins, GA3, Cytokinin, ABA & Ethylene.",
-        contentText: "1. PHOTOSYNTHETIC PATHWAYS\n• C3 Plants (Rice, Wheat, Soybean): First stable product 3-PGA (RuBisCO); high photorespiration.\n• C4 Plants (Maize, Sugarcane, Sorghum): Kranz anatomy; PEP carboxylase in mesophyll -> OAA; negligible photorespiration; high WUE.\n• CAM Plants (Pineapple, Agave): Stomata open at night to conserve water.\n\n2. PLANT GROWTH REGULATORS (PGRs)\n• Auxin (IBA/NAA): Rooting in cuttings, apical dominance.\n• Gibberellin (GA3): Internode elongation, breaking seed dormancy, seedless grapes.\n• Cytokinin: Cell division, Richmond-Lang effect (delays senescence).\n• ABA: Stress hormone, stomatal closure during drought.\n• Ethylene (Ethephon): Fruit ripening, degreening of citrus.",
-        resourceUrl: "https://ecourses.icar.gov.in/",
-        published: true,
-        updatedAtMs: Date.now() - 86400000 * 3
-      },
-      {
-        id: "seed-ent-401",
-        title: "Integrated Pest Management (IPM) — ETL, Bio-Control & Pyrethroids",
-        semester: 4,
-        subject: "Agricultural Entomology (ENT-401)",
-        category: "PYQ",
-        summary: "Previous year university exam questions and model answers covering Economic Threshold Level (ETL), Trichogramma parasitoids, NPV, pheromone traps, and safe pesticide handling.",
-        contentText: "FREQUENT UNIVERSITY EXAM QUESTIONS\nQ1. Differentiate EIL and ETL.\n• EIL (Economic Injury Level): Lowest pest population density that causes economic damage.\n• ETL (Economic Threshold Level): Pest density at which control measures must be initiated to prevent reaching EIL (ETL is always lower than EIL).\n\nQ2. Important Biological Control Agents:\n• Trichogramma spp.: Egg parasitoid for stem borers and bollworms.\n• Chrysoperla carnea: Predator of aphids and whiteflies.\n• HaNPV: Nuclear Polyhedrosis Virus for Helicoverpa armigera.\n• Beauveria bassiana & Metarhizium anisopliae: Entomopathogenic fungi.",
-        resourceUrl: "https://ecourses.icar.gov.in/",
-        published: true,
-        updatedAtMs: Date.now() - 86400000 * 2
-      },
-      {
-        id: "seed-econ-501",
-        title: "Agricultural Economics — Law of Diminishing Returns & Farm Budgeting",
-        semester: 5,
-        subject: "Agricultural Economics (ECON-501)",
-        category: "VIDEO_LECTURE",
-        summary: "Core production economics concepts: three zones of the classical production function, Elasticity of Production (Ep), Marginal Cost vs Marginal Revenue, and MSP calculations.",
-        contentText: "THREE ZONES OF PRODUCTION FUNCTION\n• Zone I (Irrational): Ep > 1; APP is rising; MPP > APP. Increasing input increases efficiency.\n• Zone II (Rational Zone): 0 <= Ep <= 1; TPP increases at a decreasing rate; optimum economic point lies here where MVP = MIC.\n• Zone III (Irrational): Ep < 0; MPP is negative; adding more input reduces total yield.\n\nFARM MANAGEMENT COSTS (CACP)\n• Cost A1: Direct paid-out cash & kind costs.\n• Cost B2: Cost A1 + rental value of owned land + interest on fixed capital.\n• Cost C2: Comprehensive cost including imputed value of family labour (basis for MSP discussions).",
-        resourceUrl: "https://ecourses.icar.gov.in/",
-        published: true,
-        updatedAtMs: Date.now() - 86400000
-      }
-    ];
-
-    const SEED_NOTICES = [
-      {
-        id: "seed-notice-1",
-        title: "Welcome to Guru Ji Vision Web Hub",
-        message: "All published ICAR B.Sc Agriculture notes, PDFs, and practical calculators are now open for instant access on mobile and desktop. Tap 'Add to Home Screen' in Chrome to install as an app.",
-        audience: "ALL",
-        active: true,
-        updatedAtMs: Date.now() - 3600000 * 6
-      },
-      {
-        id: "seed-notice-2",
-        title: "Semester Exam Revision PDFs & Practical Guides Updated",
-        message: "Check Semester 1–5 Agronomy, Soil Science, Pathology, Physiology, and Entomology notes. Join the official WhatsApp group for daily doubt solving and exam alerts.",
-        audience: "STUDENTS",
-        active: true,
-        updatedAtMs: Date.now() - 3600000 * 2
-      }
-    ];
-
-    // -------------------------------------------------------------------------
-    // 2. APPLICATION STATE
-    // -------------------------------------------------------------------------
-    const state = {
-      activeTab: "notes",
-      lang: localStorage.getItem(STORAGE_KEYS.lang) || "en",
-      semesterFilter: 0, // 0 = All
-      categoryFilter: "ALL",
-      audienceFilter: "ALL",
-      searchQuery: "",
-
-      notes: [],
-      notices: [],
-
-      // Firebase / Auth State
-      firebaseReady: false,
-      fb: null, // { auth, db, fns }
-      user: null,
-      isCloudAdmin: false,
-      isLocalAdmin: sessionStorage.getItem(STORAGE_KEYS.localAdminUnlocked) === "true",
-      cloudConnected: false,
-      unsubNotes: null,
-      unsubNotices: null,
-
-      // UI modals / install
-      deferredInstallPrompt: null,
-      currentReaderNote: null
-    };
-
-    // -------------------------------------------------------------------------
-    // 3. SAFE UTILITIES (XSS-SAFE + URL SANITIZATION)
-    // -------------------------------------------------------------------------
-    function escapeHtml(str) {
-      return String(str ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function safeUrl(url) {
-      const trimmed = String(url ?? "").trim();
-      if (!trimmed) return "";
-      try {
-        const parsed = new URL(trimmed);
-        if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-          return parsed.href;
-        }
-      } catch (_) {}
-      return "";
-    }
-
-    let toastTimer = null;
-    function showToast(msg, isError = false) {
-      const el = document.getElementById("toast");
-      el.textContent = msg;
-      el.classList.remove("hidden", "bg-brand-900", "bg-rose-700");
-      el.classList.add(isError ? "bg-rose-700" : "bg-brand-900");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.add("hidden"), 3400);
-    }
-
-    function isAdminUnlocked() {
-      return state.isCloudAdmin || state.isLocalAdmin;
-    }
-
-    function getTimestampMs(val) {
-      if (!val) return 0;
-      if (typeof val === "number") return val;
-      if (typeof val.toMillis === "function") return val.toMillis();
-      if (val.seconds) return val.seconds * 1000;
-      return 0;
-    }
-
-    // -------------------------------------------------------------------------
-    // 4. LOCAL STORAGE PERSISTENCE & SAFE SEEDING
-    // -------------------------------------------------------------------------
-    function loadFromLocalStorage() {
-      try {
-        const rawNotes = localStorage.getItem(STORAGE_KEYS.notes);
-        const parsedNotes = rawNotes ? JSON.parse(rawNotes) : null;
-        state.notes = Array.isArray(parsedNotes) && parsedNotes.length > 0 ? parsedNotes : [...SEED_NOTES];
-        if (!parsedNotes) {
-          localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(state.notes));
-        }
-      } catch (_) {
-        state.notes = [...SEED_NOTES];
-      }
-
-      try {
-        const rawNotices = localStorage.getItem(STORAGE_KEYS.notices);
-        const parsedNotices = rawNotices ? JSON.parse(rawNotices) : null;
-        state.notices = Array.isArray(parsedNotices) && parsedNotices.length > 0 ? parsedNotices : [...SEED_NOTICES];
-        if (!parsedNotices) {
-          localStorage.setItem(STORAGE_KEYS.notices, JSON.stringify(state.notices));
-        }
-      } catch (_) {
-        state.notices = [...SEED_NOTICES];
-      }
-    }
-
-    function saveLocalCache() {
-      try {
-        localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(state.notes));
-        localStorage.setItem(STORAGE_KEYS.notices, JSON.stringify(state.notices));
-      } catch (_) {}
-    }
-
-    // -------------------------------------------------------------------------
-    // 5. FIREBASE v10 MODULAR CDN INTEGRATION (LIVE SYNC + SAFE FALLBACK)
-    // -------------------------------------------------------------------------
-    async function initFirebaseSafely() {
-      try {
-        const [appMod, authMod, fsMod] = await Promise.all([
-          import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"),
-          import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js"),
-          import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js")
-        ]);
-
-        const app = appMod.initializeApp(FIREBASE_CONFIG);
-        const auth = authMod.getAuth(app);
-        const db = fsMod.getFirestore(app, FIRESTORE_DATABASE_ID);
-
-        state.fb = { app, auth, db, authMod, fsMod };
-        state.firebaseReady = true;
-
-        authMod.onAuthStateChanged(auth, async (user) => {
-          state.user = user || null;
-          state.isCloudAdmin = false;
-
-          if (user) {
-            state.isCloudAdmin = await verifyCloudAdmin(user);
-            startFirestoreListeners();
-          } else {
-            stopFirestoreListeners();
-            state.cloudConnected = false;
-            // Attempt public read in case rules are relaxed later; silently stays on localStorage if denied
-            tryPublicFirestorePeek();
-          }
-          updateSyncIndicators();
-          renderAll();
-        });
-      } catch (err) {
-        console.warn("Firebase CDN unavailable; running in offline localStorage mode.", err);
-        state.firebaseReady = false;
-        state.cloudConnected = false;
-        updateSyncIndicators();
-      }
-    }
-
-    async function verifyCloudAdmin(user) {
-      if (!user || !state.fb) return false;
-      if (user.email && user.email.toLowerCase() === FOUNDER_EMAIL && user.emailVerified) {
-        return true;
-      }
-      try {
-        const { db, fsMod } = state.fb;
-        const adminSnap = await fsMod.getDoc(fsMod.doc(db, "admins", user.uid));
-        return adminSnap.exists();
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function stopFirestoreListeners() {
-      if (typeof state.unsubNotes === "function") {
-        state.unsubNotes();
-        state.unsubNotes = null;
-      }
-      if (typeof state.unsubNotices === "function") {
-        state.unsubNotices();
-        state.unsubNotices = null;
-      }
-    }
-
-    function tryPublicFirestorePeek() {
-      if (!state.fb) return;
-      try {
-        const { db, fsMod } = state.fb;
-        const q = fsMod.query(fsMod.collection(db, "studyMaterials"), fsMod.where("published", "==", true));
-        const unsub = fsMod.onSnapshot(
-          q,
-          (snap) => {
-            if (!snap.empty) {
-              const cloudNotes = snap.docs.map(mapMaterialDoc);
-              state.notes = cloudNotes.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-              saveLocalCache();
-              state.cloudConnected = true;
-              updateSyncIndicators();
-              renderAll();
-            }
-          },
-          () => {
-            // Expected when published firestore.rules require sign-in; stay quietly on localStorage
-            unsub();
-          }
-        );
-      } catch (_) {}
-    }
-
-    function startFirestoreListeners() {
-      if (!state.fb || !state.user) return;
-      stopFirestoreListeners();
-      const { db, fsMod } = state.fb;
-
-      const notesQuery = state.isCloudAdmin
-        ? fsMod.collection(db, "studyMaterials")
-        : fsMod.query(fsMod.collection(db, "studyMaterials"), fsMod.where("published", "==", true));
-
-      state.unsubNotes = fsMod.onSnapshot(
-        notesQuery,
-        (snap) => {
-          state.cloudConnected = true;
-          const cloudNotes = snap.docs.map(mapMaterialDoc).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-          if (cloudNotes.length > 0) {
-            state.notes = cloudNotes;
-            saveLocalCache();
-          } else if (state.notes.some((n) => n.fromCloud)) {
-            state.notes = [];
-            saveLocalCache();
-          }
-          updateSyncIndicators();
-          renderAll();
-        },
-        (err) => {
-          console.warn("Firestore studyMaterials listener fallback:", err?.code || err);
-          state.cloudConnected = false;
-          updateSyncIndicators();
-        }
-      );
-
-      const noticesQuery = state.isCloudAdmin
-        ? fsMod.collection(db, "announcements")
-        : fsMod.query(fsMod.collection(db, "announcements"), fsMod.where("active", "==", true));
-
-      state.unsubNotices = fsMod.onSnapshot(
-        noticesQuery,
-        (snap) => {
-          const cloudNotices = snap.docs.map(mapNoticeDoc).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-          if (cloudNotices.length > 0) {
-            state.notices = cloudNotices;
-            saveLocalCache();
-          } else if (state.notices.some((n) => n.fromCloud)) {
-            state.notices = [];
-            saveLocalCache();
-          }
-          renderAll();
-        },
-        (err) => {
-          console.warn("Firestore announcements listener fallback:", err?.code || err);
-        }
-      );
-    }
-
-    function mapMaterialDoc(d) {
-      const data = d.data() || {};
-      return {
-        id: d.id,
-        title: String(data.title || "Untitled Note"),
-        semester: Number(data.semester || 1),
-        subject: String(data.subject || "Agriculture"),
-        category: CATEGORY_META[data.category] ? data.category : "NOTES_PDF",
-        summary: String(data.summary || ""),
-        contentText: String(data.contentText || ""),
-        resourceUrl: String(data.resourceUrl || ""),
-        published: data.published !== false,
-        createdBy: String(data.createdBy || ""),
-        updatedAtMs: getTimestampMs(data.updatedAt) || getTimestampMs(data.createdAt) || Date.now(),
-        fromCloud: true
-      };
-    }
-
-    function mapNoticeDoc(d) {
-      const data = d.data() || {};
-      return {
-        id: d.id,
-        title: String(data.title || "Notice"),
-        message: String(data.message || ""),
-        audience: ["ALL", "STUDENTS", "FARMERS"].includes(data.audience) ? data.audience : "ALL",
-        active: data.active !== false,
-        createdBy: String(data.createdBy || ""),
-        updatedAtMs: getTimestampMs(data.updatedAt) || getTimestampMs(data.createdAt) || Date.now(),
-        fromCloud: true
-      };
-    }
-
-    async function handleGoogleSignIn(requireAdmin = false) {
-      if (!state.firebaseReady || !state.fb) {
-        showToast("Firebase unavailable offline. Use Local Admin PIN (2026).", true);
-        return;
-      }
-      try {
-        const { auth, authMod } = state.fb;
-        const provider = new authMod.GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: "select_account" });
-        const result = await authMod.signInWithPopup(auth, provider);
-        const user = result.user;
-        const adminOk = await verifyCloudAdmin(user);
-        state.user = user;
-        state.isCloudAdmin = adminOk;
-
-        if (requireAdmin) {
-          if (adminOk) {
-            closeAdminLoginModal();
-            setActiveTab("admin");
-            showToast(`Signed in as Cloud Admin (${user.email})`);
-          } else {
-            showToast("Signed in for live sync, but this email is not an Admin. Use Founder email or Local PIN.", true);
-          }
-        } else {
-          showToast(`Connected to Live Cloud (${user.displayName || user.email})`);
-        }
-        startFirestoreListeners();
-        updateSyncIndicators();
-        renderAll();
-      } catch (err) {
-        console.warn("Google Sign-In error:", err);
-        const code = err?.code || "";
-        if (code === "auth/unauthorized-domain") {
-          showToast("Add this Netlify domain in Firebase Auth → Authorized domains, or use Local PIN (2026).", true);
-        } else if (code === "auth/popup-closed-by-user") {
-          showToast("Sign-in cancelled.");
-        } else {
-          showToast("Google Sign-In failed. You can still use Local Admin PIN (2026).", true);
-        }
-      }
-    }
-
-    async function handleSignOut() {
-      if (state.fb && state.user) {
-        try {
-          await state.fb.authMod.signOut(state.fb.auth);
-        } catch (_) {}
-      }
-      state.user = null;
-      state.isCloudAdmin = false;
-      state.isLocalAdmin = false;
-      sessionStorage.removeItem(STORAGE_KEYS.localAdminUnlocked);
-      stopFirestoreListeners();
-      state.cloudConnected = false;
-      updateSyncIndicators();
-      renderAll();
-      showToast("Logged out successfully.");
-    }
-
-    // -------------------------------------------------------------------------
-    // 6. CRUD OPERATIONS (FIRESTORE WHEN CLOUD ADMIN, LOCALSTORAGE FALLBACK)
-    // -------------------------------------------------------------------------
-    async function saveStudyNote(payload, editId) {
-      const cleanPayload = {
-        title: payload.title.trim(),
-        semester: Math.min(8, Math.max(1, parseInt(payload.semester, 10) || 1)),
-        subject: payload.subject.trim(),
-        category: ["NOTES_PDF", "VIDEO_LECTURE", "PYQ", "PRACTICAL"].includes(payload.category) ? payload.category : "NOTES_PDF",
-        summary: payload.summary.trim(),
-        contentText: payload.contentText.trim(),
-        resourceUrl: payload.resourceUrl.trim(),
-        published: Boolean(payload.published)
-      };
-
-      if (cleanPayload.title.length < 2 || cleanPayload.subject.length < 2 || cleanPayload.summary.length < 5) {
-        showToast("Please enter a valid title, subject, and summary (min 5 chars).", true);
-        return false;
-      }
-
-      if (state.isCloudAdmin && state.fb && state.user) {
-        try {
-          const { db, fsMod } = state.fb;
-          if (editId && !editId.startsWith("seed-") && !editId.startsWith("local-")) {
-            await fsMod.updateDoc(fsMod.doc(db, "studyMaterials", editId), {
-              title: cleanPayload.title,
-              semester: cleanPayload.semester,
-              subject: cleanPayload.subject,
-              category: cleanPayload.category,
-              summary: cleanPayload.summary,
-              contentText: cleanPayload.contentText,
-              verifiedForAi: true,
-              resourceUrl: cleanPayload.resourceUrl,
-              published: cleanPayload.published,
-              updatedAt: fsMod.serverTimestamp()
-            });
-            showToast("Updated live in Firebase Cloud!");
-          } else {
-            await fsMod.addDoc(fsMod.collection(db, "studyMaterials"), {
-              title: cleanPayload.title,
-              semester: cleanPayload.semester,
-              subject: cleanPayload.subject,
-              category: cleanPayload.category,
-              summary: cleanPayload.summary,
-              contentText: cleanPayload.contentText,
-              verifiedForAi: true,
-              resourceUrl: cleanPayload.resourceUrl,
-              published: cleanPayload.published,
-              createdBy: state.user.uid,
-              createdAt: fsMod.serverTimestamp(),
-              updatedAt: fsMod.serverTimestamp()
-            });
-            showToast("Published live to Firebase Cloud!");
-          }
-          return true;
-        } catch (err) {
-          console.error("Cloud save note failed:", err);
-          showToast("Cloud write failed (check permissions). Saved locally instead.", true);
-        }
-      }
-
-      // LocalStorage fallback
-      if (editId) {
-        const idx = state.notes.findIndex((n) => n.id === editId);
-        if (idx >= 0) {
-          state.notes[idx] = { ...state.notes[idx], ...cleanPayload, updatedAtMs: Date.now() };
-        }
-      } else {
-        state.notes.unshift({
-          id: "local-" + Date.now(),
-          ...cleanPayload,
-          updatedAtMs: Date.now(),
-          fromCloud: false
-        });
-      }
-      saveLocalCache();
-      renderAll();
-      showToast(editId ? "Study note updated (Local Storage)." : "Study note added (Local Storage).");
-      return true;
-    }
-
-    async function deleteStudyNote(id) {
-      if (!confirm("Delete this study note permanently?")) return;
-
-      if (state.isCloudAdmin && state.fb && !id.startsWith("seed-") && !id.startsWith("local-")) {
-        try {
-          const { db, fsMod } = state.fb;
-          await fsMod.deleteDoc(fsMod.doc(db, "studyMaterials", id));
-          showToast("Deleted from Firebase Cloud.");
-          return;
-        } catch (err) {
-          console.error("Cloud delete note error:", err);
-          showToast("Cloud delete failed; removing locally.", true);
-        }
-      }
-
-      state.notes = state.notes.filter((n) => n.id !== id);
-      saveLocalCache();
-      renderAll();
-      showToast("Study note deleted.");
-    }
-
-    async function saveNotice(payload, editId) {
-      const cleanPayload = {
-        title: payload.title.trim(),
-        message: payload.message.trim(),
-        audience: ["ALL", "STUDENTS", "FARMERS"].includes(payload.audience) ? payload.audience : "ALL",
-        active: Boolean(payload.active)
-      };
-
-      if (cleanPayload.title.length < 2 || cleanPayload.message.length < 3) {
-        showToast("Please enter a valid notice title and message.", true);
-        return false;
-      }
-
-      if (state.isCloudAdmin && state.fb && state.user) {
-        try {
-          const { db, fsMod } = state.fb;
-          if (editId && !editId.startsWith("seed-") && !editId.startsWith("local-")) {
-            await fsMod.updateDoc(fsMod.doc(db, "announcements", editId), {
-              title: cleanPayload.title,
-              message: cleanPayload.message,
-              audience: cleanPayload.audience,
-              active: cleanPayload.active,
-              updatedAt: fsMod.serverTimestamp()
-            });
-            showToast("Notice updated live in Firebase Cloud!");
-          } else {
-            await fsMod.addDoc(fsMod.collection(db, "announcements"), {
-              title: cleanPayload.title,
-              message: cleanPayload.message,
-              audience: cleanPayload.audience,
-              active: cleanPayload.active,
-              createdBy: state.user.uid,
-              createdAt: fsMod.serverTimestamp(),
-              updatedAt: fsMod.serverTimestamp()
-            });
-            showToast("Notice published live to Firebase Cloud!");
-          }
-          return true;
-        } catch (err) {
-          console.error("Cloud save notice error:", err);
-          showToast("Cloud notice write failed; saved locally.", true);
-        }
-      }
-
-      if (editId) {
-        const idx = state.notices.findIndex((n) => n.id === editId);
-        if (idx >= 0) {
-          state.notices[idx] = { ...state.notices[idx], ...cleanPayload, updatedAtMs: Date.now() };
-        }
-      } else {
-        state.notices.unshift({
-          id: "local-notice-" + Date.now(),
-          ...cleanPayload,
-          updatedAtMs: Date.now(),
-          fromCloud: false
-        });
-      }
-      saveLocalCache();
-      renderAll();
-      showToast(editId ? "Notice updated (Local Storage)." : "Notice added (Local Storage).");
-      return true;
-    }
-
-    async function deleteNotice(id) {
-      if (!confirm("Delete this notice?")) return;
-
-      if (state.isCloudAdmin && state.fb && !id.startsWith("seed-") && !id.startsWith("local-")) {
-        try {
-          const { db, fsMod } = state.fb;
-          await fsMod.deleteDoc(fsMod.doc(db, "announcements", id));
-          showToast("Notice deleted from Firebase Cloud.");
-          return;
-        } catch (err) {
-          console.error("Cloud delete notice error:", err);
-        }
-      }
-
-      state.notices = state.notices.filter((n) => n.id !== id);
-      saveLocalCache();
-      renderAll();
-      showToast("Notice deleted.");
-    }
-
-    // -------------------------------------------------------------------------
-    // 7. RENDERING FUNCTIONS
-    // -------------------------------------------------------------------------
-    function applyLanguage() {
-      const dict = I18N[state.lang] || I18N.en;
-      document.querySelectorAll("[data-i18n]").forEach((el) => {
-        const key = el.getAttribute("data-i18n");
-        if (dict[key]) el.textContent = dict[key];
-      });
-      document.getElementById("langToggleBtn").textContent = state.lang === "en" ? "বাংলা" : "EN";
-      document.documentElement.lang = state.lang === "en" ? "en" : "bn";
-    }
-
-    function updateSyncIndicators() {
-      const pill = document.getElementById("syncStatusPill");
-      const dot = document.getElementById("syncDot");
-      const text = document.getElementById("syncStatusText");
-      const googleLabel = document.getElementById("googleSyncLabel");
-      const mobileLabel = document.getElementById("mobileCloudSyncLabel");
-      const adminLabel = document.getElementById("headerAdminLabel");
-
-      if (state.cloudConnected) {
-        pill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 shrink-0";
-        dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500";
-        text.textContent = "Live";
-      } else {
-        pill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0";
-        dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
-        text.textContent = "Local";
-      }
-
-      if (state.user) {
-        const shortName = (state.user.displayName || state.user.email || "Synced").split(" ")[0];
-        googleLabel.textContent = shortName;
-        mobileLabel.textContent = shortName;
-      } else {
-        googleLabel.textContent = (I18N[state.lang] || I18N.en).cloudSync;
-        mobileLabel.textContent = (I18N[state.lang] || I18N.en).cloudSync;
-      }
-
-      adminLabel.textContent = isAdminUnlocked() ? "Admin ✓" : (I18N[state.lang] || I18N.en).adminLogin;
-    }
-
-    function setActiveTab(tab) {
-      state.activeTab = tab;
-      ["notes", "notices", "tools", "admin"].forEach((t) => {
-        document.getElementById(`view-${t}`).classList.toggle("hidden", t !== tab);
-      });
-
-      document.querySelectorAll(".nav-tab-btn").forEach((btn) => {
-        const active = btn.dataset.tab === tab;
-        btn.className = active
-          ? "nav-tab-btn px-3.5 py-2 rounded-lg text-sm font-bold bg-brand-900 text-white shadow-sm transition-colors"
-          : "nav-tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-brand-900/80 hover:bg-emerald-100/70 transition-colors";
-      });
-
-      document.querySelectorAll(".mobile-nav-btn").forEach((btn) => {
-        const active = btn.dataset.tab === tab;
-        btn.className = active
-          ? "mobile-nav-btn flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[11px] font-extrabold bg-emerald-100/90 text-brand-900 transition-colors"
-          : "mobile-nav-btn flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[11px] font-semibold text-slate-500 hover:text-brand-900 transition-colors";
-      });
-
-      if (tab === "admin") {
-        renderAdminWorkspace();
-      }
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    function renderFilters() {
-      const semBar = document.getElementById("semesterFilterBar");
-      const semOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-      semBar.innerHTML = semOptions.map((sem) => {
-        const active = state.semesterFilter === sem;
-        const label = sem === 0 ? (state.lang === "bn" ? "সব সেম" : "All Sem") : `Sem ${sem}`;
-        return `<button type="button" data-sem="${sem}" class="sem-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
-          active ? "bg-brand-900 text-white shadow-sm" : "bg-emerald-50 text-brand-900 hover:bg-emerald-100"
-        }">${escapeHtml(label)}</button>`;
-      }).join("");
-
-      const catBar = document.getElementById("categoryFilterBar");
-      catBar.innerHTML = Object.keys(CATEGORY_META).map((cat) => {
-        const active = state.categoryFilter === cat;
-        const label = CATEGORY_META[cat][state.lang] || CATEGORY_META[cat].en;
-        return `<button type="button" data-cat="${cat}" class="cat-pill px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-          active ? "bg-amber-400 text-brand-900 shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-emerald-50"
-        }">${escapeHtml(label)}</button>`;
-      }).join("");
-
-      const audBar = document.getElementById("audienceFilterBar");
-      const audiences = [
-        { key: "ALL", label: "All" },
-        { key: "STUDENTS", label: "Students" },
-        { key: "FARMERS", label: "Farmers" }
-      ];
-      audBar.innerHTML = audiences.map((a) => {
-        const active = state.audienceFilter === a.key;
-        return `<button type="button" data-aud="${a.key}" class="aud-pill px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-          active ? "bg-brand-900 text-white" : "bg-emerald-50 text-brand-900 hover:bg-emerald-100"
-        }">${escapeHtml(a.label)}</button>`;
-      }).join("");
-    }
-
-    function renderNotesDashboard() {
-      const publicNotes = state.notes.filter((n) => n.published !== false);
-      const activeNotices = state.notices.filter((n) => n.active !== false);
-
-      document.getElementById("statNotesCount").textContent = String(publicNotes.length);
-      document.getElementById("statPdfCount").textContent = String(publicNotes.filter((n) => safeUrl(n.resourceUrl)).length);
-      document.getElementById("statNoticeCount").textContent = String(activeNotices.length);
-
-      // Latest Notice Banner
-      const banner = document.getElementById("latestNoticeBanner");
-      if (activeNotices.length > 0) {
-        banner.classList.remove("hidden");
-        document.getElementById("latestNoticeTitle").textContent = activeNotices[0].title;
-        document.getElementById("latestNoticeMsg").textContent = activeNotices[0].message;
-      } else {
-        banner.classList.add("hidden");
-      }
-
-      // Filter notes
-      const q = state.searchQuery.trim().toLowerCase();
-      const filtered = publicNotes.filter((n) => {
-        if (state.semesterFilter > 0 && Number(n.semester) !== state.semesterFilter) return false;
-        if (state.categoryFilter !== "ALL" && n.category !== state.categoryFilter) return false;
-        if (q) {
-          const hay = `${n.title} ${n.subject} ${n.summary} ${n.contentText || ""}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      });
-
-      document.getElementById("resultsCountLabel").textContent = `${filtered.length} ${filtered.length === 1 ? "item" : "items"}`;
-
-      const grid = document.getElementById("notesGrid");
-      const empty = document.getElementById("notesEmptyState");
-
-      if (filtered.length === 0) {
-        grid.innerHTML = "";
-        empty.classList.remove("hidden");
-        return;
-      }
-      empty.classList.add("hidden");
-
-      grid.innerHTML = filtered.map((note) => {
-        const meta = CATEGORY_META[note.category] || CATEGORY_META.NOTES_PDF;
-        const catLabel = meta[state.lang] || meta.en;
-        const link = safeUrl(note.resourceUrl);
-        return `
-          <article class="bg-white rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all flex flex-col justify-between gap-4">
-            <div class="space-y-2.5">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${meta.badgeClass}">${escapeHtml(catLabel)}</span>
-                <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-brand-900/10 text-brand-900">Sem ${escapeHtml(note.semester)}</span>
-                ${note.fromCloud ? `<span class="ml-auto text-[10px] font-bold text-emerald-700">● Cloud</span>` : ""}
-              </div>
-              <div>
-                <h3 class="text-base font-extrabold text-brand-900 leading-snug">${escapeHtml(note.title)}</h3>
-                <p class="text-xs font-bold text-emerald-700 mt-1">${escapeHtml(note.subject)}</p>
-              </div>
-              <p class="text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-3">${escapeHtml(note.summary)}</p>
-            </div>
-            <div class="flex items-center gap-2 pt-2 border-t border-emerald-50">
-              <button type="button" data-read-id="${escapeHtml(note.id)}" class="read-note-btn flex-1 min-h-[42px] px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-brand-900 text-xs font-extrabold transition-colors">
-                Read Notes
-              </button>
-              ${link ? `
-                <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="flex-1 min-h-[42px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-xs font-extrabold transition-colors">
-                  <span>Open PDF</span>
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                </a>
-              ` : ""}
-            </div>
-          </article>
-        `;
-      }).join("");
-    }
-
-    function renderNoticesView() {
-      const activeNotices = state.notices.filter((n) => n.active !== false);
-      const filtered = activeNotices.filter((n) => {
-        if (state.audienceFilter === "ALL") return true;
-        return n.audience === state.audienceFilter || n.audience === "ALL";
-      });
-
-      const list = document.getElementById("noticesList");
-      if (filtered.length === 0) {
-        list.innerHTML = `
-          <div class="bg-white rounded-3xl border border-emerald-100 p-8 text-center text-sm text-slate-500 font-medium">
-            No active notices right now.
-          </div>
-        `;
-        return;
-      }
-
-      list.innerHTML = filtered.map((notice) => {
-        const badgeColor =
-          notice.audience === "STUDENTS"
-            ? "bg-emerald-100 text-emerald-900"
-            : notice.audience === "FARMERS"
-            ? "bg-amber-100 text-amber-900"
-            : "bg-sky-100 text-sky-900";
-        const dateStr = notice.updatedAtMs
-          ? new Date(notice.updatedAtMs).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
-          : "";
-        return `
-          <article class="bg-white rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm space-y-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${badgeColor}">${escapeHtml(notice.audience)}</span>
-              <span class="text-xs font-medium text-slate-400">${escapeHtml(dateStr)}</span>
-            </div>
-            <h3 class="text-base font-extrabold text-brand-900">${escapeHtml(notice.title)}</h3>
-            <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-line">${escapeHtml(notice.message)}</p>
-          </article>
-        `;
-      }).join("");
-    }
-
-    function renderAdminWorkspace() {
-      const locked = document.getElementById("adminLockedState");
-      const workspace = document.getElementById("adminUnlockedWorkspace");
-      const badge = document.getElementById("adminModeBadge");
-      const identity = document.getElementById("adminIdentityText");
-      const upgradeBtn = document.getElementById("adminGoogleUpgradeBtn");
-
-      if (!isAdminUnlocked()) {
-        locked.classList.remove("hidden");
-        workspace.classList.add("hidden");
-        return;
-      }
-
-      locked.classList.add("hidden");
-      workspace.classList.remove("hidden");
-
-      if (state.isCloudAdmin && state.user) {
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900";
-        badge.textContent = "● Live Firebase Cloud Sync";
-        identity.textContent = `Signed in as ${state.user.email} — every change syncs live to all connected Android & Web users.`;
-        upgradeBtn.classList.add("hidden");
-      } else {
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900";
-        badge.textContent = "Local Browser Storage Mode";
-        identity.textContent = "Unlocked via Admin PIN. Changes save immediately to this browser. Connect Firebase Google Admin to sync globally.";
-        upgradeBtn.classList.remove("hidden");
-      }
-
-      // Render Admin Notes List
-      document.getElementById("adminNotesCount").textContent = String(state.notes.length);
-      const adminNotesList = document.getElementById("adminNotesList");
-      if (state.notes.length === 0) {
-        adminNotesList.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">No study notes yet. Add your first note on the left.</p>`;
-      } else {
-        adminNotesList.innerHTML = state.notes.map((n) => `
-          <div class="rounded-2xl border border-emerald-100 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-emerald-50/40">
-            <div class="min-w-0 space-y-0.5">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-brand-900">Sem ${escapeHtml(n.semester)}</span>
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${n.published ? "bg-sky-100 text-sky-900" : "bg-slate-200 text-slate-700"}">${n.published ? "Published" : "Draft"}</span>
-                <span class="text-[11px] font-semibold text-emerald-700 truncate">${escapeHtml(n.subject)}</span>
-              </div>
-              <p class="text-sm font-bold text-brand-900 truncate">${escapeHtml(n.title)}</p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <button type="button" data-edit-note="${escapeHtml(n.id)}" class="edit-note-btn px-3 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-brand-900 text-xs font-bold">Edit</button>
-              <button type="button" data-del-note="${escapeHtml(n.id)}" class="del-note-btn px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold">Delete</button>
-            </div>
-          </div>
-        `).join("");
-      }
-
-      // Render Admin Notices List
-      document.getElementById("adminNoticesCount").textContent = String(state.notices.length);
-      const adminNoticesList = document.getElementById("adminNoticesList");
-      if (state.notices.length === 0) {
-        adminNoticesList.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">No notices published yet.</p>`;
-      } else {
-        adminNoticesList.innerHTML = state.notices.map((n) => `
-          <div class="rounded-2xl border border-emerald-100 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-emerald-50/40">
-            <div class="min-w-0 space-y-0.5">
-              <div class="flex items-center gap-1.5">
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900">${escapeHtml(n.audience)}</span>
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${n.active ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"}">${n.active ? "Active" : "Hidden"}</span>
-              </div>
-              <p class="text-sm font-bold text-brand-900 truncate">${escapeHtml(n.title)}</p>
-              <p class="text-xs text-slate-500 truncate">${escapeHtml(n.message)}</p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <button type="button" data-edit-notice="${escapeHtml(n.id)}" class="edit-notice-btn px-3 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-brand-900 text-xs font-bold">Edit</button>
-              <button type="button" data-del-notice="${escapeHtml(n.id)}" class="del-notice-btn px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold">Delete</button>
-            </div>
-          </div>
-        `).join("");
-      }
-    }
-
-    function renderAll() {
-      applyLanguage();
-      renderFilters();
-      renderNotesDashboard();
-      renderNoticesView();
-      renderAdminWorkspace();
-      updateSyncIndicators();
-    }
-
-    // -------------------------------------------------------------------------
-    // 8. MODALS & CALCULATORS
-    // -------------------------------------------------------------------------
-    function openReaderModal(noteId) {
-      const note = state.notes.find((n) => n.id === noteId);
-      if (!note) return;
-      state.currentReaderNote = note;
-      const meta = CATEGORY_META[note.category] || CATEGORY_META.NOTES_PDF;
-
-      document.getElementById("readerBadges").innerHTML = `
-        <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-bold ${meta.badgeClass}">${escapeHtml(meta[state.lang] || meta.en)}</span>
-        <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-brand-900/10 text-brand-900">Semester ${escapeHtml(note.semester)}</span>
-      `;
-      document.getElementById("readerTitle").textContent = note.title;
-      document.getElementById("readerSubject").textContent = note.subject;
-      document.getElementById("readerSummary").textContent = note.summary;
-
-      const contentWrap = document.getElementById("readerContentWrap");
-      if (note.contentText && note.contentText.trim()) {
-        contentWrap.classList.remove("hidden");
-        document.getElementById("readerContent").textContent = note.contentText;
-      } else {
-        contentWrap.classList.add("hidden");
-      }
-
-      const linkEl = document.getElementById("readerResourceLink");
-      const href = safeUrl(note.resourceUrl);
-      if (href) {
-        linkEl.href = href;
-        linkEl.classList.remove("hidden");
-      } else {
-        linkEl.classList.add("hidden");
-      }
-
-      document.getElementById("readerModal").classList.remove("hidden");
-    }
-
-    function closeReaderModal() {
-      document.getElementById("readerModal").classList.add("hidden");
-      state.currentReaderNote = null;
-    }
-
-    function openAdminLoginModal() {
-      document.getElementById("adminLoginError").classList.add("hidden");
-      document.getElementById("adminPinInput").value = "";
-      document.getElementById("adminLoginModal").classList.remove("hidden");
-    }
-
-    function closeAdminLoginModal() {
-      document.getElementById("adminLoginModal").classList.add("hidden");
-    }
-
-    function updateNpkCalculator() {
-      const n = Math.max(0, parseFloat(document.getElementById("npkN").value) || 0);
-      const p = Math.max(0, parseFloat(document.getElementById("npkP").value) || 0);
-      const k = Math.max(0, parseFloat(document.getElementById("npkK").value) || 0);
-      const area = Math.max(0, parseFloat(document.getElementById("npkArea").value) || 0);
-      const unit = document.getElementById("npkUnit").value;
-
-      const haFactor = unit === "acre" ? 0.4047 : unit === "bigha" ? 0.1338 : 1;
-      const ha = area * haFactor;
-
-      // DAP supplies 46% P2O5 and 18% N
-      const dapHa = p / 0.46;
-      const nFromDap = dapHa * 0.18;
-      const remainingN = Math.max(0, n - nFromDap);
-      const ureaHa = remainingN / 0.46;
-      const mopHa = k / 0.60;
-
-      const urea = ureaHa * ha;
-      const dap = dapHa * ha;
-      const mop = mopHa * ha;
-
-      document.getElementById("resUrea").textContent = `${urea.toFixed(1)} kg`;
-      document.getElementById("resUreaBags").textContent = `${(urea / 45).toFixed(2)} bags (45kg)`;
-      document.getElementById("resDap").textContent = `${dap.toFixed(1)} kg`;
-      document.getElementById("resDapBags").textContent = `${(dap / 50).toFixed(2)} bags (50kg)`;
-      document.getElementById("resMop").textContent = `${mop.toFixed(1)} kg`;
-      document.getElementById("resMopBags").textContent = `${(mop / 50).toFixed(2)} bags (50kg)`;
-    }
-
-    function updateSeedCalculator() {
-      const row = Math.max(1, parseFloat(document.getElementById("seedRow").value) || 1);
-      const plant = Math.max(1, parseFloat(document.getElementById("seedPlant").value) || 1);
-      const testWt = Math.max(0.1, parseFloat(document.getElementById("seedTestWt").value) || 1);
-      const germ = Math.min(100, Math.max(1, parseFloat(document.getElementById("seedGerm").value) || 80));
-
-      const areaPerPlantM2 = (row / 100) * (plant / 100);
-      const population = Math.round(10000 / areaPerPlantM2);
-      const seedKgHa = ((population * testWt) / 1000000) * (100 / germ);
-
-      document.getElementById("resPop").textContent = population.toLocaleString();
-      document.getElementById("resSeedKg").textContent = `${seedKgHa.toFixed(2)} kg/ha`;
-    }
-
-    // -------------------------------------------------------------------------
-    // 9. ADMIN FORM HELPERS
-    // -------------------------------------------------------------------------
-    function resetNoteForm() {
-      document.getElementById("noteEditId").value = "";
-      document.getElementById("noteForm").reset();
-      document.getElementById("notePublished").checked = true;
-      document.getElementById("noteFormTitle").textContent = "Add New Study Note / PDF";
-      document.getElementById("saveNoteBtn").textContent = "Save Study Note";
-      document.getElementById("cancelNoteEditBtn").classList.add("hidden");
-    }
-
-    function populateNoteFormForEdit(id) {
-      const n = state.notes.find((x) => x.id === id);
-      if (!n) return;
-      document.getElementById("noteEditId").value = n.id;
-      document.getElementById("noteTitle").value = n.title;
-      document.getElementById("noteSemester").value = String(n.semester || 1);
-      document.getElementById("noteCategory").value = n.category || "NOTES_PDF";
-      document.getElementById("noteSubject").value = n.subject || "";
-      document.getElementById("noteUrl").value = n.resourceUrl || "";
-      document.getElementById("noteSummary").value = n.summary || "";
-      document.getElementById("noteContent").value = n.contentText || "";
-      document.getElementById("notePublished").checked = n.published !== false;
-      document.getElementById("noteFormTitle").textContent = "Edit Study Note";
-      document.getElementById("saveNoteBtn").textContent = "Update Study Note";
-      document.getElementById("cancelNoteEditBtn").classList.remove("hidden");
-      document.getElementById("noteForm").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    function resetNoticeForm() {
-      document.getElementById("noticeEditId").value = "";
-      document.getElementById("noticeForm").reset();
-      document.getElementById("noticeActive").checked = true;
-      document.getElementById("noticeFormTitle").textContent = "Publish Notice / Announcement";
-      document.getElementById("saveNoticeBtn").textContent = "Save Notice";
-      document.getElementById("cancelNoticeEditBtn").classList.add("hidden");
-    }
-
-    function populateNoticeFormForEdit(id) {
-      const n = state.notices.find((x) => x.id === id);
-      if (!n) return;
-      document.getElementById("noticeEditId").value = n.id;
-      document.getElementById("noticeTitle").value = n.title;
-      document.getElementById("noticeAudience").value = n.audience || "ALL";
-      document.getElementById("noticeMessage").value = n.message || "";
-      document.getElementById("noticeActive").checked = n.active !== false;
-      document.getElementById("noticeFormTitle").textContent = "Edit Notice";
-      document.getElementById("saveNoticeBtn").textContent = "Update Notice";
-      document.getElementById("cancelNoticeEditBtn").classList.remove("hidden");
-      document.getElementById("noticeForm").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    // -------------------------------------------------------------------------
-    // 10. EVENT BINDINGS
-    // -------------------------------------------------------------------------
-    function bindEvents() {
-      // Navigation tabs
-      document.querySelectorAll(".nav-tab-btn, .mobile-nav-btn").forEach((btn) => {
-        btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
-      });
-      document.getElementById("brandHomeBtn").addEventListener("click", () => setActiveTab("notes"));
-      document.getElementById("viewAllNoticesBtn").addEventListener("click", () => setActiveTab("notices"));
-
-      // Language toggle
-      document.getElementById("langToggleBtn").addEventListener("click", () => {
-        state.lang = state.lang === "en" ? "bn" : "en";
-        localStorage.setItem(STORAGE_KEYS.lang, state.lang);
-        renderAll();
-      });
-
-      // Cloud sync buttons
-      const syncHandler = () => {
-        if (state.user) {
-          if (confirm(`Signed in as ${state.user.email}. Sign out?`)) {
-            handleSignOut();
-          }
-        } else {
-          handleGoogleSignIn(false);
-        }
-      };
-      document.getElementById("googleSyncBtn").addEventListener("click", syncHandler);
-      document.getElementById("mobileCloudSyncBtn").addEventListener("click", syncHandler);
-
-      // Header Admin button
-      document.getElementById("headerAdminBtn").addEventListener("click", () => {
-        if (isAdminUnlocked()) {
-          setActiveTab("admin");
-        } else {
-          openAdminLoginModal();
-        }
-      });
-      document.getElementById("openAdminModalFromTabBtn").addEventListener("click", openAdminLoginModal);
-      document.getElementById("closeAdminLoginBtn").addEventListener("click", closeAdminLoginModal);
-      document.getElementById("adminLoginModal").addEventListener("click", (e) => {
-        if (e.target.id === "adminLoginModal") closeAdminLoginModal();
-      });
-
-      // Modal Google Admin login & Admin workspace upgrade
-      document.getElementById("modalGoogleAdminBtn").addEventListener("click", () => handleGoogleSignIn(true));
-      document.getElementById("adminGoogleUpgradeBtn").addEventListener("click", () => handleGoogleSignIn(true));
-
-      // Local Admin PIN form
-      document.getElementById("adminPinForm").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const pin = document.getElementById("adminPinInput").value.trim();
-        const errEl = document.getElementById("adminLoginError");
-        if (pin === DEFAULT_ADMIN_PIN) {
-          state.isLocalAdmin = true;
-          sessionStorage.setItem(STORAGE_KEYS.localAdminUnlocked, "true");
-          closeAdminLoginModal();
-          setActiveTab("admin");
-          updateSyncIndicators();
-          showToast("Admin Panel unlocked (Local Storage mode).");
-        } else {
-          errEl.textContent = "Incorrect PIN. Default Local Admin PIN is 2026.";
-          errEl.classList.remove("hidden");
-        }
-      });
-
-      // Admin Logout & Restore Starter Notes
-      document.getElementById("adminLogoutBtn").addEventListener("click", handleSignOut);
-      document.getElementById("resetDemoDataBtn").addEventListener("click", () => {
-        if (!confirm("Restore default sample agriculture notes and notices in local browser storage?")) return;
-        state.notes = [...SEED_NOTES];
-        state.notices = [...SEED_NOTICES];
-        saveLocalCache();
-        renderAll();
-        showToast("Starter agriculture notes restored.");
-      });
-
-      // Admin sub-tabs
-      document.getElementById("adminSubNotesBtn").addEventListener("click", () => {
-        document.getElementById("adminNotesSection").classList.remove("hidden");
-        document.getElementById("adminNotesSection").classList.add("grid");
-        document.getElementById("adminNoticesSection").classList.add("hidden");
-        document.getElementById("adminNoticesSection").classList.remove("grid");
-        document.getElementById("adminSubNotesBtn").className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors bg-brand-900 text-white";
-        document.getElementById("adminSubNoticesBtn").className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors text-slate-600 hover:bg-emerald-50";
-      });
-
-      document.getElementById("adminSubNoticesBtn").addEventListener("click", () => {
-        document.getElementById("adminNoticesSection").classList.remove("hidden");
-        document.getElementById("adminNoticesSection").classList.add("grid");
-        document.getElementById("adminNotesSection").classList.add("hidden");
-        document.getElementById("adminNotesSection").classList.remove("grid");
-        document.getElementById("adminSubNoticesBtn").className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors bg-brand-900 text-white";
-        document.getElementById("adminSubNotesBtn").className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors text-slate-600 hover:bg-emerald-50";
-      });
-
-      // Search & Filter delegation
-      document.getElementById("searchNotesInput").addEventListener("input", (e) => {
-        state.searchQuery = e.target.value;
-        renderNotesDashboard();
-      });
-
-      document.getElementById("semesterFilterBar").addEventListener("click", (e) => {
-        const btn = e.target.closest(".sem-pill");
-        if (!btn) return;
-        state.semesterFilter = parseInt(btn.dataset.sem, 10) || 0;
-        renderFilters();
-        renderNotesDashboard();
-      });
-
-      document.getElementById("categoryFilterBar").addEventListener("click", (e) => {
-        const btn = e.target.closest(".cat-pill");
-        if (!btn) return;
-        state.categoryFilter = btn.dataset.cat;
-        renderFilters();
-        renderNotesDashboard();
-      });
-
-      document.getElementById("audienceFilterBar").addEventListener("click", (e) => {
-        const btn = e.target.closest(".aud-pill");
-        if (!btn) return;
-        state.audienceFilter = btn.dataset.aud;
-        renderFilters();
-        renderNoticesView();
-      });
-
-      document.getElementById("resetFiltersBtn").addEventListener("click", () => {
-        state.semesterFilter = 0;
-        state.categoryFilter = "ALL";
-        state.searchQuery = "";
-        document.getElementById("searchNotesInput").value = "";
-        renderFilters();
-        renderNotesDashboard();
-      });
-
-      // Notes grid reader delegation
-      document.getElementById("notesGrid").addEventListener("click", (e) => {
-        const btn = e.target.closest(".read-note-btn");
-        if (btn) openReaderModal(btn.dataset.readId);
-      });
-
-      // Reader modal controls
-      document.getElementById("closeReaderBtn").addEventListener("click", closeReaderModal);
-      document.getElementById("readerModal").addEventListener("click", (e) => {
-        if (e.target.id === "readerModal") closeReaderModal();
-      });
-      document.getElementById("copyNoteTextBtn").addEventListener("click", async () => {
-        if (!state.currentReaderNote) return;
-        const text = `${state.currentReaderNote.title}\n${state.currentReaderNote.subject}\n\n${state.currentReaderNote.summary}\n\n${state.currentReaderNote.contentText || ""}`;
-        try {
-          await navigator.clipboard.writeText(text);
-          showToast("Study notes copied to clipboard!");
-        } catch (_) {
-          showToast("Copy not supported on this browser.", true);
-        }
-      });
-
-      // Admin CRUD forms
-      document.getElementById("noteForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const ok = await saveStudyNote(
-          {
-            title: document.getElementById("noteTitle").value,
-            semester: document.getElementById("noteSemester").value,
-            subject: document.getElementById("noteSubject").value,
-            category: document.getElementById("noteCategory").value,
-            resourceUrl: document.getElementById("noteUrl").value,
-            summary: document.getElementById("noteSummary").value,
-            contentText: document.getElementById("noteContent").value,
-            published: document.getElementById("notePublished").checked
-          },
-          document.getElementById("noteEditId").value
-        );
-        if (ok) resetNoteForm();
-      });
-      document.getElementById("cancelNoteEditBtn").addEventListener("click", resetNoteForm);
-
-      document.getElementById("adminNotesList").addEventListener("click", (e) => {
-        const editBtn = e.target.closest(".edit-note-btn");
-        if (editBtn) populateNoteFormForEdit(editBtn.dataset.editNote);
-        const delBtn = e.target.closest(".del-note-btn");
-        if (delBtn) deleteStudyNote(delBtn.dataset.delNote);
-      });
-
-      document.getElementById("noticeForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const ok = await saveNotice(
-          {
-            title: document.getElementById("noticeTitle").value,
-            audience: document.getElementById("noticeAudience").value,
-            message: document.getElementById("noticeMessage").value,
-            active: document.getElementById("noticeActive").checked
-          },
-          document.getElementById("noticeEditId").value
-        );
-        if (ok) resetNoticeForm();
-      });
-      document.getElementById("cancelNoticeEditBtn").addEventListener("click", resetNoticeForm);
-
-      document.getElementById("adminNoticesList").addEventListener("click", (e) => {
-        const editBtn = e.target.closest(".edit-notice-btn");
-        if (editBtn) populateNoticeFormForEdit(editBtn.dataset.editNotice);
-        const delBtn = e.target.closest(".del-notice-btn");
-        if (delBtn) deleteNotice(delBtn.dataset.delNotice);
-      });
-
-      // Calculators
-      ["npkN", "npkP", "npkK", "npkArea", "npkUnit"].forEach((id) => {
-        document.getElementById(id).addEventListener("input", updateNpkCalculator);
-      });
-      ["seedRow", "seedPlant", "seedTestWt", "seedGerm"].forEach((id) => {
-        document.getElementById(id).addEventListener("input", updateSeedCalculator);
-      });
-
-      // PWA Install prompt
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault();
-        state.deferredInstallPrompt = e;
-        const btn = document.getElementById("installAppBtn");
-        btn.classList.remove("hidden");
-        btn.classList.add("inline-flex");
-      });
-
-      document.getElementById("installAppBtn").addEventListener("click", async () => {
-        if (!state.deferredInstallPrompt) return;
-        state.deferredInstallPrompt.prompt();
-        await state.deferredInstallPrompt.userChoice;
-        state.deferredInstallPrompt = null;
-        document.getElementById("installAppBtn").classList.add("hidden");
-      });
-
-      // Escape key closes modals
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          closeReaderModal();
-          closeAdminLoginModal();
-        }
-      });
-    }
-
-    // -------------------------------------------------------------------------
-    // 11. BOOTSTRAP (INSTANT RENDER — ZERO SPLASH FREEZE)
-    // -------------------------------------------------------------------------
-    loadFromLocalStorage();
-    bindEvents();
-    updateNpkCalculator();
-    updateSeedCalculator();
-    setActiveTab("notes");
-    renderAll();
-    initFirebaseSafely();
-  </script>
+  <!-- ==================== USER PROFILE MODAL ==================== -->
+  <div id="profileModal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-fade-up">
+      <div class="p-4 sm:p-5 bg-[#14532D] text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-display text-lg font-bold">My Profile</h3>
+          <p id="profUidDisplay" class="text-[10px] text-emerald-100 break-all"></p>
+        </div>
+        <button data-action="close-profile" type="button" class="w-9 h-9 rounded-xl bg-white/15 font-bold">✕</button>
+      </div>
+      <form id="profileForm" class="p-5 space-y-3">
+        <label class="block"><span class="text-xs font-bold">Full Name *</span><input id="profFullName" type="text" required maxlength="80" class="mt-1 w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" /></label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="block"><span class="text-xs font-bold">Mobile Number</span><input id="profMobile" type="text" readonly placeholder="Linked via Phone Auth" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-slate-50 text-xs" /></label>
+          <label class="block"><span class="text-xs font-bold">Role</span><select id="profRole" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold"><option value="STUDENT">Student</option><option value="FARMER">Farmer</option></select></label>
+        </div>
+        <label class="block"><span class="text-xs font-bold">Optional Email</span><input id="profEmail" type="email" maxlength="120" placeholder="Optional" class="mt-1 w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" /></label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="block"><span class="text-xs font-bold">College / Village</span><input id="profCollege" type="text" maxlength="120" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" /></label>
+          <label class="block"><span class="text-xs font-bold">District</span><input id="profDistrict" type="text" maxlength="80" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" /></label>
+        </div>
+        <label class="block"><span class="text-xs font-bold">Semester (Students)</span><select id="profSemester" class="mt-1 w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold"><option value="1">Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option><option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option></select></label>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Save Profile</button>
+          <button data-action="sign-out" type="button" class="px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-extrabold">Sign Out</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== STUDY MATERIAL READER MODAL ==================== -->
+  <div id="readerModal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="bg-white w-full sm:max-w-2xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-fade-up">
+      <div class="p-4 sm:p-5 bg-[#EDF4EE] border-b border-[#CDE0D3] flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div id="readerMeta" class="text-[11px] font-bold text-[#1E7E45]"></div>
+          <h3 id="readerTitle" class="font-display text-lg font-bold text-[#14532D] mt-0.5"></h3>
+        </div>
+        <button data-action="close-reader" type="button" class="w-9 h-9 rounded-xl bg-white border border-[#CDE0D3] text-[#14532D] font-bold shrink-0">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4">
+        <div class="rounded-2xl bg-[#F7F9F5] border border-[#CDE0D3] p-3.5 text-sm font-medium text-[#14532D]" id="readerSummary"></div>
+        <div id="readerContent" class="whitespace-pre-line text-sm text-[#132219] leading-relaxed"></div>
+      </div>
+      <div class="p-4 border-t border-[#CDE0D3] flex justify-end gap-2 bg-white">
+        <a id="readerPdfBtn" href="#" target="_blank" rel="noopener noreferrer" class="hidden gv-btn px-4 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Open / Download PDF ↗</a>
+        <button data-action="close-reader" type="button" class="px-4 py-2.5 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Banner -->
+  <div id="toast" class="hidden fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#14532D] text-white text-xs sm:text-sm font-bold shadow-xl max-w-[92vw] text-center"></div>
+
+  <script type="module" src="./assets/js/app.js"></script>
 </body>
 </html>
