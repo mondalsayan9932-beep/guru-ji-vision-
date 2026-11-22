@@ -53,6 +53,13 @@ import {
   renderWeatherView,
   searchWeatherLocations
 } from "./weather-market.js";
+import { farmerFinanceService } from "./farmer-finance-service.js";
+import { renderFarmerFinanceView } from "./farmer-finance-ui-core.js";
+import {
+  bindFarmerFinanceEvents,
+  clearFarmerFinancePrivateState,
+  createInitialFarmerFinanceState
+} from "./farmer-finance-controller.js";
 
 const VALID_ROUTES = new Set([
   "home",
@@ -61,6 +68,7 @@ const VALID_ROUTES = new Set([
   "marketplace",
   "student",
   "farmer",
+  "farmer-finance",
   "tools",
   "ai",
   "community",
@@ -134,6 +142,9 @@ const state = {
   moneyFilter: "ALL",
   moneyFormType: "EXPENSE",
   quizAttempts: [],
+
+  // Farmer Financial Support & Rights Module State (Private records cleared on logout!)
+  farmerFinance: createInitialFarmerFinanceState(),
 
   // Student Career Guidance / Farmer Advisor / Professor Dashboard Threads
   studentDoubtThreads: [],
@@ -270,6 +281,7 @@ function clearPrivateStateOnLogout() {
   state.ownerErrorLogs = [];
   state.ownerContentReports = [];
   state.ownerAuditLogs = [];
+  clearFarmerFinancePrivateState(state);
 }
 
 function recomputeUnreadDoubts() {
@@ -438,6 +450,7 @@ function renderActiveView() {
     case "marketplace": html = renderMarketplaceView(state); break;
     case "student": html = renderStudentView(state); break;
     case "farmer": html = renderFarmerView(state); break;
+    case "farmer-finance": html = renderFarmerFinanceView(state); break;
     case "tools": html = renderToolsView(state); break;
     case "ai": html = renderAiGuruView(state); break;
     case "community": html = renderCommunityView(state); break;
@@ -482,7 +495,7 @@ function navigateTo(route, updateHash = true) {
   if (cleanRoute === "weather" && !state.weatherData && !state.weatherLoading) {
     loadWeatherForLocation(state.weatherLastLocation || QUICK_WEATHER_LOCATIONS[0]);
   }
-  if (cleanRoute === "market" && !state.mandiFetchedOnce) {
+  if ((cleanRoute === "market" || (cleanRoute === "farmer-finance" && state.farmerFinance?.subTab === "market-sales")) && !state.mandiFetchedOnce) {
     loadOfficialMandiData(false);
   }
 }
@@ -792,6 +805,11 @@ async function handleAuthStateChange(user) {
     isAuthorizedMeetingHost: state.isAdmin || state.facultyIdentity.canHostMeetings,
     uid: user.uid,
     onUpdate: handleCollectionUpdate
+  });
+
+  farmerFinanceService.subscribeFarmerFinance(user.uid, (key, list) => {
+    state.farmerFinance[key] = list;
+    if (state.route === "farmer-finance") renderActiveView();
   });
 
   firebaseService.subscribeDoubtThreads({
@@ -2463,6 +2481,14 @@ function bindGlobalEvents() {
 // BOOTSTRAP (Instant Public Render + Live Public Firestore + PWA SW Update)
 // ----------------------------------------------------------------------------
 bindGlobalEvents();
+bindFarmerFinanceEvents({
+  state,
+  renderActiveView,
+  showToast,
+  withBusySubmit,
+  openAuthModal,
+  loadOfficialMandiData
+});
 const initialHash = (window.location.hash || "").replace(/^#/, "");
 if (initialHash && VALID_ROUTES.has(initialHash)) {
   navigateTo(initialHash, false);

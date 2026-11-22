@@ -1127,5 +1127,420 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && isValidId(priceId) && isAdmin();
     }
+
+    // =========================================================================
+    // 21. FARMER FINANCIAL SUPPORT & RIGHTS — STRICTLY PRIVATE OWNER-ONLY RULES
+    // Preserves financial history, blocks cross-farmer access & UID tampering
+    // =========================================================================
+
+    function isValidFarmerLandLease(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.landownerName is string && data.landownerName.size() >= 2 && data.landownerName.size() <= 100 &&
+        data.landownerContact is string && data.landownerContact.size() <= 60 &&
+        data.village is string && data.village.size() <= 80 &&
+        data.block is string && data.block.size() <= 80 &&
+        data.district is string && data.district.size() <= 80 &&
+        data.state is string && data.state.size() <= 60 &&
+        data.landArea is number && data.landArea > 0 && data.landArea <= 100000 &&
+        data.areaUnit is string && data.areaUnit.size() >= 1 && data.areaUnit.size() <= 24 &&
+        data.startDate is string && data.startDate.size() >= 6 && data.startDate.size() <= 20 &&
+        data.endDate is string && data.endDate.size() >= 6 && data.endDate.size() <= 20 &&
+        data.leaseType in ['FIXED_RENT', 'CROP_SHARING'] &&
+        data.totalLeaseAmount is number && data.totalLeaseAmount >= 0 && data.totalLeaseAmount <= 100000000 &&
+        data.advancePayment is number && data.advancePayment >= 0 && data.advancePayment <= 100000000 &&
+        data.paymentFrequency is string && data.paymentFrequency.size() >= 1 && data.paymentFrequency.size() <= 24 &&
+        data.farmerSharePercent is number && data.farmerSharePercent >= 0 && data.farmerSharePercent <= 100 &&
+        data.landownerSharePercent is number && data.landownerSharePercent >= 0 && data.landownerSharePercent <= 100 &&
+        data.cropShareNote is string && data.cropShareNote.size() <= 250 &&
+        data.isVerbalAgreement is bool &&
+        data.verbalNotes is string && data.verbalNotes.size() <= 600 &&
+        data.legalVerificationStatus == 'UNVERIFIED_USER_RECORD' &&
+        data.paymentHistory is list && data.paymentHistory.size() <= 100 &&
+        data.status in ['ACTIVE', 'COMPLETED', 'ARCHIVED'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerLoanRecord(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.lenderName is string && data.lenderName.size() >= 2 && data.lenderName.size() <= 100 &&
+        data.lenderType in ['BANK_KCC', 'COOPERATIVE', 'SHG_MFI', 'PRIVATE_LENDER', 'RELATIVE_OTHER'] &&
+        data.principalAmount is number && data.principalAmount > 0 && data.principalAmount <= 100000000 &&
+        data.loanDate is string && data.loanDate.size() >= 6 && data.loanDate.size() <= 20 &&
+        data.purpose is string && data.purpose.size() <= 160 &&
+        data.interestRatePercent is number && data.interestRatePercent >= 0 && data.interestRatePercent <= 120 &&
+        data.interestMethod in ['SIMPLE', 'COMPOUND'] &&
+        data.compoundingFrequencyPerYear is int && data.compoundingFrequencyPerYear in [1, 2, 4, 12] &&
+        data.repaymentPeriodMonths is int && data.repaymentPeriodMonths >= 1 && data.repaymentPeriodMonths <= 600 &&
+        data.installmentFrequency is string && data.installmentFrequency.size() >= 1 && data.installmentFrequency.size() <= 24 &&
+        data.scheduleType in ['FIXED', 'IRREGULAR', 'PARTIAL_FLEXIBLE'] &&
+        data.nextDueDate is string && data.nextDueDate.size() <= 20 &&
+        data.notes is string && data.notes.size() <= 500 &&
+        (!('farmerCalculatedBalance' in data) || (data.farmerCalculatedBalance is number && data.farmerCalculatedBalance >= 0 && data.farmerCalculatedBalance <= 500000000)) &&
+        (!('lenderClaimedAmount' in data) || (data.lenderClaimedAmount is number && data.lenderClaimedAmount >= 0 && data.lenderClaimedAmount <= 500000000)) &&
+        (!('discrepancyNotes' in data) || (data.discrepancyNotes is string && data.discrepancyNotes.size() <= 500)) &&
+        data.status in ['ACTIVE', 'CLOSED', 'DISPUTED', 'ARCHIVED'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerLoanTransaction(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.loanId is string && data.loanId.size() >= 1 && data.loanId.size() <= 128 &&
+        data.lenderName is string && data.lenderName.size() <= 100 &&
+        data.amount is number && data.amount > 0 && data.amount <= 100000000 &&
+        data.principalPortion is number && data.principalPortion >= 0 && data.principalPortion <= data.amount &&
+        data.interestPortion is number && data.interestPortion >= 0 && data.interestPortion <= data.amount &&
+        data.paymentDate is string && data.paymentDate.size() >= 6 && data.paymentDate.size() <= 20 &&
+        data.paymentType in ['INSTALLMENT', 'PARTIAL', 'IRREGULAR', 'FULL_SETTLEMENT'] &&
+        data.paymentMode is string && data.paymentMode.size() >= 1 && data.paymentMode.size() <= 30 &&
+        data.receiptRef is string && data.receiptRef.size() <= 120 &&
+        data.note is string && data.note.size() <= 300 &&
+        data.status == 'RECORDED' &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidFarmerCropSale(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.cropName is string && data.cropName.size() >= 2 && data.cropName.size() <= 80 &&
+        data.cropVariety is string && data.cropVariety.size() <= 80 &&
+        data.season in ['KHARIF', 'RABI', 'BORO_ZAID', 'ANNUAL'] &&
+        data.landLabel is string && data.landLabel.size() <= 100 &&
+        data.harvestDate is string && data.harvestDate.size() <= 20 &&
+        data.sellingDate is string && data.sellingDate.size() >= 6 && data.sellingDate.size() <= 20 &&
+        data.quantityHarvested is number && data.quantityHarvested >= 0 && data.quantityHarvested <= 1000000 &&
+        data.quantitySold is number && data.quantitySold > 0 && data.quantitySold <= 1000000 &&
+        data.priceUnit in ['QUINTAL', 'KG', 'TON'] &&
+        data.sellingPricePerUnit is number && data.sellingPricePerUnit > 0 && data.sellingPricePerUnit <= 10000000 &&
+        data.buyerName is string && data.buyerName.size() >= 2 && data.buyerName.size() <= 100 &&
+        data.marketLocation is string && data.marketLocation.size() <= 100 &&
+        data.transportCost is number && data.transportCost >= 0 && data.transportCost <= 10000000 &&
+        data.marketCommission is number && data.marketCommission >= 0 && data.marketCommission <= 10000000 &&
+        data.otherExpenses is number && data.otherExpenses >= 0 && data.otherExpenses <= 10000000 &&
+        data.totalAmountReceived is number && data.totalAmountReceived >= 0 && data.totalAmountReceived <= 500000000 &&
+        data.paymentStatus in ['PAID', 'PARTIAL', 'PENDING'] &&
+        data.notes is string && data.notes.size() <= 400 &&
+        data.status in ['ACTIVE', 'ARCHIVED'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerExpense(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.category in ['SEEDS', 'FERTILIZERS', 'PESTICIDES', 'LABOUR', 'IRRIGATION', 'MACHINERY', 'FUEL', 'LAND_LEASE', 'TRANSPORTATION', 'ELECTRICITY', 'OTHER', 'CUSTOM'] &&
+        data.customCategory is string && data.customCategory.size() <= 60 &&
+        data.amount is number && data.amount > 0 && data.amount <= 100000000 &&
+        data.expenseDate is string && data.expenseDate.size() >= 6 && data.expenseDate.size() <= 20 &&
+        data.description is string && data.description.size() >= 2 && data.description.size() <= 300 &&
+        data.cropName is string && data.cropName.size() <= 80 &&
+        data.season in ['KHARIF', 'RABI', 'BORO_ZAID', 'ANNUAL'] &&
+        data.landLabel is string && data.landLabel.size() <= 100 &&
+        data.receiptDocumentId is string && data.receiptDocumentId.size() <= 128 &&
+        data.status in ['ACTIVE', 'ARCHIVED'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerComplaint(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.category in [
+          'LAND_LEASE_DISPUTE', 'UNCLEAR_RENTAL_AGREEMENT', 'LOAN_REPAYMENT_DISAGREEMENT',
+          'INTEREST_CALCULATION_DISPUTE', 'CROP_PAYMENT_DELAY', 'CROP_SELLING_DISPUTE', 'GOVT_SCHEME_ISSUE'
+        ] &&
+        data.description is string && data.description.size() >= 10 && data.description.size() <= 1500 &&
+        data.incidentDate is string && data.incidentDate.size() <= 20 &&
+        data.contactPreference in ['WHATSAPP', 'PHONE', 'EMAIL', 'IN_APP_ONLY'] &&
+        data.contactValue is string && data.contactValue.size() <= 80 &&
+        data.supportingDocumentIds is list && data.supportingDocumentIds.size() <= 10 &&
+        data.status in ['SUBMITTED', 'UNDER_REVIEW', 'ADDITIONAL_INFO_REQUIRED', 'RESOLVED', 'CLOSED'] &&
+        data.supportNote is string && data.supportNote.size() <= 1000 &&
+        data.reviewDisclaimer is string && data.reviewDisclaimer.size() <= 300 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerDocument(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.docType in ['LEASE_AGREEMENT', 'PAYMENT_RECEIPT', 'LOAN_DOCUMENT', 'CROP_SALE_RECEIPT', 'EXPENSE_BILL', 'COMPLAINT_EVIDENCE', 'SCHEME_DOCUMENT'] &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 120 &&
+        data.mimeType is string && data.mimeType.size() >= 3 && data.mimeType.size() <= 60 &&
+        data.fileSizeBytes is int && data.fileSizeBytes >= 1 && data.fileSizeBytes <= 5242880 &&
+        data.relatedEntityType is string && data.relatedEntityType.size() <= 40 &&
+        data.relatedEntityId is string && data.relatedEntityId.size() <= 128 &&
+        data.docDate is string && data.docDate.size() <= 20 &&
+        data.notes is string && data.notes.size() <= 300 &&
+        data.storageMode in ['FIREBASE_STORAGE', 'FIRESTORE_INLINE_PRIVATE'] &&
+        data.storagePath is string && data.storagePath.size() <= 300 &&
+        data.downloadUrl is string && data.downloadUrl.size() <= 600 &&
+        data.inlineDataUrl is string && data.inlineDataUrl.size() <= 360000 &&
+        data.legalVerificationStatus == 'UNVERIFIED_USER_UPLOAD' &&
+        data.status in ['ACTIVE', 'ARCHIVED'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerFinanceAuditLog(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.entityType is string && data.entityType.size() >= 2 && data.entityType.size() <= 40 &&
+        data.entityId is string && data.entityId.size() <= 128 &&
+        data.action is string && data.action.size() >= 2 && data.action.size() <= 40 &&
+        data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 260 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    match /farmer_land_leases/{leaseId} {
+      allow get: if isSignedIn() && isValidId(leaseId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(leaseId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'landownerName', 'landownerContact', 'village', 'block', 'district', 'state',
+          'landArea', 'areaUnit', 'startDate', 'endDate', 'leaseType', 'totalLeaseAmount', 'advancePayment',
+          'paymentFrequency', 'farmerSharePercent', 'landownerSharePercent', 'cropShareNote',
+          'isVerbalAgreement', 'verbalNotes', 'legalVerificationStatus', 'paymentHistory', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'landownerName', 'landownerContact', 'village', 'block', 'district', 'state',
+          'landArea', 'areaUnit', 'startDate', 'endDate', 'leaseType', 'totalLeaseAmount', 'advancePayment',
+          'paymentFrequency', 'farmerSharePercent', 'landownerSharePercent', 'cropShareNote',
+          'isVerbalAgreement', 'verbalNotes', 'legalVerificationStatus', 'paymentHistory', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidFarmerLandLease(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(leaseId) &&
+        existing().farmerUid == request.auth.uid &&
+        incoming().farmerUid == existing().farmerUid &&
+        incoming().createdAt == existing().createdAt &&
+        isValidFarmerLandLease(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'landownerName', 'landownerContact', 'village', 'block', 'district', 'state',
+          'landArea', 'areaUnit', 'startDate', 'endDate', 'leaseType', 'totalLeaseAmount', 'advancePayment',
+          'paymentFrequency', 'farmerSharePercent', 'landownerSharePercent', 'cropShareNote',
+          'isVerbalAgreement', 'verbalNotes', 'paymentHistory', 'status', 'updatedAt'
+        ]);
+
+      // Preserve financial history — soft-archive via status = 'ARCHIVED' instead of hard delete
+      allow delete: if false;
+    }
+
+    match /farmer_loan_records/{loanId} {
+      allow get: if isSignedIn() && isValidId(loanId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(loanId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'lenderName', 'lenderType', 'principalAmount', 'loanDate', 'purpose',
+          'interestRatePercent', 'interestMethod', 'compoundingFrequencyPerYear', 'repaymentPeriodMonths',
+          'installmentFrequency', 'scheduleType', 'nextDueDate', 'notes', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'lenderName', 'lenderType', 'principalAmount', 'loanDate', 'purpose',
+          'interestRatePercent', 'interestMethod', 'compoundingFrequencyPerYear', 'repaymentPeriodMonths',
+          'installmentFrequency', 'scheduleType', 'nextDueDate', 'notes',
+          'farmerCalculatedBalance', 'lenderClaimedAmount', 'discrepancyNotes', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidFarmerLoanRecord(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(loanId) &&
+        existing().farmerUid == request.auth.uid &&
+        incoming().farmerUid == existing().farmerUid &&
+        incoming().createdAt == existing().createdAt &&
+        isValidFarmerLoanRecord(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'lenderName', 'lenderType', 'principalAmount', 'loanDate', 'purpose',
+          'interestRatePercent', 'interestMethod', 'compoundingFrequencyPerYear', 'repaymentPeriodMonths',
+          'installmentFrequency', 'scheduleType', 'nextDueDate', 'notes',
+          'farmerCalculatedBalance', 'lenderClaimedAmount', 'discrepancyNotes', 'status', 'updatedAt'
+        ]);
+
+      allow delete: if false;
+    }
+
+    // Immutable Loan Repayment History (Append-Only — prevents tampering or silent deletion)
+    match /farmer_loan_transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(txId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'loanId', 'lenderName', 'amount', 'principalPortion', 'interestPortion',
+          'paymentDate', 'paymentType', 'paymentMode', 'receiptRef', 'note', 'status', 'createdAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'loanId', 'lenderName', 'amount', 'principalPortion', 'interestPortion',
+          'paymentDate', 'paymentType', 'paymentMode', 'receiptRef', 'note', 'status', 'createdAt'
+        ]) &&
+        isValidFarmerLoanTransaction(incoming());
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /farmer_crop_sales/{saleId} {
+      allow get: if isSignedIn() && isValidId(saleId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(saleId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'cropName', 'cropVariety', 'season', 'landLabel', 'harvestDate', 'sellingDate',
+          'quantityHarvested', 'quantitySold', 'priceUnit', 'sellingPricePerUnit', 'buyerName',
+          'marketLocation', 'transportCost', 'marketCommission', 'otherExpenses', 'totalAmountReceived',
+          'paymentStatus', 'notes', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'cropName', 'cropVariety', 'season', 'landLabel', 'harvestDate', 'sellingDate',
+          'quantityHarvested', 'quantitySold', 'priceUnit', 'sellingPricePerUnit', 'buyerName',
+          'marketLocation', 'transportCost', 'marketCommission', 'otherExpenses', 'totalAmountReceived',
+          'paymentStatus', 'notes', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidFarmerCropSale(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(saleId) &&
+        existing().farmerUid == request.auth.uid &&
+        incoming().farmerUid == existing().farmerUid &&
+        incoming().createdAt == existing().createdAt &&
+        isValidFarmerCropSale(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'cropName', 'cropVariety', 'season', 'landLabel', 'harvestDate', 'sellingDate',
+          'quantityHarvested', 'quantitySold', 'priceUnit', 'sellingPricePerUnit', 'buyerName',
+          'marketLocation', 'transportCost', 'marketCommission', 'otherExpenses', 'totalAmountReceived',
+          'paymentStatus', 'notes', 'status', 'updatedAt'
+        ]);
+
+      allow delete: if false;
+    }
+
+    match /farmer_expenses/{expenseId} {
+      allow get: if isSignedIn() && isValidId(expenseId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(expenseId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'category', 'customCategory', 'amount', 'expenseDate',
+          'description', 'cropName', 'season', 'landLabel', 'receiptDocumentId', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'category', 'customCategory', 'amount', 'expenseDate',
+          'description', 'cropName', 'season', 'landLabel', 'receiptDocumentId', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidFarmerExpense(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(expenseId) &&
+        existing().farmerUid == request.auth.uid &&
+        incoming().farmerUid == existing().farmerUid &&
+        incoming().createdAt == existing().createdAt &&
+        isValidFarmerExpense(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'category', 'customCategory', 'amount', 'expenseDate',
+          'description', 'cropName', 'season', 'landLabel', 'receiptDocumentId', 'status', 'updatedAt'
+        ]);
+
+      allow delete: if false;
+    }
+
+    match /farmer_complaints/{complaintId} {
+      allow get: if isSignedIn() && isValidId(complaintId) && (existing().farmerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().farmerUid == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        isValidId(complaintId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().status == 'SUBMITTED' &&
+        incoming().supportNote == '' &&
+        incoming().keys().hasAll([
+          'farmerUid', 'category', 'description', 'incidentDate', 'contactPreference', 'contactValue',
+          'supportingDocumentIds', 'status', 'supportNote', 'reviewDisclaimer', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'category', 'description', 'incidentDate', 'contactPreference', 'contactValue',
+          'supportingDocumentIds', 'status', 'supportNote', 'reviewDisclaimer', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidFarmerComplaint(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(complaintId) &&
+        isValidFarmerComplaint(incoming()) &&
+        incoming().farmerUid == existing().farmerUid &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (
+            isAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'supportNote', 'updatedAt'])
+          ) ||
+          (
+            existing().farmerUid == request.auth.uid &&
+            incoming().status == existing().status &&
+            incoming().supportNote == existing().supportNote &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'description', 'contactPreference', 'contactValue', 'supportingDocumentIds', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /farmer_documents/{docId} {
+      allow get: if isSignedIn() && isValidId(docId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(docId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'title', 'docType', 'fileName', 'mimeType', 'fileSizeBytes',
+          'relatedEntityType', 'relatedEntityId', 'docDate', 'notes',
+          'storageMode', 'storagePath', 'downloadUrl', 'inlineDataUrl',
+          'legalVerificationStatus', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'title', 'docType', 'fileName', 'mimeType', 'fileSizeBytes',
+          'relatedEntityType', 'relatedEntityId', 'docDate', 'notes',
+          'storageMode', 'storagePath', 'downloadUrl', 'inlineDataUrl',
+          'legalVerificationStatus', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidFarmerDocument(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(docId) &&
+        existing().farmerUid == request.auth.uid &&
+        incoming().farmerUid == existing().farmerUid &&
+        incoming().createdAt == existing().createdAt &&
+        isValidFarmerDocument(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'notes', 'status', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // Immutable Farmer Financial Audit Trail (Append-Only)
+    match /farmer_finance_audit_logs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(logId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll(['farmerUid', 'entityType', 'entityId', 'action', 'summary', 'createdAt']) &&
+        incoming().keys().hasOnly(['farmerUid', 'entityType', 'entityId', 'action', 'summary', 'createdAt']) &&
+        isValidFarmerFinanceAuditLog(incoming());
+
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

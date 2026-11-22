@@ -144,6 +144,7 @@ export function renderHomeView(state) {
     { tab: "student", tag: "Agri Education", title: "Student Academic Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: AGRI_ICONS.student },
     { tab: "career-guidance", tag: "Mentorship", title: "Student Career Guidance", sub: unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors", icon: AGRI_ICONS.career, badge: unreadDoubts > 0 ? `${unreadDoubts} new` : "" },
     { tab: "farmer-advisor", tag: "Crop Care", title: "Farmer Advisor Expert", sub: "কৃষক পরামর্শ বিশেষজ্ঞ • Crop Photos & Q&A", icon: AGRI_ICONS.advisor },
+    { tab: "farmer-finance", tag: "Farmer Rights", title: "Farmer Financial Support & Rights", sub: "Land & Lease • Loans & Debt • Crop Selling, MSP & Govt Schemes", icon: AGRI_ICONS.money, featured: true },
     { tab: "money", tag: "Private Ledger", title: "Money & Farm Manager (₹)", sub: "100% Private Student & Farmer Ledger • No Approval", icon: AGRI_ICONS.money },
     { tab: "farmer", tag: "Field Guide", title: "Farmer Help & Crop Guide", sub: "ICAR Diseases, IPM & Direct WhatsApp Help", icon: AGRI_ICONS.farmer },
     { tab: "tools", tag: "Precision Tech", title: "Agri Calculators", sub: "NPK Fertilizer (DAP/SSP) & Seed Rate", icon: AGRI_ICONS.tools },
@@ -302,6 +303,7 @@ export function renderHomeView(state) {
                 <button data-nav="student" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Notes</button>
                 <button data-nav="career-guidance" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Career Guidance</button>
                 <button data-nav="money" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Money Manager</button>
+                <button data-nav="farmer-finance" type="button" class="px-3 py-1.5 rounded-xl bg-[#14532D] hover:bg-[#15803D] text-white text-xs font-extrabold transition-colors">Finance &amp; Rights</button>
                 <button data-nav="marketplace" type="button" class="px-3 py-1.5 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">Green Heaven</button>
               </div>
             </div>

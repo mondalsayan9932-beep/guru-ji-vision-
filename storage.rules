@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Strictly Owner-Only Private Farmer Financial Documents (Max 5 MB, PDF or Images only)
+    match /farmer_documents/{farmerUid}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == farmerUid;
+      allow write: if request.auth != null &&
+        request.auth.uid == farmerUid &&
+        request.resource != null &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType == 'application/pdf'
+        );
+      allow delete: if false;
+    }
+
+    // Existing Admin Study Materials PDF Uploads (Publicly readable, verified admin write)
+    match /study_materials/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null &&
+        (
+          request.auth.token.email == 'mondalsayan9932@gmail.com' ||
+          request.auth.token.founder == true
+        ) &&
+        request.resource != null &&
+        request.resource.size <= 25 * 1024 * 1024;
+    }
+  }
+}

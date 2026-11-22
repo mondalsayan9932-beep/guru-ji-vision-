@@ -1378,6 +1378,266 @@ test("Professor Role Security: self-granting PROFESSOR or APPROVED is blocked; P
   );
 });
 
+test("Farmer Financial Support & Rights: owner CRUD succeeds across all 8 collections; other farmers, guests & unauthorized admins are strictly blocked", async () => {
+  const farmerADb = testEnv.authenticatedContext(FARMER_UID, {
+    email: "rahul@farm.in",
+    email_verified: true,
+  }).firestore();
+  const farmerBDb = testEnv.authenticatedContext(STUDENT_UID, {
+    email: "otherfarmer@farm.in",
+    email_verified: true,
+  }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const superAdminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+
+  const ts = pastTime(5000);
+
+  // 1. Land Lease (Fixed Rent)
+  await assertSucceeds(
+    farmerADb.collection("farmer_land_leases").doc("lease_1").set({
+      farmerUid: FARMER_UID,
+      landownerName: "Subhash Mondal",
+      landownerContact: "9830011223",
+      village: "Memari",
+      block: "Memari-I",
+      district: "Purba Bardhaman",
+      state: "West Bengal",
+      landArea: 2.5,
+      areaUnit: "BIGHA_WB",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      leaseType: "FIXED_RENT",
+      totalLeaseAmount: 24000,
+      advancePayment: 6000,
+      paymentFrequency: "SEASONAL",
+      farmerSharePercent: 100,
+      landownerSharePercent: 0,
+      cropShareNote: "",
+      isVerbalAgreement: false,
+      verbalNotes: "Two witnesses present",
+      legalVerificationStatus: "UNVERIFIED_USER_RECORD",
+      paymentHistory: [],
+      status: "ACTIVE",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 2. Loan Record + Debt Comparison
+  await assertSucceeds(
+    farmerADb.collection("farmer_loan_records").doc("loan_1").set({
+      farmerUid: FARMER_UID,
+      lenderName: "WB State Cooperative Bank",
+      lenderType: "COOPERATIVE",
+      principalAmount: 50000,
+      loanDate: "2026-01-15",
+      purpose: "Boro paddy cultivation",
+      interestRatePercent: 7,
+      interestMethod: "SIMPLE",
+      compoundingFrequencyPerYear: 1,
+      repaymentPeriodMonths: 12,
+      installmentFrequency: "SEASONAL",
+      scheduleType: "PARTIAL_FLEXIBLE",
+      nextDueDate: "2026-07-15",
+      notes: "KCC crop loan",
+      status: "ACTIVE",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Owner updates debt comparison
+  await assertSucceeds(
+    farmerADb.collection("farmer_loan_records").doc("loan_1").update({
+      farmerCalculatedBalance: 42000,
+      lenderClaimedAmount: 45500,
+      discrepancyNotes: "Receipt #14 not yet posted in statement",
+      updatedAt: pastTime(1000),
+    })
+  );
+
+  // 3. Immutable Loan Repayment Transaction
+  await assertSucceeds(
+    farmerADb.collection("farmer_loan_transactions").doc("tx_1").set({
+      farmerUid: FARMER_UID,
+      loanId: "loan_1",
+      lenderName: "WB State Cooperative Bank",
+      amount: 10000,
+      principalPortion: 8000,
+      interestPortion: 2000,
+      paymentDate: "2026-04-01",
+      paymentType: "PARTIAL",
+      paymentMode: "BANK_UPI",
+      receiptRef: "RCPT-14",
+      note: "Partial installment paid",
+      status: "RECORDED",
+      createdAt: ts,
+    })
+  );
+
+  // 4. Crop Sale Record
+  await assertSucceeds(
+    farmerADb.collection("farmer_crop_sales").doc("sale_1").set({
+      farmerUid: FARMER_UID,
+      cropName: "Paddy",
+      cropVariety: "Swarna",
+      season: "KHARIF",
+      landLabel: "Subhash Mondal (Memari)",
+      harvestDate: "2026-11-01",
+      sellingDate: "2026-11-10",
+      quantityHarvested: 25,
+      quantitySold: 20,
+      priceUnit: "QUINTAL",
+      sellingPricePerUnit: 2250,
+      buyerName: "Memari Kisan Mandi",
+      marketLocation: "Memari",
+      transportCost: 800,
+      marketCommission: 400,
+      otherExpenses: 200,
+      totalAmountReceived: 43600,
+      paymentStatus: "PAID",
+      notes: "Weighed digitally",
+      status: "ACTIVE",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 5. Farming Expense
+  await assertSucceeds(
+    farmerADb.collection("farmer_expenses").doc("exp_1").set({
+      farmerUid: FARMER_UID,
+      category: "FERTILIZERS",
+      customCategory: "",
+      amount: 3400,
+      expenseDate: "2026-07-20",
+      description: "2 bags DAP + 1 bag Urea",
+      cropName: "Paddy",
+      season: "KHARIF",
+      landLabel: "Subhash Mondal (Memari)",
+      receiptDocumentId: "",
+      status: "ACTIVE",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 6. Private Document
+  await assertSucceeds(
+    farmerADb.collection("farmer_documents").doc("doc_1").set({
+      farmerUid: FARMER_UID,
+      title: "Lease Agreement Photo",
+      docType: "LEASE_AGREEMENT",
+      fileName: "lease.jpg",
+      mimeType: "image/jpeg",
+      fileSizeBytes: 54000,
+      relatedEntityType: "LAND_LEASE",
+      relatedEntityId: "lease_1",
+      docDate: "2026-01-01",
+      notes: "Signed copy",
+      storageMode: "FIRESTORE_INLINE_PRIVATE",
+      storagePath: "",
+      downloadUrl: "",
+      inlineDataUrl: "data:image/jpeg;base64,AAAA",
+      legalVerificationStatus: "UNVERIFIED_USER_UPLOAD",
+      status: "ACTIVE",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 7. Complaint Record
+  await assertSucceeds(
+    farmerADb.collection("farmer_complaints").doc("cmp_1").set({
+      farmerUid: FARMER_UID,
+      category: "CROP_PAYMENT_DELAY",
+      description: "Buyer delayed balance payment of Rs 5000 by 30 days after delivery.",
+      incidentDate: "2026-11-12",
+      contactPreference: "WHATSAPP",
+      contactValue: "+919830011223",
+      supportingDocumentIds: ["doc_1"],
+      status: "SUBMITTED",
+      supportNote: "",
+      reviewDisclaimer: "Stored in your private record; not yet reviewed by an official support team or legal authority.",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 8. Immutable Audit Log
+  await assertSucceeds(
+    farmerADb.collection("farmer_finance_audit_logs").doc("log_1").set({
+      farmerUid: FARMER_UID,
+      entityType: "LOAN_REPAYMENT",
+      entityId: "tx_1",
+      action: "REPAYMENT_RECORDED",
+      summary: "Recorded partial loan repayment of Rs 10000.",
+      createdAt: ts,
+    })
+  );
+
+  // --- SECURITY ISOLATION CHECKS ---
+  // Owner can read own records
+  await assertSucceeds(farmerADb.collection("farmer_land_leases").doc("lease_1").get());
+  await assertSucceeds(farmerADb.collection("farmer_loan_records").doc("loan_1").get());
+  await assertSucceeds(farmerADb.collection("farmer_documents").doc("doc_1").get());
+
+  // Other Farmer B & Guests are strictly DENIED reading or listing Farmer A's private records
+  for (const [col, id] of [
+    ["farmer_land_leases", "lease_1"],
+    ["farmer_loan_records", "loan_1"],
+    ["farmer_loan_transactions", "tx_1"],
+    ["farmer_crop_sales", "sale_1"],
+    ["farmer_expenses", "exp_1"],
+    ["farmer_documents", "doc_1"],
+    ["farmer_complaints", "cmp_1"],
+    ["farmer_finance_audit_logs", "log_1"],
+  ]) {
+    await assertFails(farmerBDb.collection(col).doc(id).get());
+    await assertFails(guestDb.collection(col).doc(id).get());
+  }
+
+  // Super Admin CANNOT read private farmer leases, loans, sales, expenses, or private vault documents
+  await assertFails(superAdminDb.collection("farmer_land_leases").doc("lease_1").get());
+  await assertFails(superAdminDb.collection("farmer_loan_records").doc("loan_1").get());
+  await assertFails(superAdminDb.collection("farmer_documents").doc("doc_1").get());
+
+  // Farmer CANNOT tamper with ownership (farmerUid), hard-delete records, or alter immutable loan tx / audit logs
+  await assertFails(
+    farmerADb.collection("farmer_land_leases").doc("lease_1").update({
+      farmerUid: STUDENT_UID,
+      updatedAt: pastTime(500),
+    })
+  );
+  await assertFails(farmerADb.collection("farmer_land_leases").doc("lease_1").delete());
+  await assertFails(
+    farmerADb.collection("farmer_loan_transactions").doc("tx_1").update({ amount: 99999 })
+  );
+  await assertFails(farmerADb.collection("farmer_loan_transactions").doc("tx_1").delete());
+  await assertFails(
+    farmerADb.collection("farmer_finance_audit_logs").doc("log_1").update({ action: "TAMPERED" })
+  );
+
+  // Farmer CANNOT self-approve complaint status; Verified Admin CAN update complaint status & supportNote
+  await assertFails(
+    farmerADb.collection("farmer_complaints").doc("cmp_1").update({
+      status: "RESOLVED",
+      updatedAt: pastTime(500),
+    })
+  );
+  await assertSucceeds(
+    superAdminDb.collection("farmer_complaints").doc("cmp_1").update({
+      status: "UNDER_REVIEW",
+      supportNote: "Shared official Block ADA & NALSA contact guidance.",
+      updatedAt: pastTime(400),
+    })
+  );
+});
+
+
 
 
 
