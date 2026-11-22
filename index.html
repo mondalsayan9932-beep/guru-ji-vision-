@@ -4,15 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Guru Ji Vision — Indian Agriculture &amp; B.Sc Agri Ecosystem</title>
-  <meta name="description" content="Guru Ji Vision: Complete B.Sc Agriculture study hub, ICAR syllabus, MCQ exams, agriculture calculators, farmer help desk, private student money manager, meeting zone, and 1-on-1 professor doubt zone." />
+  <meta name="description" content="Guru Ji Vision: Live Weather Forecasting, Crop Market Prices (ফসলের বাজারদর), B.Sc Agriculture Study Hub, Student Career Guidance, Farmer Advisor Expert, Professor Dashboard, and Private Money &amp; Farm Manager." />
   <meta name="theme-color" content="#14532D" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Guru Ji Vision" />
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png" />
   <link rel="icon" type="image/svg+xml" href="./assets/icons/logo.svg" />
-  <link rel="apple-touch-icon" href="./assets/icons/logo.svg" />
+  <link rel="apple-touch-icon" sizes="192x192" href="./assets/icons/icon-192.png" />
 
   <!-- Original Guru Ji Vision Typography: Fraunces + Plus Jakarta Sans + Noto Sans Bengali -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -47,15 +48,23 @@
         </button>
       </div>
 
-      <!-- Top Bar Quick Actions (Matching AppNavigation.kt) -->
+      <!-- Top Bar Quick Actions -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <button data-nav="meeting" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Meeting Zone">
+        <button data-nav="weather" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] items-center justify-center" title="Weather Report &amp; Forecasting" aria-label="Weather Report and Forecasting">
+          <span class="text-base">⛅</span>
+        </button>
+
+        <button data-nav="market" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] items-center justify-center" title="Crop Market Price – ফসলের বাজারদর" aria-label="Crop Market Price">
+          <span class="text-base">📊</span>
+        </button>
+
+        <button data-nav="meeting" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Meeting Zone" aria-label="Meeting Zone">
           <span class="text-base">📹</span>
           <span data-badge="meetings" class="hidden absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#14532D] text-white text-[9px] font-extrabold leading-none"></span>
         </button>
 
-        <button data-nav="doubt" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Doubt Zone — Ask Your Professor">
-          <span class="text-base">💬</span>
+        <button data-nav="career-guidance" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Student Career Guidance &amp; Advisors" aria-label="Student Career Guidance">
+          <span class="text-base">🧭</span>
           <span data-badge="doubts" class="hidden absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold leading-none"></span>
         </button>
 
@@ -74,6 +83,12 @@
     </div>
   </header>
 
+  <!-- PWA New Version Update Banner -->
+  <div id="pwaUpdateBanner" class="hidden bg-amber-100 border-b border-amber-300 px-4 py-2 text-xs font-bold text-amber-950 flex items-center justify-center gap-3">
+    <span>✨ A newer version of Guru Ji Vision is ready.</span>
+    <button id="pwaReloadBtn" data-action="apply-sw-update" type="button" class="px-3 py-1 rounded-lg bg-[#14532D] text-white text-xs font-extrabold">Update Now</button>
+  </div>
+
   <!-- ==================== MOBILE COLLAPSIBLE DRAWER ==================== -->
   <div id="mobileDrawerBackdrop" data-action="close-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
   <aside id="mobileDrawer" class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-[#CDE0D3] shadow-2xl transform -translate-x-full transition-transform duration-200 ease-out flex flex-col lg:hidden">
@@ -90,21 +105,25 @@
 
     <div class="flex-1 overflow-y-auto p-3 space-y-1">
       <button data-nav="home" class="drawer-nav-item"><span>🏠 Home Dashboard</span></button>
+      <button data-nav="weather" class="drawer-nav-item"><span>⛅ Weather &amp; Forecast</span></button>
+      <button data-nav="market" class="drawer-nav-item"><span>📊 Market Price (বাজারদর)</span></button>
       <button data-nav="student" class="drawer-nav-item"><span>🎓 Student Portal</span></button>
       <button data-nav="farmer" class="drawer-nav-item"><span>🌾 Farmer Help Desk</span></button>
       <button data-nav="tools" class="drawer-nav-item"><span>🧮 Agri Calculators</span></button>
       <button data-nav="ai" class="drawer-nav-item"><span>✨ AI Guru Knowledge Base</span></button>
       <button data-nav="community" class="drawer-nav-item"><span>🤝 Community &amp; Careers</span></button>
       <hr class="my-2 border-[#CDE0D3]" />
+      <button data-nav="career-guidance" class="drawer-nav-item">
+        <span>🧭 Student Career Guidance</span>
+        <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
+      </button>
+      <button data-nav="farmer-advisor" class="drawer-nav-item"><span>👨‍🌾 Farmer Advisor Expert</span></button>
+      <button data-nav="professor" data-role-only="professor" class="hidden drawer-nav-item"><span>👨‍🏫 Professor Dashboard</span></button>
       <button data-nav="meeting" class="drawer-nav-item">
         <span>📹 Meeting Zone</span>
         <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-[#0C3B20] text-[10px] font-extrabold"></span>
       </button>
-      <button data-nav="doubt" class="drawer-nav-item">
-        <span>💬 Doubt Zone (9 Advisors)</span>
-        <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
-      </button>
-      <button data-nav="money" class="drawer-nav-item"><span>🔒 Money Manager (₹)</span></button>
+      <button data-nav="money" class="drawer-nav-item"><span>🔒 Money &amp; Farm Manager (₹)</span></button>
       <div data-role-only="admin" class="hidden pt-2 border-t border-[#CDE0D3] space-y-1">
         <button data-nav="admin" class="drawer-nav-item"><span>🛡️ Admin Panel</span></button>
         <button data-nav="owner" data-role-only="owner" class="hidden drawer-nav-item"><span>📊 Owner Control Center</span></button>
@@ -119,24 +138,28 @@
 
   <!-- ==================== BODY SHELL (DESKTOP RAIL + MAIN CONTENT) ==================== -->
   <div class="flex-1 max-w-7xl w-full mx-auto flex">
-    <!-- Desktop Persistent Navigation Rail (Matching AppNavigation.kt) -->
-    <aside class="hidden lg:flex flex-col w-60 shrink-0 border-r border-[#CDE0D3] bg-white/80 p-3 space-y-1 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+    <!-- Desktop Persistent Navigation Rail -->
+    <aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-[#CDE0D3] bg-white/80 p-3 space-y-1 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
       <button data-nav="home" class="rail-nav-item"><span>🏠 Home</span></button>
+      <button data-nav="weather" class="rail-nav-item"><span>⛅ Weather Forecast</span></button>
+      <button data-nav="market" class="rail-nav-item"><span>📊 Market Price (বাজারদর)</span></button>
       <button data-nav="student" class="rail-nav-item"><span>🎓 Student Portal</span></button>
       <button data-nav="farmer" class="rail-nav-item"><span>🌾 Farmer Help</span></button>
-      <button data-nav="tools" class="rail-nav-item"><span>🧮 Agri Tools</span></button>
+      <button data-nav="tools" class="rail-nav-item"><span>🧮 Agri Calculators</span></button>
       <button data-nav="ai" class="rail-nav-item"><span>✨ AI Guru</span></button>
       <button data-nav="community" class="rail-nav-item"><span>🤝 Community &amp; Jobs</span></button>
       <hr class="my-2 border-[#CDE0D3]" />
+      <button data-nav="career-guidance" class="rail-nav-item">
+        <span>🧭 Career Guidance</span>
+        <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
+      </button>
+      <button data-nav="farmer-advisor" class="rail-nav-item"><span>👨‍🌾 Farmer Advisor</span></button>
+      <button data-nav="professor" data-role-only="professor" class="hidden rail-nav-item"><span>👨‍🏫 Professor Dashboard</span></button>
       <button data-nav="meeting" class="rail-nav-item">
         <span>📹 Meeting Zone</span>
         <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-[#0C3B20] text-[10px] font-extrabold"></span>
       </button>
-      <button data-nav="doubt" class="rail-nav-item">
-        <span>💬 Doubt Zone</span>
-        <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
-      </button>
-      <button data-nav="money" class="rail-nav-item"><span>🔒 Money Manager (₹)</span></button>
+      <button data-nav="money" class="rail-nav-item"><span>🔒 Money &amp; Farm (₹)</span></button>
 
       <div data-role-only="admin" class="hidden pt-2 mt-2 border-t border-[#CDE0D3] space-y-1">
         <button data-nav="admin" class="rail-nav-item"><span>🛡️ Admin Panel</span></button>
@@ -148,14 +171,14 @@
     <main id="appMainContent" class="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-24 lg:pb-10"></main>
   </div>
 
-  <!-- ==================== MOBILE 5-TAB BOTTOM NAVIGATION (Exact AppNavigation.kt parity) ==================== -->
+  <!-- ==================== MOBILE 5-TAB BOTTOM NAVIGATION ==================== -->
   <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#CDE0D3] shadow-[0_-4px_16px_rgba(20,83,45,0.06)] safe-bottom" aria-label="Mobile bottom navigation">
     <div class="grid grid-cols-5 gap-1 px-1.5 pt-1.5 pb-1">
       <button data-nav="home" class="bottom-nav-item"><span class="text-base">🏠</span><span data-i18n="navHome">Home</span></button>
       <button data-nav="student" class="bottom-nav-item"><span class="text-base">🎓</span><span data-i18n="navStudent">Student</span></button>
+      <button data-nav="weather" class="bottom-nav-item"><span class="text-base">⛅</span><span data-i18n="navWeather">Weather</span></button>
+      <button data-nav="market" class="bottom-nav-item"><span class="text-base">📊</span><span data-i18n="navMarket">Mandi</span></button>
       <button data-nav="farmer" class="bottom-nav-item"><span class="text-base">🌾</span><span data-i18n="navFarmer">Farmer</span></button>
-      <button data-nav="tools" class="bottom-nav-item"><span class="text-base">🧮</span><span data-i18n="navTools">Tools</span></button>
-      <button data-nav="ai" class="bottom-nav-item"><span class="text-base">✨</span><span data-i18n="navAi">AI Guru</span></button>
     </div>
   </nav>
 

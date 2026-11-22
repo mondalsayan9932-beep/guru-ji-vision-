@@ -292,6 +292,85 @@ export const MONEY_INCOME_CATEGORIES = [
   { id: "OTHER", labelEn: "Part-time / Other Income", labelBn: "পার্ট-টাইম / অন্যান্য আয়" }
 ];
 
+export const FARMER_EXPENSE_CATEGORIES = [
+  { id: "SEEDS_FERTILIZER", labelEn: "Seeds & Fertilizers", labelBn: "বীজ ও সার" },
+  { id: "IRRIGATION_PESTICIDE", labelEn: "Irrigation & Pesticides", labelBn: "সেচ ও কীটনাশক" },
+  { id: "LABOUR_MACHINERY", labelEn: "Labour & Tractor/Machinery", labelBn: "শ্রমিক ও যন্ত্রপাতি" },
+  { id: "LIVESTOCK_DAIRY", labelEn: "Livestock & Dairy Feed", labelBn: "পশুপালন ও খাদ্য" },
+  { id: "TRAVEL_RECHARGE", labelEn: "Transport & Mandi Freight", labelBn: "পরিবহন ও বাজার ভাড়া" },
+  { id: "OTHER", labelEn: "Other Farm Cost", labelBn: "অন্যান্য কৃষি খরচ" }
+];
+
+export const FARMER_INCOME_CATEGORIES = [
+  { id: "HARVEST_SALE", labelEn: "Crop / Harvest Sale", labelBn: "ফসল বিক্রি আয়" },
+  { id: "LIVESTOCK_DAIRY", labelEn: "Milk / Poultry / Fish Sale", labelBn: "দুধ / মাছ / পশু বিক্রি" },
+  { id: "GOVT_SUBSIDY", labelEn: "Govt Scheme / PM-KISAN / Subsidy", labelBn: "সরকারি ভর্তুকি / অনুদান" },
+  { id: "OTHER", labelEn: "Other Farm Income", labelBn: "অন্যান্য আয়" }
+];
+
+export const CAREER_GUIDANCE_TOPICS = [
+  { id: "HIGHER_EDUCATION", labelEn: "M.Sc. / Higher Education & Universities", labelBn: "এম.এসসি ও উচ্চশিক্ষা" },
+  { id: "ICAR_JRF", labelEn: "ICAR AIEEA / JRF / SRF / NET Preparation", labelBn: "আইসিএআর / জেআরএফ প্রস্তুতি" },
+  { id: "GOVT_EXAMS", labelEn: "Govt Exams (IBPS AFO, ADA, NABARD, WBPSC)", labelBn: "সরকারি কৃষি চাকরি পরীক্ষা" },
+  { id: "RESEARCH", labelEn: "Research Projects, Lab & IPR Guidance", labelBn: "গবেষণা ও ল্যাব গাইডেন্স" },
+  { id: "INTERNSHIP_CAREER", labelEn: "Internships, RAWE, ELP & Agri Careers", labelBn: "ইন্টার্নশিপ ও কৃষি ক্যারিয়ার" },
+  { id: "ACADEMIC_SUBJECT", labelEn: "B.Sc. Agriculture Subject Clarification", labelBn: "পাঠ্যবিষয় সংক্রান্ত প্রশ্ন" }
+];
+
+export const FARMER_ADVISOR_TOPICS = [
+  { id: "CROP_PRODUCTION", labelEn: "Crop Production", labelBn: "ফসল উৎপাদন" },
+  { id: "DISEASE_PEST", labelEn: "Crop Diseases & Pest Control", labelBn: "রোগ ও পোকামাকড় দমন" },
+  { id: "FERTILIZER_NUTRIENT", labelEn: "Fertilizer & Soil Nutrients", labelBn: "সার ও মাটির পুষ্টি" },
+  { id: "IRRIGATION_WATER", labelEn: "Irrigation & Water Management", labelBn: "সেচ ও জল ব্যবস্থাপনা" },
+  { id: "SEED_SOWING", labelEn: "Seed Selection & Sowing", labelBn: "বীজ নির্বাচন ও বপন" },
+  { id: "CROP_PROTECTION_TECH", labelEn: "Crop Protection & Agri Technology", labelBn: "ফসল সুরক্ষা ও আধুনিক প্রযুক্তি" }
+];
+
+export const CROP_NAME_BN_MAP = {
+  rice: "ধান / চাল",
+  paddy: "ধান",
+  wheat: "গম",
+  potato: "আলু",
+  onion: "পেঁয়াজ",
+  tomato: "টমেটো",
+  mustard: "সরিষা",
+  brinjal: "বেগুন",
+  cabbage: "বাঁধাকপি",
+  cauliflower: "ফুলকপি",
+  jute: "পাট",
+  chilli: "লঙ্কা",
+  "green chilli": "কাঁচা লঙ্কা",
+  banana: "কলা",
+  maize: "ভুট্টা",
+  ginger: "আদা",
+  garlic: "রসুন",
+  pumpkin: "কুমড়ো",
+  cucumber: "শসা",
+  "pointed gourd": "পটল",
+  "bitter gourd": "করলা",
+  bhindi: "ঢেঁড়স",
+  "ladies finger": "ঢেঁড়স",
+  lentil: "মসুর ডাল",
+  masur: "মসুর ডাল",
+  gram: "ছোলা",
+  groundnut: "চিনাবাদাম",
+  sesamum: "তিল",
+  sugarcane: "আখ",
+  mango: "আম",
+  apple: "আপেল"
+};
+
+export const QUICK_WEATHER_LOCATIONS = [
+  { name: "Purba Bardhaman", admin1: "West Bengal", country: "India", latitude: 23.2324, longitude: 87.8615 },
+  { name: "Krishnanagar (Nadia)", admin1: "West Bengal", country: "India", latitude: 23.4013, longitude: 88.5019 },
+  { name: "Hooghly (Chinsurah)", admin1: "West Bengal", country: "India", latitude: 22.8956, longitude: 88.4025 },
+  { name: "Kolkata", admin1: "West Bengal", country: "India", latitude: 22.5726, longitude: 88.3639 },
+  { name: "Medinipur", admin1: "West Bengal", country: "India", latitude: 22.4257, longitude: 87.3199 },
+  { name: "Berhampore (Murshidabad)", admin1: "West Bengal", country: "India", latitude: 24.0983, longitude: 88.2494 },
+  { name: "Bankura", admin1: "West Bengal", country: "India", latitude: 23.2313, longitude: 87.0784 },
+  { name: "Siliguri (Darjeeling)", admin1: "West Bengal", country: "India", latitude: 26.7271, longitude: 88.3953 }
+];
+
 export const STUDY_CATEGORIES = {
   ALL: { en: "All", bn: "সব", badge: "bg-slate-100 text-slate-700" },
   NOTES_PDF: { en: "Notes & PDFs", bn: "নোটস ও পিডিএফ", badge: "bg-emerald-100 text-emerald-900" },
@@ -517,20 +596,24 @@ export const FALLBACK_ANNOUNCEMENTS = [
   }
 ];
 
-// Bilingual EN / BN UI Labels (migrated from L10n.kt)
+// Bilingual EN / BN UI Labels (migrated from L10n.kt + expanded for Weather, Market, Career & Farmer Advisor)
 export const I18N = {
   en: {
     brand: "Guru Ji Vision",
-    tagline: "Indian Agriculture & B.Sc Agri Ecosystem",
+    tagline: "Students • Farmers • Professors Ecosystem",
     navHome: "Home",
     navStudent: "Student",
+    navWeather: "Weather",
+    navMarket: "Mandi Price",
     navFarmer: "Farmer",
     navTools: "Tools",
     navAi: "AI Guru",
     navCommunity: "Community",
-    navMoney: "Money Manager",
-    navMeeting: "Meeting Zone",
-    navDoubt: "Doubt Zone",
+    navMoney: "Money & Farm",
+    navMeeting: "Meetings",
+    navCareerGuidance: "Student Career Guidance",
+    navFarmerAdvisor: "Farmer Advisor Expert",
+    navProfessorDash: "Professor Dashboard",
     navAdmin: "Admin Panel",
     navOwner: "Owner Center",
     signIn: "Sign In",
@@ -539,16 +622,20 @@ export const I18N = {
   },
   bn: {
     brand: "গুরু জি ভিশন",
-    tagline: "ভারতীয় কৃষি ও বি.এসসি এগ্রিকালচার ইকোসিস্টেম",
+    tagline: "ছাত্র • কৃষক • অধ্যাপক সমন্বিত কৃষি প্ল্যাটফর্ম",
     navHome: "হোম",
     navStudent: "ছাত্র পোর্টাল",
+    navWeather: "আবহাওয়া",
+    navMarket: "বাজারদর",
     navFarmer: "কৃষক সহায়তা",
     navTools: "কৃষি টুলস",
     navAi: "এআই গুরু",
     navCommunity: "কমিউনিটি",
-    navMoney: "মানি ম্যানেজার",
+    navMoney: "আয়-ব্যয় হিসাব",
     navMeeting: "মিটিং জোন",
-    navDoubt: "ডাউট জোন",
+    navCareerGuidance: "ছাত্র ক্যারিয়ার গাইডেন্স",
+    navFarmerAdvisor: "কৃষক পরামর্শ বিশেষজ্ঞ",
+    navProfessorDash: "অধ্যাপক ড্যাশবোর্ড",
     navAdmin: "অ্যাডমিন প্যানেল",
     navOwner: "ওনার সেন্টার",
     signIn: "লগইন",

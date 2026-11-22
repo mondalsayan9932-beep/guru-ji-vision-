@@ -32,18 +32,33 @@ export function renderHomeView(state) {
   const upcomingMeetings = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m));
   const waDirect = buildWhatsAppDirectUrl(settings.whatsappNumber, "Namaskar Guru Ji Vision Team, I need help regarding agriculture / B.Sc Agriculture.");
   const waGroup = safeUrl(settings.whatsappGroupInviteUrl);
+  const isProf = state.facultyIdentity?.isAuthorizedProfessor;
   const unreadDoubts = state.totalUnreadDoubts || 0;
+  const marketCount = (state.mandiApiRecords?.length || 0) + (state.firestoreMarketPrices?.filter((r) => r.published !== false).length || 0);
 
   const moduleCards = [
-    { tab: "student", title: "Student Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: "🎓", bg: "bg-emerald-50 border-emerald-200" },
-    { tab: "farmer", title: "Farmer Help Desk", sub: "Crop Diseases, IPM & WhatsApp Support", icon: "🌾", bg: "bg-amber-50 border-amber-200" },
+    { tab: "weather", title: "Weather Report & Forecast", sub: "আবহাওয়া পূর্বাভাস • Hourly, 7-Day & Agri Alerts", icon: "⛅", bg: "bg-sky-50 border-sky-200" },
+    { tab: "market", title: "Crop Market Price (বাজারদর)", sub: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates", icon: "📊", bg: "bg-amber-50 border-amber-200" },
+    { tab: "student", title: "Student Academic Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: "🎓", bg: "bg-emerald-50 border-emerald-200" },
+    { tab: "career-guidance", title: "Student Career Guidance", sub: unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors", icon: "🧭", bg: "bg-indigo-50 border-indigo-200" },
+    { tab: "farmer-advisor", title: "Farmer Advisor Expert", sub: "কৃষক পরামর্শ বিশেষজ্ঞ • Crop Photos & Q&A", icon: "👨‍🌾", bg: "bg-lime-50 border-lime-200" },
+    { tab: "money", title: "Money & Farm Manager (₹)", sub: "100% Private Student & Farmer Ledger • No Approval", icon: "🔒", bg: "bg-emerald-50 border-emerald-200" },
+    { tab: "farmer", title: "Farmer Help & Crop Guide", sub: "ICAR Diseases, IPM & Direct WhatsApp Help", icon: "🌾", bg: "bg-amber-50 border-amber-200" },
     { tab: "tools", title: "Agri Calculators", sub: "NPK Fertilizer (DAP/SSP) & Seed Rate", icon: "🧮", bg: "bg-teal-50 border-teal-200" },
     { tab: "ai", title: "AI Guru Knowledge Base", sub: "Verified Notes + Free Encyclopedia Search", icon: "✨", bg: "bg-lime-50 border-lime-200" },
-    { tab: "community", title: "Community & Careers", sub: `${state.careerOpportunities.length} Jobs & Student Forum`, icon: "🤝", bg: "bg-sky-50 border-sky-200" },
-    { tab: "money", title: "Private Money Manager", sub: "100% Private Student Ledger (₹ INR)", icon: "🔒", bg: "bg-emerald-50 border-emerald-200" },
-    { tab: "meeting", title: "Meeting Zone", sub: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`, icon: "📹", bg: "bg-indigo-50 border-indigo-200" },
-    { tab: "doubt", title: "Doubt Zone (9 Advisors)", sub: unreadDoubts > 0 ? `${unreadDoubts} unread professor replies` : "Private 1-on-1 Chat with Faculty", icon: "💬", bg: "bg-orange-50 border-orange-200" }
+    { tab: "community", title: "Community & Agri Jobs", sub: `${state.careerOpportunities.length} Jobs & Student Forum`, icon: "🤝", bg: "bg-sky-50 border-sky-200" },
+    { tab: "meeting", title: "Meeting Zone", sub: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`, icon: "📹", bg: "bg-indigo-50 border-indigo-200" }
   ];
+
+  if (isProf) {
+    moduleCards.unshift({
+      tab: "professor",
+      title: "Professor Dashboard",
+      sub: `${state.professorDoubtThreads.length} Assigned Student & Farmer Consultations`,
+      icon: "👨‍🏫",
+      bg: "bg-emerald-100/80 border-emerald-400"
+    });
+  }
 
   return `
     <div class="space-y-5 animate-fade-up">
@@ -61,17 +76,23 @@ export function renderHomeView(state) {
           <div class="space-y-2.5 max-w-2xl">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold text-emerald-100">
               <span class="w-2 h-2 rounded-full ${state.cloudConnected ? "bg-emerald-300" : "bg-amber-300"}"></span>
-              <span>${state.cloudConnected ? "Live Firebase Cloud Connected" : "Instant Public Access • Offline-Ready"}</span>
+              <span>${state.cloudConnected ? "Live Public Cloud Connected" : "Instant Public Access • Open to Everyone"}</span>
             </div>
             <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">${escapeHtml(settings.heroHeadline)}</h2>
             <p class="text-sm sm:text-base text-emerald-100/95 leading-relaxed">${escapeHtml(settings.aboutText)}</p>
             <div class="flex flex-wrap gap-2.5 pt-1">
-              <button data-nav="student" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-                Browse Notes &amp; PDFs →
+              <button data-nav="weather" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+                ⛅ Weather Forecast
+              </button>
+              <button data-nav="market" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
+                📊 বাজারদর / Market Price
+              </button>
+              <button data-nav="student" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
+                🎓 Study Notes
               </button>
               ${!state.user ? `
-                <button data-action="open-auth" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
-                  Continue with WhatsApp / Sign In
+                <button data-action="open-auth" class="px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1FB857] text-[#052E16] text-xs sm:text-sm font-extrabold transition-colors">
+                  Sign In / Register
                 </button>
               ` : `
                 <button data-action="open-profile" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
@@ -84,7 +105,7 @@ export function renderHomeView(state) {
           <div class="grid grid-cols-3 gap-2.5 shrink-0">
             <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-3 text-center">
               <div class="text-xl sm:text-2xl font-extrabold">${publicMaterials.length}</div>
-              <div class="text-[11px] text-emerald-100">Materials</div>
+              <div class="text-[11px] text-emerald-100">Notes/PDFs</div>
             </div>
             <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-3 text-center">
               <div class="text-xl sm:text-2xl font-extrabold text-amber-300">${state.professors.length}</div>
@@ -94,6 +115,47 @@ export function renderHomeView(state) {
               <div class="text-xl sm:text-2xl font-extrabold text-emerald-200">${activeNotices.length}</div>
               <div class="text-[11px] text-emerald-100">Notices</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Community Role Entry Cards (Students, Farmers, Professors) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        <div class="gv-card p-4 space-y-2.5 border-l-4 border-l-emerald-700">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-[#14532D]">🎓 For Students (ছাত্র-ছাত্রী)</h3>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">B.Sc Agri</span>
+          </div>
+          <p class="text-xs text-[#496052]">Notes, ICAR syllabus, MCQ practice, Career Guidance with Professors &amp; Private Money Manager.</p>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <button data-nav="student" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Notes</button>
+            <button data-nav="career-guidance" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Career Guidance</button>
+            <button data-nav="money" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Money Manager</button>
+          </div>
+        </div>
+
+        <div class="gv-card p-4 space-y-2.5 border-l-4 border-l-amber-500">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-[#14532D]">🌾 For Farmers (কৃষক বন্ধু)</h3>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-950">বাংলা সহায়ক</span>
+          </div>
+          <p class="text-xs text-[#496052]">Live Weather &amp; Rain alerts, Crop Market Prices (বাজারদর), Expert Crop Advice &amp; Private Farm Accounts.</p>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <button data-nav="weather" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">আবহাওয়া</button>
+            <button data-nav="market" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">বাজারদর</button>
+            <button data-nav="farmer-advisor" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">বিশেষজ্ঞ পরামর্শ</button>
+          </div>
+        </div>
+
+        <div class="gv-card p-4 space-y-2.5 border-l-4 border-l-indigo-600">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-[#14532D]">👨‍🏫 For Professors &amp; Experts</h3>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">Faculty</span>
+          </div>
+          <p class="text-xs text-[#496052]">Answer Student Career Guidance &amp; Farmer Advisor questions, host live Google Meet sessions &amp; track replies.</p>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <button data-nav="${isProf ? "professor" : "career-guidance"}" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-extrabold">${isProf ? "Open Professor Dashboard" : "Faculty Directory"}</button>
+            <button data-nav="meeting" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-extrabold">Meeting Zone</button>
           </div>
         </div>
       </div>
@@ -123,7 +185,7 @@ export function renderHomeView(state) {
 
       <!-- Complete Ecosystem Quick Launch Grid -->
       <div>
-        <h3 class="text-base font-extrabold text-[#14532D] mb-3 px-1">Explore Guru Ji Vision Modules</h3>
+        <h3 class="text-base font-extrabold text-[#14532D] mb-3 px-1">Explore All Guru Ji Vision Services</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           ${moduleCards.map((c) => `
             <button data-nav="${c.tab}" type="button" class="text-left p-4 rounded-2xl border ${c.bg} hover:shadow-md transition-all flex items-start gap-3.5">
@@ -140,13 +202,13 @@ export function renderHomeView(state) {
       <!-- Direct WhatsApp Support & Official Group Bar -->
       <div class="gv-card-tinted p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 class="text-base font-extrabold text-[#14532D]">Need Agriculture Guidance or Student Help?</h3>
-          <p class="text-xs sm:text-sm text-[#496052] mt-0.5">Connect directly with Guru Ji Vision on WhatsApp or join our official B.Sc Agriculture community group.</p>
+          <h3 class="text-base font-extrabold text-[#14532D]">Direct WhatsApp Helpline &amp; Official Community</h3>
+          <p class="text-xs sm:text-sm text-[#496052] mt-0.5">Need quick help with crop problems, study materials, or account guidance? Message us directly on WhatsApp.</p>
         </div>
         <div class="flex flex-wrap gap-2.5 shrink-0">
           ${waDirect ? `
             <a href="${escapeHtml(waDirect)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-              <span>WhatsApp Help</span>
+              <span>💬 WhatsApp Help (${escapeHtml(settings.whatsappNumber)})</span>
             </a>
           ` : ""}
           ${waGroup ? `
@@ -403,25 +465,34 @@ export function renderFarmerView(state) {
 
   return `
     <div class="space-y-5 animate-fade-up">
-      <!-- Top Farmer Support Banner with Configurable WhatsApp -->
-      <div class="rounded-3xl bg-gradient-to-br from-[#14532D] to-[#1E7E45] text-white p-5 sm:p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="space-y-1.5">
-          <h2 class="font-display text-2xl font-bold">Farmer Help Desk &amp; Crop Advisory</h2>
-          <p class="text-xs sm:text-sm text-emerald-100 max-w-2xl">
-            Get ICAR crop disease guides, IPM schedules, direct WhatsApp expert contact, or submit your private field query for review.
-          </p>
+      <!-- Top Farmer Support Banner with Configurable WhatsApp & Quick Links -->
+      <div class="rounded-3xl bg-gradient-to-br from-[#14532D] to-[#1E7E45] text-white p-5 sm:p-6 shadow-md space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1.5">
+            <h2 class="font-display text-2xl font-bold">Farmer Help Desk &amp; Crop Advisory (কৃষক সহায়তা)</h2>
+            <p class="text-xs sm:text-sm text-emerald-100 max-w-2xl">
+              Access live weather alerts, crop market prices (বাজারদর), expert consultation, ICAR crop guides, private farm accounts, and direct WhatsApp help.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2.5 shrink-0">
+            ${waDirect ? `
+              <a href="${escapeHtml(waDirect)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#25D366] hover:bg-[#1FB857] text-[#052E16] text-xs sm:text-sm font-extrabold shadow-sm">
+                <span>💬 Direct WhatsApp (${escapeHtml(settings.whatsappNumber)})</span>
+              </a>
+            ` : ""}
+            ${waGroup ? `
+              <a href="${escapeHtml(waGroup)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs sm:text-sm font-extrabold shadow-sm">
+                <span>Official WhatsApp Group</span>
+              </a>
+            ` : ""}
+          </div>
         </div>
-        <div class="flex flex-wrap gap-2.5 shrink-0">
-          ${waDirect ? `
-            <a href="${escapeHtml(waDirect)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#25D366] hover:bg-[#1FB857] text-[#052E16] text-xs sm:text-sm font-extrabold shadow-sm">
-              <span>💬 Direct WhatsApp (${escapeHtml(settings.whatsappNumber)})</span>
-            </a>
-          ` : ""}
-          ${waGroup ? `
-            <a href="${escapeHtml(waGroup)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs sm:text-sm font-extrabold shadow-sm">
-              <span>Official WhatsApp Group</span>
-            </a>
-          ` : ""}
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/15">
+          <button data-nav="weather" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">⛅ আবহাওয়া / Weather</button>
+          <button data-nav="market" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">📊 বাজারদর / Mandi Price</button>
+          <button data-nav="farmer-advisor" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">👨‍🌾 বিশেষজ্ঞ পরামর্শ</button>
+          <button data-nav="money" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">🔒 কৃষি আয়-ব্যয় হিসাব</button>
         </div>
       </div>
 
@@ -458,41 +529,60 @@ export function renderFarmerView(state) {
         </div>
       </div>
 
-      <!-- Submit Private Farmer Crop Query -->
+      <!-- Submit / Edit Private Farmer Crop Query -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
         <div class="lg:col-span-5 gv-card p-5 space-y-3.5">
-          <h3 class="text-base font-extrabold text-[#14532D]">Submit Crop Issue Query</h3>
+          <div class="flex items-center justify-between gap-2">
+            <h3 id="fqFormHeading" class="text-base font-extrabold text-[#14532D]">Submit Crop Issue Query</h3>
+            <button id="fqCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
+          </div>
           ${!state.user ? `
-            <p class="text-xs sm:text-sm text-[#496052]">Sign in with WhatsApp/Phone or Email to submit private crop queries and receive replies from Guru Ji Vision experts.</p>
+            <p class="text-xs sm:text-sm text-[#496052]">Sign in with WhatsApp/Phone or Email to submit private crop queries, upload crop photos, and receive replies from Guru Ji Vision experts.</p>
             <button data-action="open-auth" class="w-full py-3 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Sign In to Submit Query</button>
           ` : `
             <form id="farmerQueryForm" class="space-y-3">
+              <input id="fqEditId" type="hidden" value="" />
               <label class="block">
-                <span class="text-xs font-bold text-[#132219]">Crop Name *</span>
-                <input id="fqCrop" type="text" required maxlength="80" placeholder="e.g. Paddy (Swarna), Potato" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+                <span class="text-xs font-bold text-[#132219]">Crop Name / ফসলের নাম *</span>
+                <input id="fqCrop" type="text" required maxlength="80" placeholder="e.g. Paddy (Swarna), Potato / আলু" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
               </label>
               <div class="grid grid-cols-2 gap-2.5">
                 <label class="block">
                   <span class="text-xs font-bold text-[#132219]">Issue Category</span>
                   <select id="fqCategory" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm">
-                    <option value="DISEASE">Disease</option>
-                    <option value="PEST">Insect / Pest</option>
-                    <option value="FERTILIZER">Fertilizer</option>
-                    <option value="SOIL">Soil Health</option>
-                    <option value="WEATHER">Weather</option>
-                    <option value="OTHER">Other</option>
+                    <option value="DISEASE">Disease / রোগ</option>
+                    <option value="PEST">Insect / পোকামাকড়</option>
+                    <option value="FERTILIZER">Fertilizer / সার</option>
+                    <option value="SOIL">Soil Health / মাটি</option>
+                    <option value="WEATHER">Weather / আবহাওয়া</option>
+                    <option value="OTHER">Other / অন্যান্য</option>
                   </select>
                 </label>
                 <label class="block">
-                  <span class="text-xs font-bold text-[#132219]">District</span>
-                  <input id="fqDistrict" type="text" maxlength="80" value="${escapeHtml(state.userProfile?.district || "")}" placeholder="e.g. Purba Bardhaman" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+                  <span class="text-xs font-bold text-[#132219]">District / জেলা</span>
+                  <input id="fqDistrict" type="text" maxlength="80" value="${escapeHtml(state.userProfile?.district || "")}" placeholder="e.g. Purba Bardhaman" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
                 </label>
               </div>
               <label class="block">
-                <span class="text-xs font-bold text-[#132219]">Describe Crop Symptoms *</span>
+                <span class="text-xs font-bold text-[#132219]">Describe Crop Symptoms / সমস্যার বিবরণ *</span>
                 <textarea id="fqDesc" rows="3" required minlength="5" maxlength="1000" placeholder="Describe leaf spots, yellowing, insect damage, crop age..." class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm"></textarea>
               </label>
-              <button type="submit" class="w-full py-3 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-sm font-extrabold">Submit Farmer Query</button>
+              <div class="space-y-2">
+                <label class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold cursor-pointer">
+                  <span>📷 Upload Crop Photo (Optional)</span>
+                  <input id="fqImageFile" type="file" accept="image/*" class="hidden" />
+                </label>
+                ${state.pendingFarmerQueryImageBase64 ? `
+                  <div class="flex items-center justify-between gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-2">
+                    <div class="flex items-center gap-2">
+                      <img src="data:image/jpeg;base64,${escapeHtml(state.pendingFarmerQueryImageBase64)}" alt="Crop preview" class="w-12 h-12 rounded-lg object-cover border" />
+                      <span class="text-xs font-bold text-[#14532D]">Crop photo ready</span>
+                    </div>
+                    <button type="button" data-action="clear-fq-image" class="text-xs font-bold text-rose-600 px-2">Remove</button>
+                  </div>
+                ` : ""}
+              </div>
+              <button type="submit" class="w-full py-3 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-sm font-extrabold">Save Farmer Query</button>
             </form>
           `}
         </div>
@@ -500,25 +590,37 @@ export function renderFarmerView(state) {
         <div class="lg:col-span-7 gv-card p-5 space-y-3">
           <h3 class="text-base font-extrabold text-[#14532D]">Your Submitted Queries (${state.farmerQueries.length})</h3>
           ${state.farmerQueries.length === 0 ? `
-            <p class="text-sm text-[#496052]">No submitted queries yet.</p>
+            <p class="text-sm text-[#496052]">No submitted queries yet. You can also ask our experts directly in <strong>Farmer Advisor Expert</strong>.</p>
           ` : `
-            <div class="space-y-3 max-h-[420px] overflow-y-auto">
-              ${state.farmerQueries.map((fq) => `
-                <div class="rounded-2xl border border-[#CDE0D3] bg-[#F7F9F5] p-3.5 space-y-1.5">
-                  <div class="flex flex-wrap items-center justify-between gap-2">
-                    <span class="font-extrabold text-sm text-[#14532D]">${escapeHtml(fq.cropName)} (${escapeHtml(fq.category)})</span>
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      fq.status === "RESOLVED" ? "bg-emerald-100 text-emerald-900" : fq.status === "IN_REVIEW" ? "bg-amber-100 text-amber-900" : "bg-slate-200 text-slate-800"
-                    }">${escapeHtml(fq.status)}</span>
-                  </div>
-                  <p class="text-xs text-[#132219]">${escapeHtml(fq.description)}</p>
-                  ${fq.adminReply ? `
-                    <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-950">
-                      <strong>Expert Reply:</strong> ${escapeHtml(fq.adminReply)}
+            <div class="space-y-3 max-h-[500px] overflow-y-auto">
+              ${state.farmerQueries.map((fq) => {
+                const canOwnerEdit = state.user && fq.userId === state.user.uid && fq.status === "OPEN";
+                return `
+                  <div class="rounded-2xl border border-[#CDE0D3] bg-[#F7F9F5] p-3.5 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <span class="font-extrabold text-sm text-[#14532D]">${escapeHtml(fq.cropName)} (${escapeHtml(fq.category)})${fq.district ? ` • ${escapeHtml(fq.district)}` : ""}</span>
+                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        fq.status === "RESOLVED" ? "bg-emerald-100 text-emerald-900" : fq.status === "IN_REVIEW" ? "bg-amber-100 text-amber-900" : "bg-slate-200 text-slate-800"
+                      }">${escapeHtml(fq.status)}</span>
                     </div>
-                  ` : ""}
-                </div>
-              `).join("")}
+                    ${fq.hasImage && fq.imageBase64 ? `
+                      <img src="data:image/jpeg;base64,${escapeHtml(fq.imageBase64)}" alt="Submitted crop photo" class="rounded-xl max-h-44 w-auto object-contain border border-[#CDE0D3]" />
+                    ` : ""}
+                    <p class="text-xs sm:text-sm text-[#132219] whitespace-pre-line">${escapeHtml(fq.description)}</p>
+                    ${fq.adminReply ? `
+                      <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-950">
+                        <strong>Expert Reply:</strong> ${escapeHtml(fq.adminReply)}
+                      </div>
+                    ` : ""}
+                    ${canOwnerEdit ? `
+                      <div class="flex gap-2 pt-1">
+                        <button type="button" data-edit-fq="${escapeHtml(fq.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-bold">Edit</button>
+                        <button type="button" data-del-fq="${escapeHtml(fq.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold">Delete</button>
+                      </div>
+                    ` : ""}
+                  </div>
+                `;
+              }).join("")}
             </div>
           `}
         </div>
@@ -736,12 +838,16 @@ export function renderCommunityView(state) {
       ${sub === "forum" ? `
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div class="lg:col-span-4 gv-card p-5 space-y-3 h-fit">
-            <h3 class="text-base font-extrabold text-[#14532D]">Start a Discussion / Ask Doubt</h3>
+            <div class="flex items-center justify-between gap-2">
+              <h3 id="cpFormHeading" class="text-base font-extrabold text-[#14532D]">Start a Discussion / Ask Doubt</h3>
+              <button id="cpCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
+            </div>
             ${!state.user ? `
               <p class="text-xs text-[#496052]">Sign in to publish posts, share college notes, or mark helpful answers.</p>
               <button data-action="open-auth" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Sign In to Post</button>
             ` : `
               <form id="communityPostForm" class="space-y-3">
+                <input id="cpEditId" type="hidden" value="" />
                 <label class="block">
                   <span class="text-xs font-bold">Topic</span>
                   <select id="cpTopic" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm">
@@ -797,9 +903,14 @@ export function renderCommunityView(state) {
                   ${state.user && state.user.uid !== p.authorId ? `
                     <button data-report-post="${escapeHtml(p.id)}" class="px-3 py-1.5 rounded-xl text-slate-500 hover:text-rose-700 text-xs font-bold">Report</button>
                   ` : ""}
-                  ${state.user && (state.user.uid === p.authorId || state.isAdmin) ? `
-                    <button data-del-post="${escapeHtml(p.id)}" class="ml-auto px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
-                  ` : ""}
+                  <div class="ml-auto flex gap-1.5">
+                    ${state.user && state.user.uid === p.authorId ? `
+                      <button data-edit-post="${escapeHtml(p.id)}" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-bold">Edit</button>
+                    ` : ""}
+                    ${state.user && (state.user.uid === p.authorId || state.isAdmin) ? `
+                      <button data-del-post="${escapeHtml(p.id)}" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold">Delete</button>
+                    ` : ""}
+                  </div>
                 </div>
               </article>
             `).join("")}

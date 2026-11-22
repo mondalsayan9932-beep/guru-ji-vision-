@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Offline — Guru Ji Vision</title>
+  <meta name="theme-color" content="#14532D" />
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F7F9F5;
+      color: #132219;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 1.5rem;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid #CDE0D3;
+      border-radius: 1.5rem;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 12px 28px rgba(20, 83, 45, 0.08);
+    }
+    .badge {
+      display: inline-block;
+      background: #D8F3DC;
+      color: #14532D;
+      font-weight: 800;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 { color: #14532D; font-size: 1.4rem; margin: 0 0 0.75rem; }
+    p { color: #496052; font-size: 0.92rem; line-height: 1.55; margin: 0 0 1.25rem; }
+    button {
+      background: #14532D;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 0.9rem;
+      padding: 0.85rem 1.4rem;
+      font-weight: 800;
+      font-size: 0.9rem;
+      width: 100%;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <span class="badge">Guru Ji Vision • অফলাইন</span>
+    <h1>You are currently offline</h1>
+    <p>
+      Live weather forecasts, crop market prices, and Firebase cloud data require an internet connection.
+      <br /><br />
+      আপনার ইন্টারনেট সংযোগ বিচ্ছিন্ন। সংযোগ ফিরে এলে আবার চেষ্টা করুন।
+    </p>
+    <button onclick="window.location.href='./index.html'">Retry / আবার চেষ্টা করুন</button>
+  </main>
+</body>
+</html>

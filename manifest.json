@@ -1,27 +1,57 @@
 {
+  "id": "/",
   "name": "Guru Ji Vision",
   "short_name": "Guru Ji Vision",
-  "description": "Indian Agriculture & B.Sc Agriculture Study Ecosystem: Notes, PDFs, MCQs, Agri Tools, Farmer Help, Private Money Manager, Meeting Zone & Doubt Zone.",
+  "description": "Indian Agriculture & B.Sc Agriculture Ecosystem: Study Notes, Weather Forecasting, Crop Market Prices, Student Career Guidance, Farmer Advisor Expert, Private Money & Farm Manager.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "background_color": "#F7F9F5",
   "theme_color": "#14532D",
   "lang": "en",
-  "categories": ["education", "books", "productivity"],
+  "categories": ["education", "weather", "productivity", "books"],
   "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "./assets/icons/logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Weather Forecast",
+      "short_name": "Weather",
+      "url": "./index.html#weather"
     },
     {
-      "src": "./icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "name": "Crop Market Price",
+      "short_name": "Mandi Price",
+      "url": "./index.html#market"
+    },
+    {
+      "name": "Student Portal",
+      "short_name": "Study Hub",
+      "url": "./index.html#student"
     }
   ]
 }

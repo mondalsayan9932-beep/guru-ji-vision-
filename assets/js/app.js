@@ -1,6 +1,8 @@
 // ============================================================================
 // Guru Ji Vision — Main Web Application Controller & State Store
-// Instant Public Access + Real Firebase Sync + Strict Privacy + WhatsApp/Phone/Email Auth
+// Instant Public Live Firestore Sync + Weather API + Crop Market Prices +
+// Student Career Guidance + Farmer Advisor Expert + Professor Dashboard +
+// Private Student & Farmer Money Manager (Zero Admin Approval) + PWA Updates
 // ============================================================================
 
 import {
@@ -11,12 +13,12 @@ import {
   FALLBACK_QUIZZES,
   FALLBACK_STUDY_MATERIALS,
   I18N,
-  OFFICIAL_FACULTY
+  OFFICIAL_FACULTY,
+  QUICK_WEATHER_LOCATIONS
 } from "./config.js";
 import {
   buildDoubtChatId,
   compressImageFileToBase64,
-  escapeHtml,
   isUpcomingMeeting,
   safeUrl,
   searchFreeWikipedia,
@@ -32,14 +34,43 @@ import {
   renderToolsView
 } from "./ui-public.js";
 import {
+  renderCareerGuidanceView,
   renderDoubtZoneView,
+  renderFarmerAdvisorView,
   renderMeetingZoneView,
-  renderMoneyManagerView
+  renderMoneyManagerView,
+  renderProfessorDashboardView
 } from "./ui-private.js";
 import {
   renderAdminView,
   renderOwnerControlView
 } from "./ui-admin.js";
+import {
+  fetchOfficialMandiPrices,
+  fetchWeatherByLocation,
+  renderMarketPriceView,
+  renderWeatherView,
+  searchWeatherLocations
+} from "./weather-market.js";
+
+const VALID_ROUTES = new Set([
+  "home",
+  "weather",
+  "market",
+  "student",
+  "farmer",
+  "tools",
+  "ai",
+  "community",
+  "career-guidance",
+  "farmer-advisor",
+  "professor",
+  "meeting",
+  "money",
+  "doubt",
+  "admin",
+  "owner"
+]);
 
 // ----------------------------------------------------------------------------
 // APPLICATION STATE
@@ -54,9 +85,16 @@ const state = {
   userProfile: null,
   isAdmin: false,
   isSuperAdmin: false,
-  facultyIdentity: { isAuthorizedProfessor: false, canHostMeetings: false, professorId: "", professorName: "", matchedByEmail: "", matchedByAccountLink: false },
+  facultyIdentity: {
+    isAuthorizedProfessor: false,
+    canHostMeetings: false,
+    professorId: "",
+    professorName: "",
+    matchedByEmail: "",
+    matchedByAccountLink: false
+  },
 
-  // Public / Ecosystem Collections (Hydrated immediately with safe reference fallback until live cloud connects)
+  // Public / Ecosystem Collections (Hydrated immediately with safe reference fallback until live public Firestore connects)
   appSettings: { ...DEFAULT_APP_SETTINGS },
   studyMaterials: [...FALLBACK_STUDY_MATERIALS],
   quizzes: [...FALLBACK_QUIZZES],
@@ -66,21 +104,48 @@ const state = {
   farmerQueries: [],
   meetings: [],
   professors: OFFICIAL_FACULTY.map((p) => ({ ...p })),
+  firestoreMarketPrices: [],
 
-  // Private Owner-Only Student Financial & Quiz Data (Strictly cleared on logout!)
+  // Live Weather State (Real Open-Meteo API — ZERO fake data)
+  weatherQuery: "",
+  weatherData: null,
+  weatherLoading: false,
+  weatherError: "",
+  weatherSearchResults: [],
+  weatherLastLocation: QUICK_WEATHER_LOCATIONS[0],
+
+  // Live Crop Market Price State (Official AGMARKNET Proxy + Admin Verified)
+  mandiApiRecords: [],
+  mandiLoading: false,
+  mandiFetchedOnce: false,
+  mandiStatusMessage: "",
+  marketSearchCrop: "",
+  marketFilterState: "ALL",
+  marketFilterDistrict: "ALL",
+  marketFilterMandi: "ALL",
+
+  // Private Owner-Only Student & Farmer Financial Data (Strictly cleared on logout!)
   openingBalance: 0,
   moneyTransactions: [],
   moneyBudgets: [],
+  moneyLedgerScope: "", // "STUDENT" or "FARMER"
   moneyFilter: "ALL",
   moneyFormType: "EXPENSE",
   quizAttempts: [],
 
-  // Doubt Zone Private Threads
+  // Student Career Guidance / Farmer Advisor / Professor Dashboard Threads
   studentDoubtThreads: [],
   professorDoubtThreads: [],
   activeDoubtChat: null,
   activeDoubtMessages: [],
   pendingDoubtImageBase64: "",
+  pendingCareerImageBase64: "",
+  pendingFarmerAdvisorImageBase64: "",
+  pendingFarmerQueryImageBase64: "",
+  selectedCareerProfId: "",
+  selectedFarmerProfId: "",
+  selectedFarmerTopic: "DISEASE_PEST",
+  profInboxFilter: "ALL",
   totalUnreadDoubts: 0,
 
   // Owner Control Center Telemetry (SuperAdmin only)
@@ -103,7 +168,6 @@ const state = {
   communitySubTab: "forum",
   communityTopic: "ALL",
   careerCategory: "ALL",
-  doubtSubTab: "advisors",
   professorSearch: "",
   adminSubTab: "materials",
 
@@ -115,19 +179,20 @@ const state = {
   aiHistory: [],
   aiBusy: false,
 
-  // Auth OTP Flow State (cooldown & attempt limiting)
-  otpChannel: "", // "whatsapp" or "sms"
+  // Auth OTP Flow State
+  otpChannel: "",
   otpPhoneE164: "",
   otpSessionId: "",
   otpCooldownSec: 0,
   otpAttempts: 0,
 
-  // PWA Install Prompt
-  deferredInstallPrompt: null
+  // PWA Install & Update State
+  deferredInstallPrompt: null,
+  waitingServiceWorker: null
 };
 
 // ----------------------------------------------------------------------------
-// TOAST & HELPERS
+// TOAST, BUSY SUBMIT GUARD & HELPERS
 // ----------------------------------------------------------------------------
 let toastTimer = null;
 function showToast(msg, isError = false) {
@@ -137,7 +202,25 @@ function showToast(msg, isError = false) {
   el.classList.remove("hidden", "bg-[#14532D]", "bg-rose-700");
   el.classList.add(isError ? "bg-rose-700" : "bg-[#14532D]");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add("hidden"), 3800);
+  toastTimer = setTimeout(() => el.classList.add("hidden"), 4200);
+}
+
+async function withBusySubmit(form, task) {
+  const submitBtn = form?.querySelector("button[type='submit']");
+  if (submitBtn?.disabled) return;
+  const origText = submitBtn ? submitBtn.textContent : "";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving...";
+  }
+  try {
+    await task();
+  } finally {
+    if (submitBtn && document.body.contains(submitBtn)) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = origText;
+    }
+  }
 }
 
 function openingBalanceKey(uid) {
@@ -155,13 +238,20 @@ function clearPrivateStateOnLogout() {
   state.userProfile = null;
   state.isAdmin = false;
   state.isSuperAdmin = false;
-  state.facultyIdentity = { isAuthorizedProfessor: false, canHostMeetings: false, professorId: "", professorName: "", matchedByEmail: "", matchedByAccountLink: false };
-  state.cloudConnected = false;
+  state.facultyIdentity = {
+    isAuthorizedProfessor: false,
+    canHostMeetings: false,
+    professorId: "",
+    professorName: "",
+    matchedByEmail: "",
+    matchedByAccountLink: false
+  };
 
-  // Strictly purge private financial & chat state from memory
+  // Strictly purge private financial & consultation state from memory
   state.openingBalance = 0;
   state.moneyTransactions = [];
   state.moneyBudgets = [];
+  state.moneyLedgerScope = "";
   state.quizAttempts = [];
   state.farmerQueries = [];
   state.studentDoubtThreads = [];
@@ -169,6 +259,9 @@ function clearPrivateStateOnLogout() {
   state.activeDoubtChat = null;
   state.activeDoubtMessages = [];
   state.pendingDoubtImageBase64 = "";
+  state.pendingCareerImageBase64 = "";
+  state.pendingFarmerAdvisorImageBase64 = "";
+  state.pendingFarmerQueryImageBase64 = "";
   state.totalUnreadDoubts = 0;
   state.ownerUsers = [];
   state.ownerAdmins = [];
@@ -178,19 +271,59 @@ function clearPrivateStateOnLogout() {
   state.ownerErrorLogs = [];
   state.ownerContentReports = [];
   state.ownerAuditLogs = [];
-
-  // Restore safe public reference views
-  state.studyMaterials = [...FALLBACK_STUDY_MATERIALS];
-  state.quizzes = [...FALLBACK_QUIZZES];
-  state.careerOpportunities = [...FALLBACK_CAREERS];
-  state.announcements = [...FALLBACK_ANNOUNCEMENTS];
-  state.professors = OFFICIAL_FACULTY.map((p) => ({ ...p }));
 }
 
 function recomputeUnreadDoubts() {
   const stuUnread = state.studentDoubtThreads.reduce((s, t) => s + (Number(t.unreadForStudent) || 0), 0);
   const profUnread = state.professorDoubtThreads.reduce((s, t) => s + (Number(t.unreadForProfessor) || 0), 0);
   state.totalUnreadDoubts = stuUnread + profUnread;
+}
+
+// ----------------------------------------------------------------------------
+// REAL WEATHER & OFFICIAL MARKET PRICE CONTROLLERS
+// ----------------------------------------------------------------------------
+async function loadWeatherForLocation(loc) {
+  if (!loc) return;
+  state.weatherLastLocation = loc;
+  state.weatherLoading = true;
+  state.weatherError = "";
+  state.weatherSearchResults = [];
+  if (state.route === "weather") renderActiveView();
+
+  const res = await fetchWeatherByLocation(loc);
+  state.weatherLoading = false;
+  if (res.ok) {
+    state.weatherData = res.data;
+    state.weatherError = "";
+  } else {
+    state.weatherError = res.error;
+  }
+  if (state.route === "weather") renderActiveView();
+}
+
+async function loadOfficialMandiData(force = false) {
+  if (state.mandiLoading) return;
+  if (state.mandiFetchedOnce && !force) return;
+  state.mandiLoading = true;
+  state.mandiFetchedOnce = true;
+  if (state.route === "market") renderActiveView();
+
+  const res = await fetchOfficialMandiPrices({
+    state: state.marketFilterState !== "ALL" ? state.marketFilterState : "",
+    district: state.marketFilterDistrict !== "ALL" ? state.marketFilterDistrict : "",
+    commodity: state.marketSearchCrop || ""
+  });
+
+  state.mandiLoading = false;
+  if (res.ok && Array.isArray(res.records)) {
+    state.mandiApiRecords = res.records;
+    state.mandiStatusMessage = res.records.length > 0
+      ? `Synced ${res.records.length} live official records from Government of India AGMARKNET (${res.fetchedAt || "today"}).`
+      : "Connected to official AGMARKNET API, but no records matched the current filter.";
+  } else {
+    state.mandiStatusMessage = res.error || "Live AGMARKNET API key not configured yet. Showing Admin-verified market bulletins (if published).";
+  }
+  if (state.route === "market" || state.route === "home") renderActiveView();
 }
 
 // ----------------------------------------------------------------------------
@@ -206,14 +339,14 @@ function renderShellChrome() {
   const langBtn = document.getElementById("langToggleBtn");
   if (langBtn) langBtn.textContent = state.lang === "en" ? "বাংলা" : "EN";
 
-  // Sync pill
+  // Sync status pill
   const syncPill = document.getElementById("syncStatusPill");
   if (syncPill) {
     if (state.cloudConnected) {
-      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900";
+      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 shrink-0";
       syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Cloud`;
     } else {
-      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900";
+      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 shrink-0";
       syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Public`;
     }
   }
@@ -231,7 +364,7 @@ function renderShellChrome() {
     }
   }
 
-  // Badges for Meeting Zone & Doubt Zone
+  // Badges for Meetings & Consultations
   const upcomingCount = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m)).length;
   document.querySelectorAll("[data-badge='meetings']").forEach((el) => {
     el.textContent = upcomingCount > 0 ? String(upcomingCount) : "";
@@ -242,12 +375,15 @@ function renderShellChrome() {
     el.classList.toggle("hidden", state.totalUnreadDoubts === 0);
   });
 
-  // Show/hide Admin & Owner nav items strictly when verified
+  // Role-gated navigation links
   document.querySelectorAll("[data-role-only='admin']").forEach((el) => {
     el.classList.toggle("hidden", !state.isAdmin);
   });
   document.querySelectorAll("[data-role-only='owner']").forEach((el) => {
     el.classList.toggle("hidden", !state.isSuperAdmin);
+  });
+  document.querySelectorAll("[data-role-only='professor']").forEach((el) => {
+    el.classList.toggle("hidden", !state.facultyIdentity?.isAuthorizedProfessor);
   });
 
   // Active nav highlighting
@@ -274,9 +410,9 @@ function renderShellChrome() {
   const drawerAuthAction = document.getElementById("drawerAuthAction");
   if (drawerName && drawerSub && drawerAuthAction) {
     if (state.user) {
-      drawerName.textContent = state.userProfile?.displayName || state.user.displayName || "Guru Ji Scholar";
+      drawerName.textContent = state.userProfile?.displayName || state.user.displayName || "Guru Ji Member";
       drawerSub.textContent = state.user.phoneNumber || state.user.email || state.user.uid;
-      drawerAuthAction.textContent = "Sign Out";
+      drawerAuthAction.textContent = dict.signOut;
       drawerAuthAction.dataset.action = "sign-out";
       drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold";
     } else {
@@ -296,6 +432,8 @@ function renderActiveView() {
   let html = "";
   switch (state.route) {
     case "home": html = renderHomeView(state); break;
+    case "weather": html = renderWeatherView(state); break;
+    case "market": html = renderMarketPriceView(state); break;
     case "student": html = renderStudentView(state); break;
     case "farmer": html = renderFarmerView(state); break;
     case "tools": html = renderToolsView(state); break;
@@ -303,6 +441,9 @@ function renderActiveView() {
     case "community": html = renderCommunityView(state); break;
     case "money": html = renderMoneyManagerView(state); break;
     case "meeting": html = renderMeetingZoneView(state); break;
+    case "career-guidance": html = renderCareerGuidanceView(state); break;
+    case "farmer-advisor": html = renderFarmerAdvisorView(state); break;
+    case "professor": html = renderProfessorDashboardView(state); break;
     case "doubt": html = renderDoubtZoneView(state); break;
     case "admin": html = renderAdminView(state); break;
     case "owner": html = renderOwnerControlView(state); break;
@@ -312,20 +453,36 @@ function renderActiveView() {
   root.innerHTML = html;
   renderShellChrome();
 
-  // Auto-scroll doubt chat to bottom when open
+  // Auto-scroll active consultation chat to bottom
   const chatBox = document.getElementById("doubtMessagesContainer");
   if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function navigateTo(route) {
-  state.route = route;
-  if (route !== "doubt") {
+function navigateTo(route, updateHash = true) {
+  const cleanRoute = VALID_ROUTES.has(route) ? route : "home";
+  const consultationRoutes = new Set(["career-guidance", "farmer-advisor", "professor", "doubt"]);
+  if (!consultationRoutes.has(cleanRoute)) {
     state.activeDoubtChat = null;
     firebaseService.setSub("activeDoubtMessages", null);
+  }
+  state.route = cleanRoute;
+  if (updateHash && typeof window !== "undefined") {
+    const nextHash = cleanRoute === "home" ? "" : `#${cleanRoute}`;
+    if (window.location.hash !== nextHash) {
+      history.replaceState(null, "", nextHash || window.location.pathname);
+    }
   }
   closeDrawer();
   renderActiveView();
   window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Auto-load genuine live Weather / Official Mandi prices on first visit
+  if (cleanRoute === "weather" && !state.weatherData && !state.weatherLoading) {
+    loadWeatherForLocation(state.weatherLastLocation || QUICK_WEATHER_LOCATIONS[0]);
+  }
+  if (cleanRoute === "market" && !state.mandiFetchedOnce) {
+    loadOfficialMandiData(false);
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -366,7 +523,7 @@ function updateOtpConfigNotice() {
     el.textContent = "Official WhatsApp Business OTP backend detected and ready.";
   } else {
     el.className = "rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-950";
-    el.textContent = "WhatsApp Business Cloud API requires a server-side Cloud Function (secrets cannot live in browser JS). Tap 'Send SMS OTP (Firebase)' for instant real phone verification right now, or configure window.GJV_WHATSAPP_OTP_ENDPOINT after deploying your WhatsApp OTP backend.";
+    el.textContent = "WhatsApp Business Cloud API requires a server-side Cloud Function (secrets cannot live in browser JS). Tap 'Send SMS OTP (Firebase)' or 'Continue with Google' for instant real sign-in.";
   }
 }
 
@@ -409,8 +566,12 @@ function openMaterialReader(materialId) {
   document.getElementById("readerModal")?.classList.remove("hidden");
 }
 
+function closeReaderModal() {
+  document.getElementById("readerModal")?.classList.add("hidden");
+}
+
 // ----------------------------------------------------------------------------
-// OTP COOLDOWN TIMER (Anti-spam & security)
+// OTP COOLDOWN TIMER
 // ----------------------------------------------------------------------------
 let otpCooldownInterval = null;
 function startOtpCooldown(seconds = 45) {
@@ -436,11 +597,39 @@ function startOtpCooldown(seconds = 45) {
 }
 
 // ----------------------------------------------------------------------------
-// FIREBASE AUTH CALLBACK & LIVE SUBSCRIPTIONS
+// FIREBASE LIVE PUBLIC & AUTH SUBSCRIPTIONS
 // ----------------------------------------------------------------------------
+function handleCollectionUpdate(key, data, isLivePublic = false) {
+  if (isLivePublic) state.cloudConnected = true;
+
+  if (key === "studyMaterials") {
+    state.studyMaterials = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_STUDY_MATERIALS]);
+  } else if (key === "quizzes") {
+    state.quizzes = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_QUIZZES]);
+  } else if (key === "careerOpportunities") {
+    state.careerOpportunities = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_CAREERS]);
+  } else if (key === "announcements") {
+    state.announcements = data.length > 0 ? data : [...FALLBACK_ANNOUNCEMENTS];
+  } else if (key === "openingBalance") {
+    state.openingBalance = Number(data) || 0;
+    if (state.user) localStorage.setItem(openingBalanceKey(state.user.uid), String(state.openingBalance));
+  } else {
+    state[key] = data;
+  }
+
+  renderActiveView();
+}
+
 async function handleAuthStateChange(user) {
   if (!user) {
     clearPrivateStateOnLogout();
+    // Re-subscribe public collections in guest mode so live public data stays connected
+    firebaseService.subscribePublicCollections({
+      isAdmin: false,
+      isSuperAdmin: false,
+      isAuthorizedMeetingHost: false,
+      onUpdate: handleCollectionUpdate
+    });
     renderActiveView();
     return;
   }
@@ -455,12 +644,15 @@ async function handleAuthStateChange(user) {
 
   firebaseService.subscribeUserProfile(user.uid, (profile) => {
     state.userProfile = profile;
+    if (!state.moneyLedgerScope && profile?.role) {
+      state.moneyLedgerScope = profile.role === "FARMER" ? "FARMER" : "STUDENT";
+    }
     if (profile?.language) {
       state.lang = profile.language === "BN" ? "bn" : "en";
       localStorage.setItem("gjv_lang", state.lang);
     }
     renderShellChrome();
-    if (state.route === "home") renderActiveView();
+    if (state.route === "home" || state.route === "money") renderActiveView();
   });
 
   firebaseService.subscribeEcosystemCollections({
@@ -468,21 +660,7 @@ async function handleAuthStateChange(user) {
     isSuperAdmin: state.isSuperAdmin,
     isAuthorizedMeetingHost: state.isAdmin || state.facultyIdentity.canHostMeetings,
     uid: user.uid,
-    onUpdate: (key, data) => {
-      // Preserve fallback reference items ONLY if cloud collection is completely empty and user isn't admin editing
-      if (key === "studyMaterials") {
-        state.studyMaterials = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_STUDY_MATERIALS]);
-      } else if (key === "quizzes") {
-        state.quizzes = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_QUIZZES]);
-      } else if (key === "careerOpportunities") {
-        state.careerOpportunities = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_CAREERS]);
-      } else if (key === "announcements") {
-        state.announcements = data.length > 0 ? data : [...FALLBACK_ANNOUNCEMENTS];
-      } else {
-        state[key] = data;
-      }
-      renderActiveView();
-    }
+    onUpdate: handleCollectionUpdate
   });
 
   firebaseService.subscribeDoubtThreads({
@@ -491,13 +669,13 @@ async function handleAuthStateChange(user) {
     onStudentThreads: (threads) => {
       state.studentDoubtThreads = threads;
       recomputeUnreadDoubts();
-      if (state.route === "doubt" || state.route === "home") renderActiveView();
+      if (["career-guidance", "farmer-advisor", "doubt", "home"].includes(state.route)) renderActiveView();
       else renderShellChrome();
     },
     onProfessorThreads: (threads) => {
       state.professorDoubtThreads = threads;
       recomputeUnreadDoubts();
-      if (state.route === "doubt" || state.route === "home") renderActiveView();
+      if (["professor", "career-guidance", "doubt", "home"].includes(state.route)) renderActiveView();
       else renderShellChrome();
     }
   });
@@ -513,16 +691,38 @@ async function handleAuthStateChange(user) {
 }
 
 // ----------------------------------------------------------------------------
-// OPEN PRIVATE DOUBT CHAT ROOM
+// OPEN PRIVATE CONSULTATION CHAT ROOM (Student Career / Farmer Advisor / Prof)
 // ----------------------------------------------------------------------------
-function openDoubtRoom({ professor, studentId, studentName, studentSemester, asProfessor }) {
+function openConsultationRoom({
+  professor,
+  studentId,
+  studentName,
+  studentSemester,
+  asProfessor,
+  serviceType = "STUDENT_CAREER",
+  chatIdOverride = "",
+  questionTitle = ""
+}) {
   if (!state.user) {
-    showToast("Sign in to start a private 1-on-1 doubt conversation with your professor.");
+    showToast("Sign in to start a private 1-on-1 consultation with your advisor.");
     openAuthModal();
     return;
   }
-  const chatId = buildDoubtChatId(professor.id, studentId);
-  state.activeDoubtChat = { chatId, professor, studentId, studentName, studentSemester, asProfessor };
+  const isFarmer = serviceType === "FARMER_ADVISOR";
+  const chatId = chatIdOverride || (isFarmer
+    ? `${buildDoubtChatId(professor.id, studentId)}__farmer`
+    : buildDoubtChatId(professor.id, studentId));
+
+  state.activeDoubtChat = {
+    chatId,
+    professor,
+    studentId,
+    studentName,
+    studentSemester,
+    asProfessor,
+    serviceType,
+    questionTitle
+  };
   state.activeDoubtMessages = [];
   state.pendingDoubtImageBase64 = "";
 
@@ -586,7 +786,7 @@ async function runAiGuruSearch(question) {
   }
 
   if (parts.length === 0) {
-    parts.push("No direct match found in current study notes or Wikipedia. Try searching a specific crop, disease, soil property, or B.Sc Agriculture topic, or ask one of our 9 faculty advisors in Doubt Zone!");
+    parts.push("No direct match found in current study notes or Wikipedia. Try searching a specific crop, disease, soil property, or ask our professors in Student Career Guidance / Farmer Advisor Expert!");
   }
 
   state.aiHistory.unshift({ question: q, answer: parts.join("\n"), sources });
@@ -595,12 +795,112 @@ async function runAiGuruSearch(question) {
 }
 
 // ----------------------------------------------------------------------------
-// GLOBAL EVENT DELEGATION (Clean, Leak-Free, Responsive)
+// GLOBAL EVENT DELEGATION
 // ----------------------------------------------------------------------------
 function bindGlobalEvents() {
-  // Click delegation
   document.addEventListener("click", async (e) => {
-    const target = e.target.closest("[data-nav], [data-action], [data-student-sub], [data-student-sem], [data-student-cat], [data-student-jump-sem], [data-read-material], [data-quiz-q], [data-load-crop-tool], [data-apply-crop-preset], [data-ai-prompt], [data-comm-sub], [data-comm-topic], [data-career-cat], [data-upvote-post], [data-report-post], [data-del-post], [data-money-type], [data-money-filter], [data-del-tx], [data-del-goal], [data-edit-meeting], [data-del-meeting], [data-doubt-sub], [data-start-doubt-prof], [data-open-prof-thread], [data-del-doubt-msg], [data-admin-sub], [data-edit-mat], [data-del-mat], [data-del-quiz], [data-edit-notice], [data-del-notice], [data-del-career], [data-edit-prof], [data-mod-post], [data-del-admin], [data-resolve-report], [data-resolve-error]");
+    // Modal dark backdrop clicks
+    if (e.target.id === "authModal") { closeAuthModal(); return; }
+    if (e.target.id === "profileModal") { closeProfileModal(); return; }
+    if (e.target.id === "readerModal") { closeReaderModal(); return; }
+
+    // Inline form cancel buttons
+    if (e.target.id === "fqCancelEdit") {
+      document.getElementById("farmerQueryForm")?.reset();
+      document.getElementById("fqEditId").value = "";
+      document.getElementById("fqFormHeading").textContent = "Submit Crop Issue Query";
+      state.pendingFarmerQueryImageBase64 = "";
+      e.target.classList.add("hidden");
+      renderActiveView();
+      return;
+    }
+    if (e.target.id === "cpCancelEdit") {
+      document.getElementById("communityPostForm")?.reset();
+      document.getElementById("cpEditId").value = "";
+      document.getElementById("cpFormHeading").textContent = "Start a Discussion / Ask Doubt";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "cancelMoneyEditBtn") {
+      document.getElementById("moneyTxForm")?.reset();
+      document.getElementById("moneyEditId").value = "";
+      document.getElementById("moneyTxFormHeading").textContent = state.moneyLedgerScope === "FARMER" ? "Add Farm Income / Expense" : "Add Income / Expense";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "cancelGoalEditBtn") {
+      document.getElementById("moneyGoalForm")?.reset();
+      document.getElementById("goalEditId").value = "";
+      document.getElementById("goalFormHeading").textContent = "Monthly Budgets & Savings Goals";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "cancelMeetingEditBtn") {
+      document.getElementById("meetingForm")?.reset();
+      document.getElementById("meetingEditId").value = "";
+      document.getElementById("meetingFormHeading").textContent = "Schedule Google Meet Session (Host Controls)";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "amCancelEdit") {
+      document.getElementById("adminMaterialForm")?.reset();
+      document.getElementById("amEditId").value = "";
+      document.getElementById("amFormTitle").textContent = "Add Study Material / PDF";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "aqCancelEdit") {
+      document.getElementById("adminQuizForm")?.reset();
+      document.getElementById("aqEditId").value = "";
+      document.getElementById("aqFormTitle").textContent = "Add MCQ Question";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "anCancelEdit") {
+      document.getElementById("adminNoticeForm")?.reset();
+      document.getElementById("anEditId").value = "";
+      document.getElementById("anFormTitle").textContent = "Publish Notice";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "ampCancelEdit") {
+      document.getElementById("adminMarketPriceForm")?.reset();
+      document.getElementById("ampEditId").value = "";
+      document.getElementById("ampFormTitle").textContent = "Publish Verified Mandi Price";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "acCancelEdit") {
+      document.getElementById("adminCareerForm")?.reset();
+      document.getElementById("acEditId").value = "";
+      document.getElementById("acFormTitle").textContent = "Add Job / Internship / Scholarship";
+      e.target.classList.add("hidden");
+      return;
+    }
+    if (e.target.id === "apCancelEdit") {
+      document.getElementById("adminProfForm")?.reset();
+      document.getElementById("apId").value = "";
+      document.getElementById("apFormTitle").textContent = "Add / Edit Faculty Advisor";
+      e.target.classList.add("hidden");
+      return;
+    }
+
+    const selector = [
+      "[data-nav]", "[data-action]",
+      "[data-weather-quick]", "[data-weather-pick]", "[data-market-quick-crop]",
+      "[data-student-sub]", "[data-student-sem]", "[data-student-cat]", "[data-student-jump-sem]", "[data-read-material]", "[data-quiz-q]",
+      "[data-load-crop-tool]", "[data-apply-crop-preset]", "[data-edit-fq]", "[data-del-fq]",
+      "[data-ai-prompt]",
+      "[data-comm-sub]", "[data-comm-topic]", "[data-career-cat]", "[data-upvote-post]", "[data-report-post]", "[data-edit-post]", "[data-del-post]",
+      "[data-money-scope]", "[data-money-type]", "[data-money-filter]", "[data-edit-tx]", "[data-del-tx]", "[data-edit-goal]", "[data-del-goal]",
+      "[data-edit-meeting]", "[data-del-meeting]",
+      "[data-start-career-prof]", "[data-open-student-thread]", "[data-open-prof-thread]", "[data-prof-filter]", "[data-pick-fa-topic]", "[data-del-doubt-msg]", "[data-retry-email]",
+      "[data-admin-sub]", "[data-edit-mat]", "[data-del-mat]", "[data-edit-quiz]", "[data-del-quiz]", "[data-edit-notice]", "[data-del-notice]",
+      "[data-edit-mp]", "[data-del-mp]", "[data-edit-career]", "[data-del-career]", "[data-edit-prof]", "[data-del-prof]",
+      "[data-mod-post]", "[data-del-admin]", "[data-resolve-report]", "[data-resolve-error]"
+    ].join(", ");
+
+    const target = e.target.closest(selector);
     if (!target) return;
 
     // Navigation
@@ -619,7 +919,7 @@ function bindGlobalEvents() {
         case "close-auth": closeAuthModal(); return;
         case "open-profile": closeDrawer(); openProfileModal(); return;
         case "close-profile": closeProfileModal(); return;
-        case "close-reader": document.getElementById("readerModal")?.classList.add("hidden"); return;
+        case "close-reader": closeReaderModal(); return;
         case "toggle-lang":
           state.lang = state.lang === "en" ? "bn" : "en";
           localStorage.setItem("gjv_lang", state.lang);
@@ -630,7 +930,7 @@ function bindGlobalEvents() {
             await firebaseService.signOutUser();
             closeDrawer();
             closeProfileModal();
-            showToast("Signed out safely. Private financial data cleared.");
+            showToast("Signed out safely. Private financial & chat data cleared.");
             renderActiveView();
           }
           return;
@@ -651,6 +951,45 @@ function bindGlobalEvents() {
             state.deferredInstallPrompt = null;
             document.getElementById("installAppBtn")?.classList.add("hidden");
           }
+          return;
+        case "apply-sw-update":
+          if (state.waitingServiceWorker) {
+            state.waitingServiceWorker.postMessage({ type: "SKIP_WAITING" });
+          } else {
+            window.location.reload();
+          }
+          return;
+        case "weather-gps":
+          if (!navigator.geolocation) {
+            showToast("GPS geolocation is not supported on this browser. Search your town or PIN code instead.", true);
+            return;
+          }
+          state.weatherLoading = true;
+          state.weatherError = "";
+          renderActiveView();
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              loadWeatherForLocation({
+                name: "My Current Location",
+                admin1: `${pos.coords.latitude.toFixed(2)}°N, ${pos.coords.longitude.toFixed(2)}°E`,
+                country: "",
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude
+              });
+            },
+            () => {
+              state.weatherLoading = false;
+              state.weatherError = "Location permission was denied. Please search your village, district, or 6-digit Indian PIN code above.";
+              renderActiveView();
+            },
+            { enableHighAccuracy: false, timeout: 10000 }
+          );
+          return;
+        case "weather-refresh":
+          loadWeatherForLocation(state.weatherLastLocation || QUICK_WEATHER_LOCATIONS[0]);
+          return;
+        case "refresh-mandi":
+          loadOfficialMandiData(true);
           return;
         case "submit-quiz": {
           const activeQuizzes = state.quizzes.filter((qz) =>
@@ -675,11 +1014,16 @@ function bindGlobalEvents() {
           return;
         case "save-opening-balance": {
           if (!state.user) return;
-          const val = parseFloat(document.getElementById("openingBalanceInput")?.value) || 0;
-          state.openingBalance = val;
-          localStorage.setItem(openingBalanceKey(state.user.uid), String(val));
-          showToast("Opening balance saved privately for your account.");
-          renderActiveView();
+          const val = Math.max(0, parseFloat(document.getElementById("openingBalanceInput")?.value) || 0);
+          try {
+            await firebaseService.saveOpeningBalance(state.user.uid, val);
+            state.openingBalance = val;
+            localStorage.setItem(openingBalanceKey(state.user.uid), String(val));
+            showToast("Opening balance synced privately to your Firebase account.");
+            renderActiveView();
+          } catch (err) {
+            showToast(err.message || "Failed to save opening balance.", true);
+          }
           return;
         }
         case "export-money-pdf":
@@ -692,6 +1036,18 @@ function bindGlobalEvents() {
           return;
         case "clear-doubt-image":
           state.pendingDoubtImageBase64 = "";
+          renderActiveView();
+          return;
+        case "clear-career-image":
+          state.pendingCareerImageBase64 = "";
+          renderActiveView();
+          return;
+        case "clear-fa-image":
+          state.pendingFarmerAdvisorImageBase64 = "";
+          renderActiveView();
+          return;
+        case "clear-fq-image":
+          state.pendingFarmerQueryImageBase64 = "";
           renderActiveView();
           return;
         case "sync-9-professors":
@@ -708,10 +1064,11 @@ function bindGlobalEvents() {
             ["Total Users", state.ownerUsers.length],
             ["Study Materials", state.studyMaterials.length],
             ["MCQs", state.quizzes.length],
+            ["Verified Market Prices", state.firestoreMarketPrices.length],
             ["Exam Completions", state.ownerExamStats.length],
             ["Farmer Queries", state.farmerQueries.length],
             ["Community Posts", state.communityPosts.length],
-            ["Privacy Notice", "Student private Money Manager & Doubt Chats excluded"]
+            ["Privacy Notice", "Private Money Manager & 1-on-1 Consultations strictly excluded"]
           ];
           const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
           const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -725,6 +1082,25 @@ function bindGlobalEvents() {
       }
     }
 
+    // Weather interactions
+    if (target.dataset.weatherQuick !== undefined) {
+      const loc = QUICK_WEATHER_LOCATIONS[parseInt(target.dataset.weatherQuick, 10)];
+      if (loc) loadWeatherForLocation(loc);
+      return;
+    }
+    if (target.dataset.weatherPick !== undefined) {
+      const loc = state.weatherSearchResults[parseInt(target.dataset.weatherPick, 10)];
+      if (loc) loadWeatherForLocation(loc);
+      return;
+    }
+
+    // Market price quick crop chip
+    if (target.dataset.marketQuickCrop !== undefined) {
+      state.marketSearchCrop = target.dataset.marketQuickCrop;
+      renderActiveView();
+      return;
+    }
+
     // Student Hub interactions
     if (target.dataset.studentSub) { state.studentSubTab = target.dataset.studentSub; renderActiveView(); return; }
     if (target.dataset.studentSem !== undefined) { state.studentSemester = parseInt(target.dataset.studentSem, 10) || 0; state.quizSubmitted = false; renderActiveView(); return; }
@@ -733,7 +1109,7 @@ function bindGlobalEvents() {
     if (target.dataset.readMaterial) { openMaterialReader(target.dataset.readMaterial); return; }
     if (target.dataset.quizQ) { state.quizAnswers[target.dataset.quizQ] = parseInt(target.dataset.quizOpt, 10); renderActiveView(); return; }
 
-    // Farmer & Tools presets
+    // Farmer Help & Agri Tools presets
     if (target.dataset.loadCropTool || target.dataset.applyCropPreset) {
       const id = target.dataset.loadCropTool || target.dataset.applyCropPreset;
       const crop = CROP_PRESETS.find((c) => c.id === id);
@@ -742,6 +1118,30 @@ function bindGlobalEvents() {
         state.seedInput = { ...state.seedInput, rowSpacingCm: crop.spacingCm.row, plantSpacingCm: crop.spacingCm.plant };
         showToast(`Loaded ${crop.nameEn} NPK & spacing preset.`);
         navigateTo("tools");
+      }
+      return;
+    }
+    if (target.dataset.editFq) {
+      const fq = state.farmerQueries.find((x) => x.id === target.dataset.editFq);
+      if (fq) {
+        document.getElementById("fqEditId").value = fq.id;
+        document.getElementById("fqCrop").value = fq.cropName || "";
+        document.getElementById("fqCategory").value = fq.category || "DISEASE";
+        document.getElementById("fqDistrict").value = fq.district || "";
+        document.getElementById("fqDesc").value = fq.description || "";
+        document.getElementById("fqFormHeading").textContent = "Edit Crop Issue Query";
+        document.getElementById("fqCancelEdit")?.classList.remove("hidden");
+        document.getElementById("farmerQueryForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+    if (target.dataset.delFq) {
+      if (!confirm("Delete this crop query?")) return;
+      try {
+        await firebaseService.deleteFarmerQuery(target.dataset.delFq);
+        showToast("Farmer query deleted.");
+      } catch (err) {
+        showToast(err.message || "Failed to delete query.", true);
       }
       return;
     }
@@ -774,26 +1174,96 @@ function bindGlobalEvents() {
       }
       return;
     }
+    if (target.dataset.editPost) {
+      const p = state.communityPosts.find((x) => x.id === target.dataset.editPost);
+      if (p) {
+        document.getElementById("cpEditId").value = p.id;
+        document.getElementById("cpTopic").value = p.topic || "DOUBT";
+        document.getElementById("cpGroup").value = p.collegeGroup || "";
+        document.getElementById("cpTitle").value = p.title || "";
+        document.getElementById("cpBody").value = p.body || "";
+        document.getElementById("cpFormHeading").textContent = "Edit Community Post";
+        document.getElementById("cpCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
     if (target.dataset.delPost) {
       if (!confirm("Delete this community post?")) return;
-      await firebaseService.deleteCommunityPost(target.dataset.delPost).catch((err) => showToast(err.message, true));
-      showToast("Post deleted.");
+      try {
+        await firebaseService.deleteCommunityPost(target.dataset.delPost);
+        showToast("Post deleted.");
+      } catch (err) {
+        showToast(err.message || "Failed to delete post.", true);
+      }
       return;
     }
 
-    // Money Manager
+    // Money & Farm Manager (Owner-Only — Full Edit & Delete)
+    if (target.dataset.moneyScope) {
+      state.moneyLedgerScope = target.dataset.moneyScope;
+      state.moneyFilter = "ALL";
+      renderActiveView();
+      return;
+    }
     if (target.dataset.moneyType) { state.moneyFormType = target.dataset.moneyType; renderActiveView(); return; }
     if (target.dataset.moneyFilter) { state.moneyFilter = target.dataset.moneyFilter; renderActiveView(); return; }
+    if (target.dataset.editTx) {
+      const tx = state.moneyTransactions.find((x) => x.id === target.dataset.editTx);
+      if (tx) {
+        state.moneyFormType = tx.type === "INCOME" ? "INCOME" : "EXPENSE";
+        state.moneyLedgerScope = tx.ledgerScope || "STUDENT";
+        renderActiveView();
+        document.getElementById("moneyEditId").value = tx.id;
+        document.getElementById("moneyTitle").value = tx.title || "";
+        document.getElementById("moneyAmount").value = String(tx.amount || "");
+        document.getElementById("moneyDate").value = tx.dateLabel || new Date().toISOString().slice(0, 10);
+        const catSel = document.getElementById("moneyCategory");
+        if (catSel) catSel.value = tx.category || "OTHER";
+        const sw = document.getElementById("moneySharedWith");
+        if (sw) sw.value = tx.sharedWith || "";
+        const ct = document.getElementById("moneyCropTag");
+        if (ct) ct.value = tx.cropTag || "";
+        document.getElementById("moneyNote").value = tx.note || "";
+        document.getElementById("moneyTxFormHeading").textContent = "Edit Private Entry";
+        document.getElementById("cancelMoneyEditBtn")?.classList.remove("hidden");
+        document.getElementById("moneyTxForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
     if (target.dataset.delTx) {
       if (!state.user || !confirm("Delete this financial transaction?")) return;
-      await firebaseService.deleteMoneyTransaction(state.user.uid, target.dataset.delTx).catch((err) => showToast(err.message, true));
-      showToast("Transaction deleted.");
+      try {
+        await firebaseService.deleteMoneyTransaction(state.user.uid, target.dataset.delTx);
+        showToast("Transaction deleted.");
+      } catch (err) {
+        showToast(err.message || "Delete failed.", true);
+      }
+      return;
+    }
+    if (target.dataset.editGoal) {
+      const g = state.moneyBudgets.find((x) => x.id === target.dataset.editGoal);
+      if (g) {
+        document.getElementById("goalEditId").value = g.id;
+        document.getElementById("goalName").value = g.name || "";
+        document.getElementById("goalKind").value = g.kind || "MONTHLY_BUDGET";
+        document.getElementById("goalMonth").value = g.monthKey || new Date().toISOString().slice(0, 7);
+        document.getElementById("goalTarget").value = String(g.targetAmount || "");
+        document.getElementById("goalSaved").value = String(g.savedAmount || 0);
+        document.getElementById("goalFormHeading").textContent = "Edit Budget / Savings Goal";
+        document.getElementById("cancelGoalEditBtn")?.classList.remove("hidden");
+        document.getElementById("moneyGoalForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       return;
     }
     if (target.dataset.delGoal) {
       if (!state.user || !confirm("Delete this budget/goal?")) return;
-      await firebaseService.deleteFinancialGoal(state.user.uid, target.dataset.delGoal).catch((err) => showToast(err.message, true));
-      showToast("Budget/goal deleted.");
+      try {
+        await firebaseService.deleteFinancialGoal(state.user.uid, target.dataset.delGoal);
+        showToast("Budget/goal deleted.");
+      } catch (err) {
+        showToast(err.message || "Delete failed.", true);
+      }
       return;
     }
 
@@ -816,43 +1286,95 @@ function bindGlobalEvents() {
     }
     if (target.dataset.delMeeting) {
       if (!confirm("Delete this Google Meet session?")) return;
-      await firebaseService.deleteMeeting(target.dataset.delMeeting).catch((err) => showToast(err.message, true));
-      showToast("Meeting deleted.");
+      try {
+        await firebaseService.deleteMeeting(target.dataset.delMeeting);
+        showToast("Meeting deleted.");
+      } catch (err) {
+        showToast(err.message || "Delete failed.", true);
+      }
       return;
     }
 
-    // Doubt Zone
-    if (target.dataset.doubtSub) { state.doubtSubTab = target.dataset.doubtSub; renderActiveView(); return; }
-    if (target.dataset.startDoubtProf) {
-      const prof = state.professors.find((p) => p.id === target.dataset.startDoubtProf);
+    // Career Guidance / Farmer Advisor / Professor Dashboard
+    if (target.dataset.profFilter) { state.profInboxFilter = target.dataset.profFilter; renderActiveView(); return; }
+    if (target.dataset.pickFaTopic) { state.selectedFarmerTopic = target.dataset.pickFaTopic; renderActiveView(); return; }
+    if (target.dataset.startCareerProf) {
+      const prof = state.professors.find((p) => p.id === target.dataset.startCareerProf);
       if (prof) {
-        openDoubtRoom({
+        state.selectedCareerProfId = prof.id;
+        openConsultationRoom({
           professor: prof,
           studentId: state.user?.uid || "",
           studentName: state.userProfile?.displayName || state.user?.displayName || "Student",
           studentSemester: state.userProfile?.semester || 1,
-          asProfessor: false
+          asProfessor: false,
+          serviceType: "STUDENT_CAREER"
+        });
+      }
+      return;
+    }
+    if (target.dataset.openStudentThread) {
+      const th = state.studentDoubtThreads.find((t) => t.id === target.dataset.openStudentThread);
+      if (th) {
+        const prof = state.professors.find((p) => p.id === th.professorId) || { id: th.professorId, name: th.professorName, email: th.professorEmail || "" };
+        openConsultationRoom({
+          professor: prof,
+          studentId: th.studentId,
+          studentName: th.studentName,
+          studentSemester: th.studentSemester,
+          asProfessor: false,
+          serviceType: th.serviceType || "STUDENT_CAREER",
+          chatIdOverride: th.id,
+          questionTitle: th.questionTitle || ""
         });
       }
       return;
     }
     if (target.dataset.openProfThread) {
       const th = state.professorDoubtThreads.find((t) => t.id === target.dataset.openProfThread);
-      const prof = state.professors.find((p) => p.id === th?.professorId) || { id: th?.professorId, name: th?.professorName, email: th?.professorEmail };
       if (th) {
-        openDoubtRoom({
+        const prof = state.professors.find((p) => p.id === th.professorId) || { id: th.professorId, name: th.professorName, email: th.professorEmail || "" };
+        openConsultationRoom({
           professor: prof,
           studentId: th.studentId,
           studentName: th.studentName,
           studentSemester: th.studentSemester,
-          asProfessor: true
+          asProfessor: true,
+          serviceType: th.serviceType || "STUDENT_CAREER",
+          chatIdOverride: th.id,
+          questionTitle: th.questionTitle || ""
         });
+      }
+      return;
+    }
+    if (target.dataset.retryEmail && state.activeDoubtChat) {
+      const msg = state.activeDoubtMessages.find((m) => m.id === target.dataset.retryEmail);
+      const chat = state.activeDoubtChat;
+      if (msg && chat) {
+        showToast("Retrying direct email delivery to assigned professor...");
+        const res = await firebaseService.triggerProfessorEmailDelivery({
+          chatId: chat.chatId,
+          messageId: msg.id,
+          professorId: chat.professor.id,
+          serviceType: chat.serviceType,
+          senderName: msg.senderName || chat.studentName,
+          questionTitle: msg.questionTitle || chat.questionTitle || "",
+          questionCategory: msg.questionCategory || "",
+          questionText: msg.text || "",
+          hasAttachment: Boolean(msg.hasImage)
+        });
+        showToast(res.ok ? "Email sent to assigned professor!" : (res.error || "Email delivery failed; question remains saved in-app."), !res.ok);
       }
       return;
     }
     if (target.dataset.delDoubtMsg && state.activeDoubtChat) {
       if (!confirm("Delete your message?")) return;
-      await firebaseService.deleteOwnDoubtMessage(state.activeDoubtChat.chatId, target.dataset.delDoubtMsg).catch((err) => showToast(err.message, true));
+      try {
+        await firebaseService.deleteOwnDoubtMessage(state.activeDoubtChat.chatId, target.dataset.delDoubtMsg);
+        showToast("Message deleted.");
+      } catch (err) {
+        showToast(err.message || "Delete failed.", true);
+      }
       return;
     }
 
@@ -873,19 +1395,43 @@ function bindGlobalEvents() {
         document.getElementById("amVerifiedAi").checked = m.verifiedForAi !== false;
         document.getElementById("amFormTitle").textContent = "Edit Study Material";
         document.getElementById("amCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
     if (target.dataset.delMat) {
       if (!confirm("Delete this study material?")) return;
-      await firebaseService.deleteStudyMaterial(target.dataset.delMat).catch((err) => showToast(err.message, true));
-      showToast("Material deleted.");
+      try {
+        await firebaseService.deleteStudyMaterial(target.dataset.delMat);
+        showToast("Material deleted.");
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (target.dataset.editQuiz) {
+      const q = state.quizzes.find((x) => x.id === target.dataset.editQuiz);
+      if (q) {
+        document.getElementById("aqEditId").value = q.id;
+        document.getElementById("aqTitle").value = q.title || "";
+        document.getElementById("aqSem").value = String(q.semester || 1);
+        document.getElementById("aqSubject").value = q.subject || "";
+        document.getElementById("aqQuestion").value = q.questionText || "";
+        [0, 1, 2, 3].forEach((i) => {
+          document.getElementById(`aqOpt${i}`).value = q.options?.[i] || "";
+        });
+        document.getElementById("aqCorrect").value = String(q.correctIndex ?? 0);
+        document.getElementById("aqExplanation").value = q.explanation || "";
+        document.getElementById("aqFormTitle").textContent = "Edit MCQ Question";
+        document.getElementById("aqCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       return;
     }
     if (target.dataset.delQuiz) {
       if (!confirm("Delete this MCQ question?")) return;
-      await firebaseService.deleteQuizQuestion(target.dataset.delQuiz).catch((err) => showToast(err.message, true));
-      showToast("Quiz deleted.");
+      try {
+        await firebaseService.deleteQuizQuestion(target.dataset.delQuiz);
+        showToast("Quiz deleted.");
+      } catch (err) { showToast(err.message, true); }
       return;
     }
     if (target.dataset.editNotice) {
@@ -898,19 +1444,72 @@ function bindGlobalEvents() {
         document.getElementById("anActive").checked = a.active !== false;
         document.getElementById("anFormTitle").textContent = "Edit Notice";
         document.getElementById("anCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
     if (target.dataset.delNotice) {
       if (!confirm("Delete this notice?")) return;
-      await firebaseService.deleteAnnouncement(target.dataset.delNotice).catch((err) => showToast(err.message, true));
-      showToast("Notice deleted.");
+      try {
+        await firebaseService.deleteAnnouncement(target.dataset.delNotice);
+        showToast("Notice deleted.");
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (target.dataset.editMp) {
+      const r = state.firestoreMarketPrices.find((x) => x.id === target.dataset.editMp);
+      if (r) {
+        document.getElementById("ampEditId").value = r.id;
+        document.getElementById("ampCrop").value = r.cropName || "";
+        document.getElementById("ampCropBn").value = r.cropNameBn || "";
+        document.getElementById("ampState").value = r.state || "West Bengal";
+        document.getElementById("ampDistrict").value = r.district || "";
+        document.getElementById("ampMarket").value = r.marketName || "";
+        document.getElementById("ampUnit").value = r.unit || "₹ / Quintal";
+        document.getElementById("ampMin").value = String(r.minPrice ?? "");
+        document.getElementById("ampModal").value = String(r.modalPrice ?? "");
+        document.getElementById("ampMax").value = String(r.maxPrice ?? "");
+        document.getElementById("ampDate").value = r.reportDate || new Date().toISOString().slice(0, 10);
+        document.getElementById("ampSource").value = r.sourceName || "";
+        document.getElementById("ampSourceUrl").value = r.sourceUrl || "";
+        document.getElementById("ampPublished").checked = r.published !== false;
+        document.getElementById("ampFormTitle").textContent = "Edit Verified Mandi Price";
+        document.getElementById("ampCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    if (target.dataset.delMp) {
+      if (!confirm("Delete this verified market price entry?")) return;
+      try {
+        await firebaseService.deleteMarketPriceAsAdmin(target.dataset.delMp);
+        showToast("Market price deleted.");
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (target.dataset.editCareer) {
+      const c = state.careerOpportunities.find((x) => x.id === target.dataset.editCareer);
+      if (c) {
+        document.getElementById("acEditId").value = c.id;
+        document.getElementById("acTitle").value = c.title || "";
+        document.getElementById("acOrg").value = c.organization || "";
+        document.getElementById("acCategory").value = c.category || "GOVT_JOB";
+        document.getElementById("acDeadline").value = c.deadline || "";
+        document.getElementById("acEligibility").value = c.eligibility || "";
+        document.getElementById("acUrl").value = c.applyUrl || "";
+        document.getElementById("acDesc").value = c.description || "";
+        document.getElementById("acFormTitle").textContent = "Edit Career Opportunity";
+        document.getElementById("acCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       return;
     }
     if (target.dataset.delCareer) {
       if (!confirm("Delete this career opportunity?")) return;
-      await firebaseService.deleteCareerOpportunity(target.dataset.delCareer).catch((err) => showToast(err.message, true));
-      showToast("Opportunity deleted.");
+      try {
+        await firebaseService.deleteCareerOpportunity(target.dataset.delCareer);
+        showToast("Opportunity deleted.");
+      } catch (err) { showToast(err.message, true); }
       return;
     }
     if (target.dataset.editProf) {
@@ -925,75 +1524,52 @@ function bindGlobalEvents() {
         document.getElementById("apEmail").value = p.email || "";
         document.getElementById("apSpec").value = p.specialization || "";
         document.getElementById("apAuthUid").value = p.authorizedUid || "";
+        document.getElementById("apFormTitle").textContent = `Edit Advisor: ${p.name}`;
+        document.getElementById("apCancelEdit")?.classList.remove("hidden");
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
+    if (target.dataset.delProf) {
+      if (!confirm("Delete this professor from Firestore?")) return;
+      try {
+        await firebaseService.deleteProfessorAsAdmin(target.dataset.delProf);
+        showToast("Advisor removed from Firestore.");
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
     if (target.dataset.modPost) {
-      await firebaseService.moderateCommunityPost(target.dataset.modPost, target.dataset.modStatus).catch((err) => showToast(err.message, true));
-      showToast("Post moderation updated.");
+      try {
+        await firebaseService.moderateCommunityPost(target.dataset.modPost, target.dataset.modStatus);
+        showToast("Post moderation updated.");
+      } catch (err) { showToast(err.message, true); }
       return;
     }
     if (target.dataset.delAdmin) {
       if (!confirm("Remove this admin role?")) return;
-      await firebaseService.removeAdminRole(target.dataset.delAdmin).catch((err) => showToast(err.message, true));
-      showToast("Admin role removed.");
+      try {
+        await firebaseService.removeAdminRole(target.dataset.delAdmin);
+        showToast("Admin role removed.");
+      } catch (err) { showToast(err.message, true); }
       return;
     }
     if (target.dataset.resolveReport) {
-      await firebaseService.updateContentReportStatus(target.dataset.resolveReport, target.dataset.reportStatus).catch((err) => showToast(err.message, true));
-      showToast("Content report updated.");
+      try {
+        await firebaseService.updateContentReportStatus(target.dataset.resolveReport, target.dataset.reportStatus);
+        showToast("Content report updated.");
+      } catch (err) { showToast(err.message, true); }
       return;
     }
     if (target.dataset.resolveError) {
-      await firebaseService.resolveErrorLog(target.dataset.resolveError).catch((err) => showToast(err.message, true));
-      showToast("Error marked resolved.");
+      try {
+        await firebaseService.resolveErrorLog(target.dataset.resolveError);
+        showToast("Error marked resolved.");
+      } catch (err) { showToast(err.message, true); }
       return;
     }
-
-    // Cancel edit buttons for inline forms
-    if (target.id === "cancelMeetingEditBtn") {
-      document.getElementById("meetingForm")?.reset();
-      const editId = document.getElementById("meetingEditId");
-      if (editId) editId.value = "";
-      const heading = document.getElementById("meetingFormHeading");
-      if (heading) heading.textContent = "Schedule / Edit Google Meet Session";
-      target.classList.add("hidden");
-      return;
-    }
-    if (target.id === "amCancelEdit") {
-      document.getElementById("adminMaterialForm")?.reset();
-      const editId = document.getElementById("amEditId");
-      if (editId) editId.value = "";
-      const heading = document.getElementById("amFormTitle");
-      if (heading) heading.textContent = "Publish / Edit Study Material";
-      target.classList.add("hidden");
-      return;
-    }
-    if (target.id === "anCancelEdit") {
-      document.getElementById("adminNoticeForm")?.reset();
-      const editId = document.getElementById("anEditId");
-      if (editId) editId.value = "";
-      const heading = document.getElementById("anFormTitle");
-      if (heading) heading.textContent = "Publish / Edit Notice";
-      target.classList.add("hidden");
-      return;
-    }
-    if (target.id === "cancelMoneyEditBtn") {
-      document.getElementById("moneyTxForm")?.reset();
-      const editId = document.getElementById("moneyEditId");
-      if (editId) editId.value = "";
-      target.classList.add("hidden");
-      return;
-    }
-
-    // Close modals when clicking the dark backdrop directly
-    if (e.target.id === "authModal") { closeAuthModal(); return; }
-    if (e.target.id === "profileModal") { closeProfileModal(); return; }
-    if (e.target.id === "readerModal") { closeReaderModal(); return; }
   });
 
-  // Escape key closes open modals and mobile navigation drawer
+  // Escape closes modals & drawer
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeAuthModal();
@@ -1003,7 +1579,7 @@ function bindGlobalEvents() {
     }
   });
 
-  // Live Input / Change Delegation
+  // Live Input Delegation
   document.addEventListener("input", (e) => {
     const id = e.target.id;
     if (id === "studentSearchInput") {
@@ -1015,6 +1591,11 @@ function bindGlobalEvents() {
       state.professorSearch = e.target.value;
       renderActiveView();
       const el = document.getElementById("professorSearchInput");
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    } else if (id === "marketCropSearch") {
+      state.marketSearchCrop = e.target.value;
+      renderActiveView();
+      const el = document.getElementById("marketCropSearch");
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
     } else if (["toolFertArea", "toolFertUnit", "toolFertN", "toolFertP", "toolFertK"].includes(id)) {
       state.fertInput = {
@@ -1039,18 +1620,56 @@ function bindGlobalEvents() {
     }
   });
 
+  // Change Delegation (Select filters + Image/PDF Uploads)
   document.addEventListener("change", async (e) => {
-    // Doubt image attachment compression
-    if (e.target.id === "doubtImageFile" && e.target.files?.[0]) {
+    const id = e.target.id;
+    if (id === "marketStateSelect") {
+      state.marketFilterState = e.target.value;
+      state.marketFilterDistrict = "ALL";
+      state.marketFilterMandi = "ALL";
+      renderActiveView();
+      return;
+    }
+    if (id === "marketDistrictSelect") {
+      state.marketFilterDistrict = e.target.value;
+      state.marketFilterMandi = "ALL";
+      renderActiveView();
+      return;
+    }
+    if (id === "marketMandiSelect") {
+      state.marketFilterMandi = e.target.value;
+      renderActiveView();
+      return;
+    }
+    if (id === "doubtImageFile" && e.target.files?.[0]) {
       try {
         state.pendingDoubtImageBase64 = await compressImageFileToBase64(e.target.files[0]);
         renderActiveView();
-      } catch (err) {
-        showToast(err.message, true);
-      }
+      } catch (err) { showToast(err.message, true); }
+      return;
     }
-    // Admin PDF upload to Firebase Storage
-    if (e.target.id === "amPdfUpload" && e.target.files?.[0]) {
+    if (id === "cgImageFile" && e.target.files?.[0]) {
+      try {
+        state.pendingCareerImageBase64 = await compressImageFileToBase64(e.target.files[0]);
+        renderActiveView();
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (id === "faImageFile" && e.target.files?.[0]) {
+      try {
+        state.pendingFarmerAdvisorImageBase64 = await compressImageFileToBase64(e.target.files[0]);
+        renderActiveView();
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (id === "fqImageFile" && e.target.files?.[0]) {
+      try {
+        state.pendingFarmerQueryImageBase64 = await compressImageFileToBase64(e.target.files[0]);
+        renderActiveView();
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (id === "amPdfUpload" && e.target.files?.[0]) {
       try {
         showToast("Uploading PDF to Firebase Storage...");
         const url = await firebaseService.uploadPdfToStorage(e.target.files[0]);
@@ -1063,304 +1682,575 @@ function bindGlobalEvents() {
     }
   });
 
-  // Form Submission Delegation
+  // Form Submission Delegation (with Busy Guard + Honest Firebase Confirmation)
   document.addEventListener("submit", async (e) => {
     const form = e.target;
     e.preventDefault();
 
     try {
+      // Weather Search (Village, Town, District, or 6-digit Indian PIN)
+      if (form.id === "weatherSearchForm") {
+        const q = document.getElementById("weatherLocationQuery")?.value?.trim() || "";
+        state.weatherQuery = q;
+        if (!q) return;
+        state.weatherLoading = true;
+        state.weatherError = "";
+        state.weatherSearchResults = [];
+        renderActiveView();
+
+        const res = await searchWeatherLocations(q);
+        state.weatherLoading = false;
+        if (!res.ok) {
+          state.weatherError = res.error;
+          renderActiveView();
+        } else if (res.results.length === 1) {
+          await loadWeatherForLocation(res.results[0]);
+        } else {
+          state.weatherSearchResults = res.results;
+          renderActiveView();
+        }
+        return;
+      }
+
       // AI Guru
       if (form.id === "aiGuruForm") {
         await runAiGuruSearch(document.getElementById("aiGuruInput").value);
         return;
       }
 
-      // Farmer Query
+      // Farmer Query (Create & Edit + Photo)
       if (form.id === "farmerQueryForm" && state.user) {
-        await firebaseService.createFarmerQuery(
-          state.user.uid,
-          state.userProfile?.displayName || state.user.displayName || "Farmer",
-          {
-            cropName: document.getElementById("fqCrop").value,
-            category: document.getElementById("fqCategory").value,
-            district: document.getElementById("fqDistrict").value,
-            description: document.getElementById("fqDesc").value,
-            hasImage: false,
-            imageSummary: ""
-          }
-        );
-        form.reset();
-        showToast("Farmer query submitted to Guru Ji Vision Desk!");
-        return;
-      }
-
-      // Community Post
-      if (form.id === "communityPostForm" && state.user) {
-        await firebaseService.createCommunityPost(
-          state.user.uid,
-          state.userProfile?.displayName || state.user.displayName || "Student",
-          {
-            topic: document.getElementById("cpTopic").value,
-            collegeGroup: document.getElementById("cpGroup").value,
-            title: document.getElementById("cpTitle").value,
-            body: document.getElementById("cpBody").value
-          }
-        );
-        form.reset();
-        showToast("Community post published!");
-        return;
-      }
-
-      // Private Money Transaction
-      if (form.id === "moneyTxForm" && state.user) {
-        await firebaseService.saveMoneyTransaction(
-          state.user.uid,
-          {
-            title: document.getElementById("moneyTitle").value,
-            amount: document.getElementById("moneyAmount").value,
-            type: state.moneyFormType,
-            category: document.getElementById("moneyCategory").value,
-            dateLabel: document.getElementById("moneyDate").value,
-            sharedWith: document.getElementById("moneySharedWith").value,
-            note: document.getElementById("moneyNote").value
-          },
-          document.getElementById("moneyEditId").value
-        );
-        form.reset();
-        showToast("Private financial entry saved to your account.");
-        return;
-      }
-
-      // Private Financial Goal
-      if (form.id === "moneyGoalForm" && state.user) {
-        await firebaseService.saveFinancialGoal(state.user.uid, {
-          name: document.getElementById("goalName").value,
-          kind: document.getElementById("goalKind").value,
-          monthKey: document.getElementById("goalMonth").value,
-          targetAmount: document.getElementById("goalTarget").value,
-          savedAmount: document.getElementById("goalSaved").value
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("fqEditId")?.value || "";
+          await firebaseService.createFarmerQuery(
+            state.user.uid,
+            state.userProfile?.displayName || state.user.displayName || "Farmer",
+            {
+              cropName: document.getElementById("fqCrop").value,
+              category: document.getElementById("fqCategory").value,
+              district: document.getElementById("fqDistrict").value,
+              description: document.getElementById("fqDesc").value,
+              imageBase64: state.pendingFarmerQueryImageBase64
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("fqEditId").value = "";
+          state.pendingFarmerQueryImageBase64 = "";
+          showToast(editId ? "Farmer query updated!" : "Farmer query submitted to Guru Ji Vision Desk!");
         });
-        form.reset();
-        showToast("Budget / Savings goal added.");
+        return;
+      }
+
+      // Community Post (Create & Edit)
+      if (form.id === "communityPostForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("cpEditId")?.value || "";
+          await firebaseService.saveCommunityPost(
+            state.user.uid,
+            state.userProfile?.displayName || state.user.displayName || "Student",
+            {
+              topic: document.getElementById("cpTopic").value,
+              collegeGroup: document.getElementById("cpGroup").value,
+              title: document.getElementById("cpTitle").value,
+              body: document.getElementById("cpBody").value
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("cpEditId").value = "";
+          showToast(editId ? "Community post updated!" : "Community post published!");
+        });
+        return;
+      }
+
+      // Private Money Transaction (Student & Farmer — Owner-Only, No Admin Approval)
+      if (form.id === "moneyTxForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("moneyEditId")?.value || "";
+          const scope = state.moneyLedgerScope || (state.userProfile?.role === "FARMER" ? "FARMER" : "STUDENT");
+          await firebaseService.saveMoneyTransaction(
+            state.user.uid,
+            {
+              title: document.getElementById("moneyTitle").value,
+              amount: document.getElementById("moneyAmount").value,
+              type: state.moneyFormType,
+              category: document.getElementById("moneyCategory").value,
+              ledgerScope: scope,
+              dateLabel: document.getElementById("moneyDate").value,
+              sharedWith: document.getElementById("moneySharedWith")?.value || "",
+              cropTag: document.getElementById("moneyCropTag")?.value || "",
+              note: document.getElementById("moneyNote").value
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("moneyEditId").value = "";
+          showToast(editId ? "Private financial entry updated!" : "Private entry saved directly to your account.");
+        });
+        return;
+      }
+
+      // Private Financial Goal (Create & Edit)
+      if (form.id === "moneyGoalForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("goalEditId")?.value || "";
+          await firebaseService.saveFinancialGoal(
+            state.user.uid,
+            {
+              name: document.getElementById("goalName").value,
+              kind: document.getElementById("goalKind").value,
+              monthKey: document.getElementById("goalMonth").value,
+              targetAmount: document.getElementById("goalTarget").value,
+              savedAmount: document.getElementById("goalSaved").value
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("goalEditId").value = "";
+          showToast(editId ? "Budget / goal updated!" : "Budget / savings goal saved!");
+        });
         return;
       }
 
       // Meeting Form
       if (form.id === "meetingForm" && state.user) {
-        await firebaseService.saveMeeting(
-          state.user.uid,
-          state.facultyIdentity?.professorName || state.userProfile?.displayName || state.user.displayName || "Faculty",
-          {
-            title: document.getElementById("meetTitle").value,
-            subject: document.getElementById("meetSubject").value,
-            meetUrl: document.getElementById("meetUrl").value,
-            scheduledDate: document.getElementById("meetDate").value,
-            scheduledTime: document.getElementById("meetTime").value,
-            description: document.getElementById("meetDesc").value,
-            notifyStudents: document.getElementById("meetNotify").checked,
-            published: true
-          },
-          document.getElementById("meetingEditId").value
-        );
-        form.reset();
-        document.getElementById("meetingEditId").value = "";
-        showToast("Google Meet session saved!");
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("meetingEditId")?.value || "";
+          await firebaseService.saveMeeting(
+            state.user.uid,
+            state.facultyIdentity?.professorName || state.userProfile?.displayName || state.user.displayName || "Faculty",
+            {
+              title: document.getElementById("meetTitle").value,
+              subject: document.getElementById("meetSubject").value,
+              meetUrl: document.getElementById("meetUrl").value,
+              scheduledDate: document.getElementById("meetDate").value,
+              scheduledTime: document.getElementById("meetTime").value,
+              description: document.getElementById("meetDesc").value,
+              notifyStudents: document.getElementById("meetNotify").checked,
+              published: true
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("meetingEditId").value = "";
+          showToast("Google Meet session saved!");
+        });
         return;
       }
 
-      // Doubt Chat Composer
-      if (form.id === "doubtComposerForm" && state.user && state.activeDoubtChat) {
-        const chat = state.activeDoubtChat;
-        const input = document.getElementById("doubtMessageInput");
-        const text = input.value;
-        await firebaseService.sendDoubtMessage({
-          uid: state.user.uid,
-          professor: chat.professor,
-          studentId: chat.studentId,
-          studentName: chat.studentName,
-          studentSemester: chat.studentSemester,
-          senderRole: chat.asProfessor ? "PROFESSOR" : "STUDENT",
-          senderName: chat.asProfessor ? chat.professor.name : chat.studentName,
-          text,
-          imageBase64: state.pendingDoubtImageBase64
+      // Student Career Guidance Structured Question -> Firestore + Direct Email Delivery
+      if (form.id === "careerGuidanceForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const profId = document.getElementById("cgProfSelect").value;
+          const prof = state.professors.find((p) => p.id === profId);
+          if (!prof) throw new Error("Select a valid professor.");
+          const title = document.getElementById("cgTitle").value.trim();
+          const category = document.getElementById("cgCategory").value;
+          const text = document.getElementById("cgMessage").value.trim();
+          const consent = document.getElementById("cgContactConsent")?.checked;
+          const contactInfo = consent ? (document.getElementById("cgContactInfo")?.value || "").trim() : "";
+          const studentName = state.userProfile?.displayName || state.user.displayName || "Student";
+          const sem = state.userProfile?.semester || 1;
+          const img = state.pendingCareerImageBase64;
+
+          const sent = await firebaseService.sendDoubtMessage({
+            uid: state.user.uid,
+            professor: prof,
+            studentId: state.user.uid,
+            studentName,
+            studentSemester: sem,
+            senderRole: "STUDENT",
+            senderName: studentName,
+            text,
+            imageBase64: img,
+            serviceType: "STUDENT_CAREER",
+            questionTitle: title,
+            questionCategory: category,
+            contactInfo
+          });
+
+          state.pendingCareerImageBase64 = "";
+          form.reset();
+
+          if (sent.hasConfiguredProfessorEmail) {
+            const emailRes = await firebaseService.triggerProfessorEmailDelivery({
+              chatId: sent.chatId,
+              messageId: sent.messageId,
+              professorId: prof.id,
+              serviceType: "STUDENT_CAREER",
+              senderName: studentName,
+              contactInfo,
+              questionTitle: title,
+              questionCategory: category,
+              questionText: text,
+              hasAttachment: Boolean(img)
+            });
+            showToast(emailRes.ok
+              ? `Question saved & emailed directly to ${prof.name}!`
+              : `Question saved for ${prof.name}! (${emailRes.status}: ${emailRes.error || "visible in Professor Dashboard"})`
+            );
+          } else {
+            showToast(`Question saved to ${prof.name}'s Professor Dashboard!`);
+          }
+
+          openConsultationRoom({
+            professor: prof,
+            studentId: state.user.uid,
+            studentName,
+            studentSemester: sem,
+            asProfessor: false,
+            serviceType: "STUDENT_CAREER",
+            chatIdOverride: sent.chatId,
+            questionTitle: title
+          });
         });
-        input.value = "";
-        state.pendingDoubtImageBase64 = "";
-        renderActiveView();
+        return;
+      }
+
+      // Farmer Advisor Expert Structured Question -> Firestore + Direct Email Delivery
+      if (form.id === "farmerAdvisorForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const profId = document.getElementById("faProfSelect").value;
+          const prof = state.professors.find((p) => p.id === profId);
+          if (!prof) throw new Error("Select a valid agricultural expert.");
+          const title = document.getElementById("faTitle").value.trim();
+          const category = document.getElementById("faCategory").value;
+          const text = document.getElementById("faMessage").value.trim();
+          const consent = document.getElementById("faContactConsent")?.checked;
+          const contactInfo = consent ? (document.getElementById("faContactInfo")?.value || "").trim() : "";
+          const farmerName = state.userProfile?.displayName || state.user.displayName || "Farmer";
+          const img = state.pendingFarmerAdvisorImageBase64;
+
+          const sent = await firebaseService.sendDoubtMessage({
+            uid: state.user.uid,
+            professor: prof,
+            studentId: state.user.uid,
+            studentName: farmerName,
+            studentSemester: 0,
+            senderRole: "STUDENT",
+            senderName: farmerName,
+            text,
+            imageBase64: img,
+            serviceType: "FARMER_ADVISOR",
+            questionTitle: title,
+            questionCategory: category,
+            contactInfo
+          });
+
+          state.pendingFarmerAdvisorImageBase64 = "";
+          form.reset();
+
+          if (sent.hasConfiguredProfessorEmail) {
+            const emailRes = await firebaseService.triggerProfessorEmailDelivery({
+              chatId: sent.chatId,
+              messageId: sent.messageId,
+              professorId: prof.id,
+              serviceType: "FARMER_ADVISOR",
+              senderName: farmerName,
+              contactInfo,
+              questionTitle: title,
+              questionCategory: category,
+              questionText: text,
+              hasAttachment: Boolean(img)
+            });
+            showToast(emailRes.ok
+              ? `Crop question saved & emailed directly to ${prof.name}!`
+              : `Crop question saved for ${prof.name}! (${emailRes.status}: visible in Professor Dashboard)`
+            );
+          } else {
+            showToast(`Crop question saved to ${prof.name}'s Professor Dashboard!`);
+          }
+
+          openConsultationRoom({
+            professor: prof,
+            studentId: state.user.uid,
+            studentName: farmerName,
+            studentSemester: 0,
+            asProfessor: false,
+            serviceType: "FARMER_ADVISOR",
+            chatIdOverride: sent.chatId,
+            questionTitle: title
+          });
+        });
+        return;
+      }
+
+      // In-Room 1-on-1 Consultation Message Composer
+      if (form.id === "doubtComposerForm" && state.user && state.activeDoubtChat) {
+        await withBusySubmit(form, async () => {
+          const chat = state.activeDoubtChat;
+          const input = document.getElementById("doubtMessageInput");
+          const text = input.value;
+          const img = state.pendingDoubtImageBase64;
+          const sent = await firebaseService.sendDoubtMessage({
+            uid: state.user.uid,
+            professor: chat.professor,
+            studentId: chat.studentId,
+            studentName: chat.studentName,
+            studentSemester: chat.studentSemester,
+            senderRole: chat.asProfessor ? "PROFESSOR" : "STUDENT",
+            senderName: chat.asProfessor ? chat.professor.name : chat.studentName,
+            text,
+            imageBase64: img,
+            serviceType: chat.serviceType || "STUDENT_CAREER",
+            chatIdOverride: chat.chatId
+          });
+          input.value = "";
+          state.pendingDoubtImageBase64 = "";
+
+          if (!chat.asProfessor && sent.hasConfiguredProfessorEmail) {
+            firebaseService.triggerProfessorEmailDelivery({
+              chatId: sent.chatId,
+              messageId: sent.messageId,
+              professorId: chat.professor.id,
+              serviceType: chat.serviceType || "STUDENT_CAREER",
+              senderName: chat.studentName,
+              questionTitle: chat.questionTitle || "",
+              questionText: text,
+              hasAttachment: Boolean(img)
+            });
+          }
+          renderActiveView();
+        });
         return;
       }
 
       // Admin Study Material
       if (form.id === "adminMaterialForm" && state.user) {
-        await firebaseService.saveStudyMaterial(
-          state.user.uid,
-          {
-            title: document.getElementById("amTitle").value,
-            semester: document.getElementById("amSemester").value,
-            category: document.getElementById("amCategory").value,
-            subject: document.getElementById("amSubject").value,
-            resourceUrl: document.getElementById("amUrl").value,
-            summary: document.getElementById("amSummary").value,
-            contentText: document.getElementById("amContent").value,
-            published: document.getElementById("amPublished").checked,
-            verifiedForAi: document.getElementById("amVerifiedAi").checked
-          },
-          document.getElementById("amEditId").value
-        );
-        form.reset();
-        document.getElementById("amEditId").value = "";
-        showToast("Study material saved live to Firestore!");
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("amEditId").value;
+          await firebaseService.saveStudyMaterial(
+            state.user.uid,
+            {
+              title: document.getElementById("amTitle").value,
+              semester: document.getElementById("amSemester").value,
+              category: document.getElementById("amCategory").value,
+              subject: document.getElementById("amSubject").value,
+              resourceUrl: document.getElementById("amUrl").value,
+              summary: document.getElementById("amSummary").value,
+              contentText: document.getElementById("amContent").value,
+              published: document.getElementById("amPublished").checked,
+              verifiedForAi: document.getElementById("amVerifiedAi").checked
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("amEditId").value = "";
+          showToast(editId ? "Study material updated live!" : "Study material saved live to Firestore!");
+        });
         return;
       }
 
-      // Admin Quiz
+      // Admin Quiz (Create & Edit)
       if (form.id === "adminQuizForm" && state.user) {
-        await firebaseService.saveQuizQuestion(state.user.uid, {
-          title: document.getElementById("aqTitle").value,
-          semester: document.getElementById("aqSem").value,
-          subject: document.getElementById("aqSubject").value,
-          questionText: document.getElementById("aqQuestion").value,
-          options: [0, 1, 2, 3].map((i) => document.getElementById(`aqOpt${i}`).value),
-          correctIndex: document.getElementById("aqCorrect").value,
-          explanation: document.getElementById("aqExplanation").value,
-          published: true
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("aqEditId")?.value || "";
+          await firebaseService.saveQuizQuestion(
+            state.user.uid,
+            {
+              title: document.getElementById("aqTitle").value,
+              semester: document.getElementById("aqSem").value,
+              subject: document.getElementById("aqSubject").value,
+              questionText: document.getElementById("aqQuestion").value,
+              options: [0, 1, 2, 3].map((i) => document.getElementById(`aqOpt${i}`).value),
+              correctIndex: document.getElementById("aqCorrect").value,
+              explanation: document.getElementById("aqExplanation").value,
+              published: true
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("aqEditId").value = "";
+          showToast(editId ? "MCQ updated live!" : "MCQ published live!");
         });
-        form.reset();
-        showToast("MCQ published live!");
         return;
       }
 
       // Admin Notice
       if (form.id === "adminNoticeForm" && state.user) {
-        await firebaseService.saveAnnouncement(
-          state.user.uid,
-          {
-            title: document.getElementById("anTitle").value,
-            audience: document.getElementById("anAudience").value,
-            message: document.getElementById("anMessage").value,
-            active: document.getElementById("anActive").checked
-          },
-          document.getElementById("anEditId").value
-        );
-        form.reset();
-        document.getElementById("anEditId").value = "";
-        showToast("Notice published live!");
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("anEditId").value;
+          await firebaseService.saveAnnouncement(
+            state.user.uid,
+            {
+              title: document.getElementById("anTitle").value,
+              audience: document.getElementById("anAudience").value,
+              message: document.getElementById("anMessage").value,
+              active: document.getElementById("anActive").checked
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("anEditId").value = "";
+          showToast(editId ? "Notice updated live!" : "Notice published live!");
+        });
         return;
       }
 
-      // Admin Career
-      if (form.id === "adminCareerForm" && state.user) {
-        await firebaseService.saveCareerOpportunity(state.user.uid, {
-          title: document.getElementById("acTitle").value,
-          organization: document.getElementById("acOrg").value,
-          category: document.getElementById("acCategory").value,
-          deadline: document.getElementById("acDeadline").value,
-          eligibility: document.getElementById("acEligibility").value,
-          applyUrl: document.getElementById("acUrl").value,
-          description: document.getElementById("acDesc").value,
-          published: true
+      // Admin Verified Market Price (Create & Edit)
+      if (form.id === "adminMarketPriceForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("ampEditId")?.value || "";
+          await firebaseService.saveMarketPriceAsAdmin(
+            state.user.uid,
+            {
+              cropName: document.getElementById("ampCrop").value,
+              cropNameBn: document.getElementById("ampCropBn").value,
+              state: document.getElementById("ampState").value,
+              district: document.getElementById("ampDistrict").value,
+              marketName: document.getElementById("ampMarket").value,
+              unit: document.getElementById("ampUnit").value,
+              minPrice: document.getElementById("ampMin").value,
+              modalPrice: document.getElementById("ampModal").value,
+              maxPrice: document.getElementById("ampMax").value,
+              reportDate: document.getElementById("ampDate").value,
+              sourceName: document.getElementById("ampSource").value,
+              sourceUrl: document.getElementById("ampSourceUrl").value,
+              published: document.getElementById("ampPublished").checked
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("ampEditId").value = "";
+          showToast(editId ? "Market price updated live!" : "Verified market price published live!");
         });
-        form.reset();
-        showToast("Career opportunity published!");
+        return;
+      }
+
+      // Admin Career (Create & Edit)
+      if (form.id === "adminCareerForm" && state.user) {
+        await withBusySubmit(form, async () => {
+          const editId = document.getElementById("acEditId")?.value || "";
+          await firebaseService.saveCareerOpportunity(
+            state.user.uid,
+            {
+              title: document.getElementById("acTitle").value,
+              organization: document.getElementById("acOrg").value,
+              category: document.getElementById("acCategory").value,
+              deadline: document.getElementById("acDeadline").value,
+              eligibility: document.getElementById("acEligibility").value,
+              applyUrl: document.getElementById("acUrl").value,
+              description: document.getElementById("acDesc").value,
+              published: true
+            },
+            editId
+          );
+          form.reset();
+          document.getElementById("acEditId").value = "";
+          showToast(editId ? "Career opportunity updated!" : "Career opportunity published!");
+        });
         return;
       }
 
       // Admin Farmer Query Reply
       if (form.dataset.replyFq) {
-        const reply = form.querySelector("input[name='reply']").value;
-        const status = form.querySelector("select[name='status']").value;
-        await firebaseService.replyFarmerQueryAsAdmin(form.dataset.replyFq, status, reply);
-        showToast("Farmer query updated!");
+        await withBusySubmit(form, async () => {
+          const reply = form.querySelector("input[name='reply']").value;
+          const status = form.querySelector("select[name='status']").value;
+          await firebaseService.replyFarmerQueryAsAdmin(form.dataset.replyFq, status, reply);
+          showToast("Farmer query reply saved!");
+        });
         return;
       }
 
       // Admin Professor Profile
       if (form.id === "adminProfForm" && state.user) {
-        await firebaseService.saveProfessorAsAdmin(state.user.uid, {
-          id: document.getElementById("apId").value,
-          name: document.getElementById("apName").value,
-          designation: document.getElementById("apDesignation").value,
-          qualification: document.getElementById("apQualification").value,
-          subject: document.getElementById("apSubject").value,
-          department: document.getElementById("apDepartment").value,
-          email: document.getElementById("apEmail").value,
-          specialization: document.getElementById("apSpec").value,
-          authorizedUid: document.getElementById("apAuthUid").value,
-          canHostMeetings: true,
-          active: true
+        await withBusySubmit(form, async () => {
+          await firebaseService.saveProfessorAsAdmin(state.user.uid, {
+            id: document.getElementById("apId").value,
+            name: document.getElementById("apName").value,
+            designation: document.getElementById("apDesignation").value,
+            qualification: document.getElementById("apQualification").value,
+            subject: document.getElementById("apSubject").value,
+            department: document.getElementById("apDepartment").value,
+            email: document.getElementById("apEmail").value,
+            specialization: document.getElementById("apSpec").value,
+            authorizedUid: document.getElementById("apAuthUid").value,
+            canHostMeetings: true,
+            active: true
+          });
+          form.reset();
+          document.getElementById("apId").value = "";
+          showToast("Advisor profile saved to Firestore!");
         });
-        form.reset();
-        document.getElementById("apId").value = "";
-        showToast("Advisor profile saved to Firestore!");
         return;
       }
 
       // Admin App Settings
       if (form.id === "adminSettingsForm") {
-        await firebaseService.saveAppSettings({
-          ...state.appSettings,
-          whatsappNumber: document.getElementById("setWaNum").value,
-          supportEmail: document.getElementById("setSupportEmail").value,
-          whatsappGroupInviteUrl: document.getElementById("setWaGroup").value,
-          heroHeadline: document.getElementById("setHeadline").value,
-          aboutText: document.getElementById("setAbout").value,
-          maintenanceBanner: document.getElementById("setMaint").value
+        await withBusySubmit(form, async () => {
+          await firebaseService.saveAppSettings({
+            ...state.appSettings,
+            whatsappNumber: document.getElementById("setWaNum").value,
+            supportEmail: document.getElementById("setSupportEmail").value,
+            whatsappGroupInviteUrl: document.getElementById("setWaGroup").value,
+            heroHeadline: document.getElementById("setHeadline").value,
+            aboutText: document.getElementById("setAbout").value,
+            maintenanceBanner: document.getElementById("setMaint").value
+          });
+          showToast("Global App Settings & WhatsApp config updated live!");
         });
-        showToast("Global App Settings & WhatsApp config updated live!");
         return;
       }
 
       // Add Admin Role
       if (form.id === "addAdminRoleForm" && state.user) {
-        await firebaseService.addAdminRole(
-          state.user.uid,
-          document.getElementById("arUid").value,
-          document.getElementById("arEmail").value,
-          document.getElementById("arRole").value
-        );
-        form.reset();
-        showToast("Authorized admin added.");
+        await withBusySubmit(form, async () => {
+          await firebaseService.addAdminRole(
+            state.user.uid,
+            document.getElementById("arUid").value,
+            document.getElementById("arEmail").value,
+            document.getElementById("arRole").value
+          );
+          form.reset();
+          showToast("Authorized admin added.");
+        });
         return;
       }
 
       // User Profile Save
       if (form.id === "profileForm" && state.user) {
-        await firebaseService.saveUserProfile(
-          state.user,
-          {
-            displayName: document.getElementById("profFullName").value,
-            email: document.getElementById("profEmail").value,
-            role: document.getElementById("profRole").value,
-            institutionOrVillage: document.getElementById("profCollege").value,
-            district: document.getElementById("profDistrict").value,
-            semester: document.getElementById("profSemester").value,
-            language: state.lang.toUpperCase()
-          },
-          Boolean(state.userProfile)
-        );
-        closeProfileModal();
-        showToast("Profile saved successfully!");
+        await withBusySubmit(form, async () => {
+          await firebaseService.saveUserProfile(
+            state.user,
+            {
+              displayName: document.getElementById("profFullName").value,
+              email: document.getElementById("profEmail").value,
+              role: document.getElementById("profRole").value,
+              institutionOrVillage: document.getElementById("profCollege").value,
+              district: document.getElementById("profDistrict").value,
+              semester: document.getElementById("profSemester").value,
+              language: state.lang.toUpperCase()
+            },
+            Boolean(state.userProfile)
+          );
+          closeProfileModal();
+          showToast("Profile saved successfully!");
+        });
         return;
       }
 
       // Optional Email / Password Auth Form
       if (form.id === "emailAuthForm") {
-        const email = document.getElementById("authEmailInput").value;
-        const pass = document.getElementById("authPassInput").value;
-        const isReg = document.getElementById("authEmailModeToggle").dataset.mode === "register";
-        const res = isReg
-          ? await firebaseService.registerWithEmail(email, pass, email.split("@")[0])
-          : await firebaseService.signInWithEmail(email, pass);
-        if (res.ok) {
-          closeAuthModal();
-          showToast("Signed in with Email!");
-        } else {
-          showAuthError(res.error);
-        }
+        await withBusySubmit(form, async () => {
+          const email = document.getElementById("authEmailInput").value;
+          const pass = document.getElementById("authPassInput").value;
+          const isReg = document.getElementById("authEmailModeToggle").dataset.mode === "register";
+          const res = isReg
+            ? await firebaseService.registerWithEmail(email, pass, email.split("@")[0])
+            : await firebaseService.signInWithEmail(email, pass);
+          if (res.ok) {
+            closeAuthModal();
+            showToast("Signed in with Email!");
+          } else {
+            showAuthError(res.error);
+          }
+        });
         return;
       }
 
-      // OTP Verification Form (WhatsApp Backend or Real Firebase SMS OTP)
+      // OTP Verification Form
       if (form.id === "verifyOtpForm") {
         if (state.otpAttempts >= 5) {
           showAuthError("Too many verification attempts. Please request a fresh OTP.");
@@ -1382,7 +2272,7 @@ function bindGlobalEvents() {
       }
     } catch (err) {
       console.error("Action failed:", err);
-      showToast(err?.message || "Operation failed. Check permissions or network.", true);
+      showToast(err?.message || "Operation failed. Check permissions or internet connection.", true);
     }
   });
 
@@ -1425,7 +2315,7 @@ function bindGlobalEvents() {
     }
   });
 
-  // Toggle Login vs Register for Optional Email Auth
+  // Toggle Login vs Register for Email Auth
   document.getElementById("authEmailModeToggle")?.addEventListener("click", (e) => {
     const btn = e.currentTarget;
     const isReg = btn.dataset.mode === "register";
@@ -1435,24 +2325,59 @@ function bindGlobalEvents() {
     if (submit) submit.textContent = isReg ? "Sign In with Email" : "Create Email Account";
   });
 
+  // Hash deep link listener (supports PWA shortcuts & email reply links)
+  window.addEventListener("hashchange", () => {
+    const h = (window.location.hash || "").replace(/^#/, "");
+    if (h && VALID_ROUTES.has(h) && h !== state.route) {
+      navigateTo(h, false);
+    }
+  });
+
   // PWA Install Prompt
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     state.deferredInstallPrompt = e;
-    document.getElementById("installAppBtn")?.classList.remove("hidden");
-    document.getElementById("installAppBtn")?.classList.add("inline-flex");
+    const btn = document.getElementById("installAppBtn");
+    if (btn) {
+      btn.classList.remove("hidden");
+      btn.classList.add("inline-flex");
+    }
   });
 }
 
 // ----------------------------------------------------------------------------
-// BOOTSTRAP (Instant Public Render + Non-Blocking Firebase & SW Registration)
+// BOOTSTRAP (Instant Public Render + Live Public Firestore + PWA SW Update)
 // ----------------------------------------------------------------------------
 bindGlobalEvents();
-renderActiveView();
-firebaseService.init(handleAuthStateChange);
+const initialHash = (window.location.hash || "").replace(/^#/, "");
+if (initialHash && VALID_ROUTES.has(initialHash)) {
+  navigateTo(initialHash, false);
+} else {
+  renderActiveView();
+}
+firebaseService.init(handleAuthStateChange, handleCollectionUpdate);
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("./sw.js");
+      if (reg.waiting) {
+        state.waitingServiceWorker = reg.waiting;
+        document.getElementById("pwaUpdateBanner")?.classList.remove("hidden");
+      }
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            state.waitingServiceWorker = nw;
+            document.getElementById("pwaUpdateBanner")?.classList.remove("hidden");
+          }
+        });
+      });
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        window.location.reload();
+      });
+    } catch (_) {}
   });
 }

@@ -120,18 +120,24 @@ service cloud.firestore {
       return data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
         data.amount is number && data.amount > 0 && data.amount <= 10000000 &&
         data.type in ['INCOME', 'EXPENSE'] &&
-        data.category in ['FOOD_MESS', 'HOSTEL_RENT', 'EDUCATION', 'TRAVEL_RECHARGE', 'SHARED', 'SAVINGS', 'ALLOWANCE', 'SCHOLARSHIP', 'OTHER'] &&
+        data.category in [
+          'FOOD_MESS', 'HOSTEL_RENT', 'EDUCATION', 'TRAVEL_RECHARGE', 'SHARED', 'SAVINGS', 'ALLOWANCE', 'SCHOLARSHIP', 'OTHER',
+          'SEEDS_FERTILIZER', 'LABOUR_MACHINERY', 'IRRIGATION_PESTICIDE', 'HARVEST_SALE', 'GOVT_SUBSIDY', 'LIVESTOCK_DAIRY'
+        ] &&
         data.note is string && data.note.size() <= 300 &&
         data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 30 &&
         (!('sharedWith' in data) || (data.sharedWith is string && data.sharedWith.size() <= 100)) &&
+        (!('ledgerScope' in data) || data.ledgerScope in ['STUDENT', 'FARMER']) &&
+        (!('cropTag' in data) || (data.cropTag is string && data.cropTag.size() <= 60)) &&
         isValidTimestamp(data.createdAt) &&
         isValidTimestamp(data.updatedAt);
     }
 
     function isValidFinancialGoal(data) {
       return data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
-        data.kind in ['MONTHLY_BUDGET', 'SAVINGS_GOAL'] &&
-        data.targetAmount is number && data.targetAmount > 0 && data.targetAmount <= 10000000 &&
+        data.kind in ['MONTHLY_BUDGET', 'SAVINGS_GOAL', 'OPENING_BALANCE'] &&
+        data.targetAmount is number && data.targetAmount >= 0 && data.targetAmount <= 10000000 &&
+        (data.kind == 'OPENING_BALANCE' || data.targetAmount > 0) &&
         data.savedAmount is number && data.savedAmount >= 0 && data.savedAmount <= 10000000 &&
         data.monthKey is string && data.monthKey.size() >= 4 && data.monthKey.size() <= 20 &&
         isValidTimestamp(data.createdAt) &&
@@ -155,8 +161,28 @@ service cloud.firestore {
         data.district is string && data.district.size() <= 80 &&
         data.hasImage is bool &&
         data.imageSummary is string && data.imageSummary.size() <= 400 &&
+        (!('imageBase64' in data) || (data.imageBase64 is string && data.imageBase64.size() <= 350000)) &&
         data.status in ['OPEN', 'IN_REVIEW', 'RESOLVED'] &&
         data.adminReply is string && data.adminReply.size() <= 1000 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidMarketPrice(data) {
+      return data.cropName is string && data.cropName.size() >= 2 && data.cropName.size() <= 80 &&
+        (!('cropNameBn' in data) || (data.cropNameBn is string && data.cropNameBn.size() <= 80)) &&
+        data.state is string && data.state.size() >= 2 && data.state.size() <= 60 &&
+        data.district is string && data.district.size() >= 2 && data.district.size() <= 80 &&
+        data.marketName is string && data.marketName.size() >= 2 && data.marketName.size() <= 100 &&
+        data.unit is string && data.unit.size() >= 2 && data.unit.size() <= 40 &&
+        data.minPrice is number && data.minPrice >= 0 && data.minPrice <= 1000000 &&
+        data.maxPrice is number && data.maxPrice >= data.minPrice && data.maxPrice <= 1000000 &&
+        data.modalPrice is number && data.modalPrice >= 0 && data.modalPrice <= 1000000 &&
+        data.reportDate is string && data.reportDate.size() >= 6 && data.reportDate.size() <= 30 &&
+        data.sourceName is string && data.sourceName.size() >= 2 && data.sourceName.size() <= 120 &&
+        (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() <= 400)) &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
         isValidTimestamp(data.createdAt) &&
         isValidTimestamp(data.updatedAt);
     }
@@ -379,6 +405,13 @@ service cloud.firestore {
         data.lastSenderRole in ['STUDENT', 'PROFESSOR'] &&
         data.unreadForStudent is int && data.unreadForStudent >= 0 && data.unreadForStudent <= 100000 &&
         data.unreadForProfessor is int && data.unreadForProfessor >= 0 && data.unreadForProfessor <= 100000 &&
+        (!('serviceType' in data) || data.serviceType in ['STUDENT_CAREER', 'FARMER_ADVISOR']) &&
+        (!('questionTitle' in data) || (data.questionTitle is string && data.questionTitle.size() <= 140)) &&
+        (!('questionCategory' in data) || (data.questionCategory is string && data.questionCategory.size() <= 60)) &&
+        (!('contactInfo' in data) || (data.contactInfo is string && data.contactInfo.size() <= 80)) &&
+        (!('emailDeliveryStatus' in data) || data.emailDeliveryStatus in ['PENDING', 'SENT', 'FAILED', 'NOT_CONFIGURED']) &&
+        (!('emailDeliveryError' in data) || (data.emailDeliveryError is string && data.emailDeliveryError.size() <= 240)) &&
+        (!('emailDeliveryMessageId' in data) || (data.emailDeliveryMessageId is string && data.emailDeliveryMessageId.size() <= 128)) &&
         (!('studentLastReadAt' in data) || isValidTimestamp(data.studentLastReadAt)) &&
         (!('professorLastReadAt' in data) || isValidTimestamp(data.professorLastReadAt)) &&
         isValidTimestamp(data.createdAt) &&
@@ -397,11 +430,15 @@ service cloud.firestore {
         data.hasImage is bool &&
         (data.text.size() >= 1 || data.hasImage == true) &&
         (!('imageBase64' in data) || (data.imageBase64 is string && data.imageBase64.size() <= 350000)) &&
+        (!('questionTitle' in data) || (data.questionTitle is string && data.questionTitle.size() <= 140)) &&
+        (!('questionCategory' in data) || (data.questionCategory is string && data.questionCategory.size() <= 60)) &&
+        (!('emailDeliveryStatus' in data) || data.emailDeliveryStatus in ['PENDING', 'SENT', 'FAILED', 'NOT_CONFIGURED']) &&
+        (!('emailDeliveryError' in data) || (data.emailDeliveryError is string && data.emailDeliveryError.size() <= 240)) &&
         data.readByRecipient is bool &&
         isValidTimestamp(data.createdAt);
     }
 
-    // --- 1. USERS & PRIVATE STUDENT FINANCIAL / QUIZ SUBCOLLECTIONS ---
+    // --- 1. USERS & PRIVATE STUDENT / FARMER FINANCIAL & QUIZ SUBCOLLECTIONS ---
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
       allow list: if isSuperAdmin();
@@ -420,13 +457,13 @@ service cloud.firestore {
         incoming().userId == existing().userId &&
         incoming().createdAt == existing().createdAt &&
         (
-          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'photoUrl', 'lastActiveAt', 'updatedAt'])) ||
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'photoUrl', 'lastActiveAt', 'updatedAt'])) ||
           (isSuperAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language', 'updatedAt']))
         );
 
       allow delete: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
 
-      // Private Student Money Manager Transactions (Owner ONLY — NEVER exposed to Super Admin or Staff)
+      // Private Student Money Manager & Farmer Farm Ledger Transactions (Owner ONLY — ZERO Admin approval, NEVER exposed to Admin or Professors)
       match /transactions/{transactionId} {
         allow get: if isValidId(userId) && isValidId(transactionId) && isOwner(userId);
         allow list: if isOwner(userId);
@@ -436,7 +473,7 @@ service cloud.firestore {
           isValidId(transactionId) &&
           isOwner(userId) &&
           incoming().keys().hasAll(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'createdAt', 'updatedAt']) &&
-          incoming().keys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'ledgerScope', 'cropTag', 'createdAt', 'updatedAt']) &&
           isValidMoneyTransaction(incoming());
 
         allow update: if isSignedIn() &&
@@ -445,7 +482,7 @@ service cloud.firestore {
           isValidMoneyTransaction(incoming()) &&
           isOwner(userId) &&
           incoming().createdAt == existing().createdAt &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'updatedAt']);
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'ledgerScope', 'cropTag', 'updatedAt']);
 
         allow delete: if isValidId(userId) && isValidId(transactionId) && isOwner(userId);
       }
@@ -503,7 +540,7 @@ service cloud.firestore {
         incoming().status == 'OPEN' &&
         incoming().adminReply == '' &&
         incoming().keys().hasAll(['userId', 'farmerName', 'cropName', 'category', 'description', 'district', 'hasImage', 'imageSummary', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
-        incoming().keys().hasOnly(['userId', 'farmerName', 'cropName', 'category', 'description', 'district', 'hasImage', 'imageSummary', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'farmerName', 'cropName', 'category', 'description', 'district', 'hasImage', 'imageSummary', 'imageBase64', 'status', 'adminReply', 'createdAt', 'updatedAt']) &&
         isValidFarmerQuery(incoming());
 
       allow update: if isSignedIn() &&
@@ -517,17 +554,17 @@ service cloud.firestore {
            existing().status == 'OPEN' &&
            incoming().status == 'OPEN' &&
            incoming().adminReply == existing().adminReply &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['cropName', 'category', 'description', 'district', 'imageSummary', 'hasImage', 'updatedAt']))
+           incoming().diff(existing()).affectedKeys().hasOnly(['cropName', 'category', 'description', 'district', 'imageSummary', 'imageBase64', 'hasImage', 'updatedAt']))
         );
 
       allow delete: if isSignedIn() && isValidId(queryId) &&
         ((existing().userId == request.auth.uid && existing().status == 'OPEN') || isAdmin());
     }
 
-    // --- 3. STUDY MATERIALS ---
+    // --- 3. STUDY MATERIALS (Publicly Readable when Published) ---
     match /studyMaterials/{materialId} {
-      allow get: if isSignedIn() && isValidId(materialId) && (existing().published == true || isAdmin());
-      allow list: if isSignedIn() && (existing().published == true || isAdmin());
+      allow get: if isValidId(materialId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
 
       allow create: if isSignedIn() &&
         isValidId(materialId) &&
@@ -548,10 +585,10 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(materialId) && isAdmin();
     }
 
-    // --- 4. QUIZZES / MCQs ---
+    // --- 4. QUIZZES / MCQs (Publicly Readable when Published) ---
     match /quizzes/{quizId} {
-      allow get: if isSignedIn() && isValidId(quizId) && (existing().published == true || isAdmin());
-      allow list: if isSignedIn() && (existing().published == true || isAdmin());
+      allow get: if isValidId(quizId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
 
       allow create: if isSignedIn() &&
         isValidId(quizId) &&
@@ -572,10 +609,10 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(quizId) && isAdmin();
     }
 
-    // --- 5. CAREER OPPORTUNITIES ---
+    // --- 5. CAREER OPPORTUNITIES (Publicly Readable when Published) ---
     match /careerOpportunities/{careerId} {
-      allow get: if isSignedIn() && isValidId(careerId) && (existing().published == true || isAdmin());
-      allow list: if isSignedIn() && (existing().published == true || isAdmin());
+      allow get: if isValidId(careerId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
 
       allow create: if isSignedIn() &&
         isValidId(careerId) &&
@@ -596,12 +633,11 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(careerId) && isAdmin();
     }
 
-    // --- 6. COMMUNITY POSTS ---
+    // --- 6. COMMUNITY POSTS (Active Posts Publicly Readable) ---
     match /communityPosts/{postId} {
-      allow get: if isSignedIn() && isValidId(postId) &&
-        (existing().status == 'ACTIVE' || existing().authorId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() &&
-        (existing().status == 'ACTIVE' || existing().authorId == request.auth.uid || isAdmin());
+      allow get: if isValidId(postId) &&
+        (existing().status == 'ACTIVE' || (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin());
+      allow list: if existing().status == 'ACTIVE' || (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin();
 
       allow create: if isSignedIn() &&
         isValidId(postId) &&
@@ -634,10 +670,10 @@ service cloud.firestore {
         (existing().authorId == request.auth.uid || isAdmin());
     }
 
-    // --- 7. ANNOUNCEMENTS ---
+    // --- 7. ANNOUNCEMENTS (Active Notices Publicly Readable) ---
     match /announcements/{announcementId} {
-      allow get: if isSignedIn() && isValidId(announcementId) && (existing().active == true || isAdmin());
-      allow list: if isSignedIn() && (existing().active == true || isAdmin());
+      allow get: if isValidId(announcementId) && (existing().active == true || isAdmin());
+      allow list: if existing().active == true || isAdmin();
 
       allow create: if isSignedIn() &&
         isValidId(announcementId) &&
@@ -658,9 +694,9 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(announcementId) && isAdmin();
     }
 
-    // --- 8. GLOBAL APP SETTINGS & OWNER FEATURE FLAGS (Founder-Only Writes) ---
+    // --- 8. GLOBAL APP SETTINGS & OWNER FEATURE FLAGS (Public Global Config Read, Founder-Only Writes) ---
     match /appSettings/{settingId} {
-      allow get: if isSignedIn() && settingId == 'global';
+      allow get: if settingId == 'global';
       allow list: if isSuperAdmin();
 
       allow create, update: if isSignedIn() &&
@@ -817,10 +853,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // --- 16. MEETING ZONE (Google Meet Sessions) ---
+    // --- 16. MEETING ZONE (Google Meet Sessions — Published Publicly Readable) ---
     match /meetings/{meetingId} {
-      allow get: if isSignedIn() && isValidId(meetingId) && (existing().published == true || isAuthorizedMeetingHost());
-      allow list: if isSignedIn() && (existing().published == true || isAuthorizedMeetingHost());
+      allow get: if isValidId(meetingId) && (existing().published == true || isAuthorizedMeetingHost());
+      allow list: if existing().published == true || isAuthorizedMeetingHost();
 
       allow create: if isSignedIn() &&
         isValidId(meetingId) &&
@@ -854,10 +890,10 @@ service cloud.firestore {
         (isSuperAdmin() || existing().hostUid == request.auth.uid);
     }
 
-    // --- 17. PROFESSOR DIRECTORY (Managed by Founder / Admin) ---
+    // --- 17. PROFESSOR DIRECTORY (Active Advisors Publicly Readable, Managed by Founder) ---
     match /professors/{professorId} {
-      allow get: if isSignedIn() && isValidId(professorId) && (existing().active == true || isSuperAdmin());
-      allow list: if isSignedIn() && (existing().active == true || isSuperAdmin());
+      allow get: if isValidId(professorId) && (existing().active == true || isSuperAdmin());
+      allow list: if existing().active == true || isSuperAdmin();
 
       allow create, update: if isSignedIn() &&
         isValidId(professorId) &&
@@ -891,7 +927,8 @@ service cloud.firestore {
       allow delete: if isValidId(profUid) && isSuperAdmin();
     }
 
-    // --- 19. DOUBT ZONE PRIVATE CHAT ROOMS (Concerned Student & Assigned Professor ONLY — NEVER Admin or Other Students) ---
+    // --- 19. STUDENT CAREER GUIDANCE & FARMER ADVISOR EXPERT PRIVATE THREADS ---
+    // Strictly Concerned Student/Farmer & Assigned Professor ONLY — NEVER Admin or Other Users
     match /doubtChats/{chatId} {
       allow get: if isSignedIn() && isValidId(chatId) && (
         existing().studentId == request.auth.uid ||
@@ -905,7 +942,10 @@ service cloud.firestore {
 
       allow create: if isSignedIn() &&
         isValidId(chatId) &&
-        chatId == incoming().professorId + '__' + incoming().studentId &&
+        (
+          chatId == incoming().professorId + '__' + incoming().studentId ||
+          chatId == incoming().professorId + '__' + incoming().studentId + '__farmer'
+        ) &&
         incoming().studentId == request.auth.uid &&
         incoming().keys().hasAll([
           'studentId', 'studentName', 'studentSemester', 'professorId', 'professorName',
@@ -916,6 +956,8 @@ service cloud.firestore {
           'studentId', 'studentName', 'studentSemester', 'professorId', 'professorName',
           'professorEmail', 'professorUid', 'lastMessagePreview', 'lastSenderRole',
           'unreadForStudent', 'unreadForProfessor', 'studentLastReadAt', 'professorLastReadAt',
+          'serviceType', 'questionTitle', 'questionCategory', 'contactInfo',
+          'emailDeliveryStatus', 'emailDeliveryError', 'emailDeliveryMessageId',
           'createdAt', 'updatedAt'
         ]) &&
         isValidDoubtChatThread(incoming());
@@ -933,7 +975,10 @@ service cloud.firestore {
             incoming().professorUid == existing().professorUid &&
             incoming().diff(existing()).affectedKeys().hasOnly([
               'studentName', 'studentSemester', 'lastMessagePreview', 'lastSenderRole',
-              'unreadForStudent', 'unreadForProfessor', 'studentLastReadAt', 'updatedAt'
+              'unreadForStudent', 'unreadForProfessor', 'studentLastReadAt',
+              'serviceType', 'questionTitle', 'questionCategory', 'contactInfo',
+              'emailDeliveryStatus', 'emailDeliveryError', 'emailDeliveryMessageId',
+              'updatedAt'
             ])
           ) ||
           (
@@ -948,7 +993,7 @@ service cloud.firestore {
 
       allow delete: if false;
 
-      // Private Messages Subcollection (Strictly Concerned Student & Assigned Professor ONLY)
+      // Private Messages Subcollection (Strictly Concerned User & Assigned Professor ONLY)
       match /messages/{messageId} {
         allow get: if isSignedIn() && isValidId(chatId) && isValidId(messageId) && (
           existing().studentId == request.auth.uid ||
@@ -971,34 +1016,84 @@ service cloud.firestore {
           ]) &&
           incoming().keys().hasOnly([
             'studentId', 'professorId', 'professorEmail', 'professorUid',
-            'senderId', 'senderName', 'senderRole', 'text', 'hasImage', 'imageBase64', 'readByRecipient', 'createdAt'
+            'senderId', 'senderName', 'senderRole', 'text', 'hasImage', 'imageBase64',
+            'questionTitle', 'questionCategory', 'emailDeliveryStatus', 'emailDeliveryError',
+            'readByRecipient', 'createdAt'
           ]) &&
           isValidDoubtMessage(incoming()) &&
-          exists(/databases/$(database)/documents/doubtChats/$(chatId)) &&
-          incoming().studentId == get(/databases/$(database)/documents/doubtChats/$(chatId)).data.studentId &&
-          incoming().professorId == get(/databases/$(database)/documents/doubtChats/$(chatId)).data.professorId &&
-          incoming().professorEmail == get(/databases/$(database)/documents/doubtChats/$(chatId)).data.professorEmail &&
+          (
+            exists(/databases/$(database)/documents/doubtChats/$(chatId)) ||
+            existsAfter(/databases/$(database)/documents/doubtChats/$(chatId))
+          ) &&
+          incoming().studentId == getAfter(/databases/$(database)/documents/doubtChats/$(chatId)).data.studentId &&
+          incoming().professorId == getAfter(/databases/$(database)/documents/doubtChats/$(chatId)).data.professorId &&
+          incoming().professorEmail == getAfter(/databases/$(database)/documents/doubtChats/$(chatId)).data.professorEmail &&
           (
             (incoming().studentId == request.auth.uid && incoming().senderRole == 'STUDENT') ||
-            (isAssignedProfessorForThread(get(/databases/$(database)/documents/doubtChats/$(chatId)).data) && incoming().senderRole == 'PROFESSOR')
+            (isAssignedProfessorForThread(getAfter(/databases/$(database)/documents/doubtChats/$(chatId)).data) && incoming().senderRole == 'PROFESSOR')
           );
 
-        // Prevent editing message text/image — ONLY the recipient can mark readByRecipient = true
+        // Prevent editing message text/image — recipient marks readByRecipient = true; sender may update ONLY emailDeliveryStatus/Error
         allow update: if isSignedIn() &&
           isValidId(chatId) &&
           isValidId(messageId) &&
           isValidDoubtMessage(incoming()) &&
-          existing().senderId != request.auth.uid &&
-          (existing().studentId == request.auth.uid || isAssignedProfessorForThread(existing())) &&
-          incoming().readByRecipient == true &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['readByRecipient']);
+          (
+            (
+              existing().senderId != request.auth.uid &&
+              (existing().studentId == request.auth.uid || isAssignedProfessorForThread(existing())) &&
+              incoming().readByRecipient == true &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['readByRecipient'])
+            ) ||
+            (
+              existing().senderId == request.auth.uid &&
+              incoming().readByRecipient == existing().readByRecipient &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['emailDeliveryStatus', 'emailDeliveryError'])
+            )
+          );
 
-        // Prevent students/users from deleting another user's message — only original sender can delete own message
+        // Only original sender can delete own message
         allow delete: if isSignedIn() &&
           isValidId(chatId) &&
           isValidId(messageId) &&
           existing().senderId == request.auth.uid;
       }
+    }
+
+    // --- 20. VERIFIED CROP MARKET PRICES / MANDI RATES (Publicly Readable, Admin-Managed) ---
+    match /marketPrices/{priceId} {
+      allow get: if isValidId(priceId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(priceId) &&
+        isValidMarketPrice(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'cropName', 'state', 'district', 'marketName', 'unit',
+          'minPrice', 'maxPrice', 'modalPrice', 'reportDate', 'sourceName',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'cropName', 'cropNameBn', 'state', 'district', 'marketName', 'unit',
+          'minPrice', 'maxPrice', 'modalPrice', 'reportDate', 'sourceName', 'sourceUrl',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isAdmin();
+
+      allow update: if isSignedIn() &&
+        isValidId(priceId) &&
+        isValidMarketPrice(incoming()) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'cropName', 'cropNameBn', 'state', 'district', 'marketName', 'unit',
+          'minPrice', 'maxPrice', 'modalPrice', 'reportDate', 'sourceName', 'sourceUrl',
+          'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(priceId) && isAdmin();
     }
   }
 }

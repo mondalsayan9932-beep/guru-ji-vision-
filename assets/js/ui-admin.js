@@ -34,6 +34,7 @@ export function renderAdminView(state) {
     ["materials", "Notes & PDFs"],
     ["quizzes", "MCQs"],
     ["notices", "Notices"],
+    ["market", "Market Prices"],
     ["careers", "Jobs/Careers"],
     ["farmer", "Farmer Queries"],
     ["professors", "9 Advisors"],
@@ -51,7 +52,7 @@ export function renderAdminView(state) {
               ${state.isSuperAdmin ? "Founder / Super Admin" : "Authorized Admin"}
             </span>
           </div>
-          <p class="text-xs text-[#496052] mt-0.5">Live Firebase Firestore sync • Private student Money Manager &amp; 1-on-1 Doubt Chats remain strictly inaccessible.</p>
+          <p class="text-xs text-[#496052] mt-0.5">Live Firebase Firestore sync • Private student/farmer Money Manager &amp; 1-on-1 Consultations remain strictly inaccessible.</p>
         </div>
         ${state.isSuperAdmin ? `
           <button data-nav="owner" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold shrink-0">
@@ -71,6 +72,7 @@ export function renderAdminView(state) {
       ${sub === "materials" ? renderAdminMaterials(state) : ""}
       ${sub === "quizzes" ? renderAdminQuizzes(state) : ""}
       ${sub === "notices" ? renderAdminNotices(state) : ""}
+      ${sub === "market" ? renderAdminMarketPrices(state) : ""}
       ${sub === "careers" ? renderAdminCareers(state) : ""}
       ${sub === "farmer" ? renderAdminFarmerQueries(state) : ""}
       ${sub === "professors" ? renderAdminProfessors(state) : ""}
@@ -143,7 +145,11 @@ function renderAdminQuizzes(state) {
   return `
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
       <form id="adminQuizForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
-        <h3 class="text-base font-extrabold text-[#14532D]">Add MCQ Question</h3>
+        <div class="flex items-center justify-between">
+          <h3 id="aqFormTitle" class="text-base font-extrabold text-[#14532D]">Add MCQ Question</h3>
+          <button id="aqCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel</button>
+        </div>
+        <input id="aqEditId" type="hidden" value="" />
         <input id="aqTitle" type="text" required minlength="2" maxlength="120" placeholder="Short Topic Title *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
         <div class="grid grid-cols-2 gap-2">
           <select id="aqSem" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-sm">
@@ -163,7 +169,7 @@ function renderAdminQuizzes(state) {
           <option value="3">Correct Answer: Option D</option>
         </select>
         <textarea id="aqExplanation" rows="2" maxlength="500" placeholder="Explanation" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
-        <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Publish MCQ</button>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Save MCQ Question</button>
       </form>
 
       <div class="lg:col-span-7 gv-card p-5 space-y-2.5">
@@ -175,7 +181,10 @@ function renderAdminQuizzes(state) {
                 <div class="text-xs font-bold text-[#1E7E45]">Sem ${q.semester} • ${escapeHtml(q.subject)}</div>
                 <div class="text-sm font-bold text-[#132219] truncate">${escapeHtml(q.questionText)}</div>
               </div>
-              <button data-del-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold shrink-0">Delete</button>
+              <div class="flex gap-1.5 shrink-0">
+                <button data-edit-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
+                <button data-del-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
+              </div>
             </div>
           `).join("")}
         </div>
@@ -225,11 +234,76 @@ function renderAdminNotices(state) {
   `;
 }
 
+function renderAdminMarketPrices(state) {
+  const list = state.firestoreMarketPrices || [];
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <form id="adminMarketPriceForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
+        <div class="flex items-center justify-between">
+          <h3 id="ampFormTitle" class="text-base font-extrabold text-[#14532D]">Publish Verified Mandi Price</h3>
+          <button id="ampCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel</button>
+        </div>
+        <p class="text-[11px] text-[#496052]">Publish only official verified mandi / Sufal Bangla / AGMARKNET rates with exact source and date.</p>
+        <input id="ampEditId" type="hidden" value="" />
+        <div class="grid grid-cols-2 gap-2">
+          <input id="ampCrop" type="text" required minlength="2" maxlength="80" placeholder="Crop (English) *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="ampCropBn" type="text" maxlength="80" placeholder="ফসলের নাম (বাংলা)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="ampState" type="text" required maxlength="60" value="West Bengal" placeholder="State *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="ampDistrict" type="text" required maxlength="80" placeholder="District *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="ampMarket" type="text" required maxlength="100" placeholder="Mandi / Market Name *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="ampUnit" type="text" required maxlength="40" value="₹ / Quintal" placeholder="Unit (₹ / Quintal)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <input id="ampMin" type="number" required min="0" step="1" placeholder="Min ₹ *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs font-bold" />
+          <input id="ampModal" type="number" required min="0" step="1" placeholder="Modal ₹ *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs font-bold" />
+          <input id="ampMax" type="number" required min="0" step="1" placeholder="Max ₹ *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs font-bold" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="ampDate" type="date" required value="${new Date().toISOString().slice(0, 10)}" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="ampSource" type="text" required minlength="2" maxlength="120" value="Govt. AGMARKNET / WB Agri Marketing" placeholder="Official Source *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <input id="ampSourceUrl" type="url" maxlength="400" placeholder="Official Verification URL (optional)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <label class="flex items-center gap-2 text-xs font-bold"><input id="ampPublished" type="checkbox" checked class="accent-[#14532D]" /> Published Publicly</label>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Save Verified Market Price</button>
+      </form>
+
+      <div class="lg:col-span-7 gv-card p-5 space-y-2.5">
+        <h3 class="text-base font-extrabold text-[#14532D]">Published Verified Mandi Rates (${list.length})</h3>
+        ${list.length === 0 ? `<p class="text-xs text-[#496052]">No Admin-verified market prices added yet.</p>` : `
+          <div class="space-y-2 max-h-[560px] overflow-y-auto">
+            ${list.map((r) => `
+              <div class="rounded-2xl border border-[#CDE0D3] p-3.5 flex items-center justify-between gap-3 bg-[#F7F9F5]">
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-[#1E7E45]">${escapeHtml(r.marketName)}, ${escapeHtml(r.district)} • ${escapeHtml(r.reportDate)}</div>
+                  <div class="text-sm font-extrabold text-[#132219] truncate">${escapeHtml(r.cropName)} ${r.cropNameBn ? `(${escapeHtml(r.cropNameBn)})` : ""} — ₹${r.modalPrice} (${escapeHtml(r.unit)})</div>
+                  <div class="text-[11px] text-[#496052] truncate">Min ₹${r.minPrice} • Max ₹${r.maxPrice} • ${escapeHtml(r.sourceName)}</div>
+                </div>
+                <div class="flex gap-1.5 shrink-0">
+                  <button data-edit-mp="${escapeHtml(r.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
+                  <button data-del-mp="${escapeHtml(r.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
 function renderAdminCareers(state) {
   return `
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
       <form id="adminCareerForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
-        <h3 class="text-base font-extrabold text-[#14532D]">Add Job / Internship / Scholarship</h3>
+        <div class="flex items-center justify-between">
+          <h3 id="acFormTitle" class="text-base font-extrabold text-[#14532D]">Add Job / Internship / Scholarship</h3>
+          <button id="acCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel</button>
+        </div>
+        <input id="acEditId" type="hidden" value="" />
         <input id="acTitle" type="text" required minlength="2" maxlength="150" placeholder="Role / Exam Title *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
         <input id="acOrg" type="text" required minlength="2" maxlength="120" placeholder="Organization *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
         <div class="grid grid-cols-2 gap-2">
@@ -245,7 +319,7 @@ function renderAdminCareers(state) {
         <input id="acEligibility" type="text" required minlength="2" maxlength="200" placeholder="Eligibility *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <input id="acUrl" type="url" maxlength="400" placeholder="Official Apply URL" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <textarea id="acDesc" rows="2" required minlength="5" maxlength="1000" placeholder="Description *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
-        <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Publish Opportunity</button>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Save Opportunity</button>
       </form>
       <div class="lg:col-span-7 gv-card p-5 space-y-2.5">
         <h3 class="text-base font-extrabold text-[#14532D]">Career Listings (${state.careerOpportunities.length})</h3>
@@ -256,7 +330,10 @@ function renderAdminCareers(state) {
                 <div class="text-xs font-bold text-[#1E7E45]">${escapeHtml(c.organization)} • ${escapeHtml(c.deadline)}</div>
                 <div class="text-sm font-bold text-[#132219] truncate">${escapeHtml(c.title)}</div>
               </div>
-              <button data-del-career="${escapeHtml(c.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold shrink-0">Delete</button>
+              <div class="flex gap-1.5 shrink-0">
+                <button data-edit-career="${escapeHtml(c.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
+                <button data-del-career="${escapeHtml(c.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
+              </div>
             </div>
           `).join("")}
         </div>
@@ -274,9 +351,12 @@ function renderAdminFarmerQueries(state) {
           ${state.farmerQueries.map((fq) => `
             <div class="rounded-2xl border border-[#CDE0D3] p-4 bg-[#F7F9F5] space-y-2.5">
               <div class="flex flex-wrap justify-between gap-2">
-                <span class="font-extrabold text-sm text-[#14532D]">${escapeHtml(fq.farmerName)} — ${escapeHtml(fq.cropName)} (${escapeHtml(fq.category)})</span>
+                <span class="font-extrabold text-sm text-[#14532D]">${escapeHtml(fq.farmerName)} — ${escapeHtml(fq.cropName)} (${escapeHtml(fq.category)})${fq.district ? ` • ${escapeHtml(fq.district)}` : ""}</span>
                 <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-xs font-bold">${escapeHtml(fq.status)}</span>
               </div>
+              ${fq.hasImage && fq.imageBase64 ? `
+                <img src="data:image/jpeg;base64,${escapeHtml(fq.imageBase64)}" alt="Farmer crop photo" class="rounded-xl max-h-44 w-auto object-contain border border-[#CDE0D3]" />
+              ` : ""}
               <p class="text-xs text-[#132219]">${escapeHtml(fq.description)}</p>
               <form data-reply-fq="${escapeHtml(fq.id)}" class="flex flex-col sm:flex-row gap-2">
                 <input name="reply" type="text" value="${escapeHtml(fq.adminReply || "")}" placeholder="Write agronomic guidance..." class="flex-1 px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
@@ -301,7 +381,7 @@ function renderAdminProfessors(state) {
       <div class="gv-card p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 class="text-base font-extrabold text-[#14532D]">Faculty &amp; Advisor Directory (9 Official Advisors)</h3>
-          <p class="text-xs text-[#496052]">Founder can sync all 9 authoritative advisors to Firestore and link Firebase UIDs for professors without email.</p>
+          <p class="text-xs text-[#496052]">Founder can sync all 9 authoritative advisors to Firestore and link Firebase UIDs. Emails are shown only inside Founder Admin Studio (hidden from public pages).</p>
         </div>
         ${state.isSuperAdmin ? `
           <button data-action="sync-9-professors" class="px-4 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">
@@ -312,6 +392,10 @@ function renderAdminProfessors(state) {
 
       ${state.isSuperAdmin ? `
         <form id="adminProfForm" class="gv-card p-5 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div class="sm:col-span-3 flex items-center justify-between">
+            <span id="apFormTitle" class="text-sm font-extrabold text-[#14532D]">Add / Edit Faculty Advisor</span>
+            <button id="apCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
+          </div>
           <input id="apId" type="hidden" value="" />
           <input id="apName" type="text" required placeholder="Professor Name *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
           <input id="apDesignation" type="text" required placeholder="Designation *" value="Assistant Professor" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
@@ -330,7 +414,12 @@ function renderAdminProfessors(state) {
           <div class="gv-card p-4 space-y-1.5">
             <div class="flex justify-between items-start gap-2">
               <div class="font-extrabold text-sm text-[#14532D]">${escapeHtml(p.name)}</div>
-              ${state.isSuperAdmin ? `<button data-edit-prof="${escapeHtml(p.id)}" class="text-xs font-bold text-[#1E7E45] hover:underline">Edit</button>` : ""}
+              ${state.isSuperAdmin ? `
+                <div class="flex gap-2 shrink-0">
+                  <button data-edit-prof="${escapeHtml(p.id)}" class="text-xs font-bold text-[#1E7E45] hover:underline">Edit</button>
+                  <button data-del-prof="${escapeHtml(p.id)}" class="text-xs font-bold text-rose-600 hover:underline">Delete</button>
+                </div>
+              ` : ""}
             </div>
             <div class="text-xs text-[#496052]">${escapeHtml(p.designation)} • ${escapeHtml(p.qualification || "—")}</div>
             <div class="text-xs font-semibold text-[#132219]">${escapeHtml(p.specialization)}</div>

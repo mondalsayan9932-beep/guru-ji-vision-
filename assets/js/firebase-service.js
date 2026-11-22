@@ -30,7 +30,7 @@ class FirebaseService {
     this.activeUnsubs = new Map();
   }
 
-  async init(onAuthCallback) {
+  async init(onAuthCallback, onPublicUpdate) {
     try {
       const [appMod, authMod, fsMod, storageMod] = await Promise.all([
         import(`${FB_CDN}/firebase-app.js`),
@@ -45,6 +45,11 @@ class FirebaseService {
       this.storage = storageMod.getStorage(this.app);
       this.mods = { appMod, authMod, fsMod, storageMod };
       this.ready = true;
+
+      // Immediately subscribe to public collections so visitors see live admin updates without login
+      if (onPublicUpdate) {
+        this.subscribePublicCollections({ isAdmin: false, isSuperAdmin: false, isAuthorizedMeetingHost: false, onUpdate: onPublicUpdate });
+      }
 
       authMod.onAuthStateChanged(this.auth, async (user) => {
         if (onAuthCallback) await onAuthCallback(user);
@@ -190,7 +195,7 @@ class FirebaseService {
   }
 
   async signOutUser() {
-    this.unsubscribeAll();
+    this.unsubscribePrivate();
     if (this.ready && this.auth.currentUser) {
       await this.mods.authMod.signOut(this.auth);
     }
@@ -289,6 +294,19 @@ class FirebaseService {
     }
   }
 
+  unsubscribePrivate() {
+    const publicKeys = new Set([
+      "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
+      "announcements", "meetings", "professors", "appSettings", "firestoreMarketPrices"
+    ]);
+    for (const [key, unsub] of this.activeUnsubs.entries()) {
+      if (!publicKeys.has(key)) {
+        try { unsub(); } catch (_) {}
+        this.activeUnsubs.delete(key);
+      }
+    }
+  }
+
   unsubscribeAll() {
     for (const unsub of this.activeUnsubs.values()) {
       try { unsub(); } catch (_) {}
@@ -328,6 +346,7 @@ class FirebaseService {
     if (isExisting) {
       await updateDoc(ref, {
         displayName,
+        email,
         role,
         institutionOrVillage: String(profileData.institutionOrVillage || "").trim().slice(0, 120),
         district: String(profileData.district || "").trim().slice(0, 80),
@@ -356,10 +375,10 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // 2. PUBLIC / AUTHENTICATED COLLECTIONS LISTENERS
+  // 2. PUBLIC COLLECTIONS LISTENERS (Runs immediately even BEFORE login!)
   // --------------------------------------------------------------------------
-  subscribeEcosystemCollections({ isAdmin, isSuperAdmin, isAuthorizedMeetingHost, uid, onUpdate }) {
-    if (!this.ready || !uid) return;
+  subscribePublicCollections({ isAdmin = false, isSuperAdmin = false, isAuthorizedMeetingHost = false, onUpdate }) {
+    if (!this.ready || !onUpdate) return;
     const { collection, doc, query, where, limit, onSnapshot } = this.mods.fsMod;
 
     // Study Materials
@@ -369,7 +388,7 @@ class FirebaseService {
     this.setSub("studyMaterials", onSnapshot(matQ, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt), fromCloud: true }))
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-      onUpdate("studyMaterials", list);
+      onUpdate("studyMaterials", list, true);
     }, () => {}));
 
     // Quizzes
@@ -378,7 +397,7 @@ class FirebaseService {
       : query(collection(this.db, "quizzes"), where("published", "==", true), limit(200));
     this.setSub("quizzes", onSnapshot(quizQ, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }));
-      onUpdate("quizzes", list);
+      onUpdate("quizzes", list, true);
     }, () => {}));
 
     // Career Opportunities
@@ -388,7 +407,7 @@ class FirebaseService {
     this.setSub("careerOpportunities", onSnapshot(carQ, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-      onUpdate("careerOpportunities", list);
+      onUpdate("careerOpportunities", list, true);
     }, () => {}));
 
     // Community Posts
@@ -398,7 +417,7 @@ class FirebaseService {
     this.setSub("communityPosts", onSnapshot(postQ, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-      onUpdate("communityPosts", list);
+      onUpdate("communityPosts", list, true);
     }, () => {}));
 
     // Announcements
@@ -408,17 +427,7 @@ class FirebaseService {
     this.setSub("announcements", onSnapshot(annQ, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt), fromCloud: true }))
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-      onUpdate("announcements", list);
-    }, () => {}));
-
-    // Farmer Queries (own queries or all for Admin)
-    const fqQ = isAdmin
-      ? query(collection(this.db, "farmerQueries"), limit(150))
-      : query(collection(this.db, "farmerQueries"), where("userId", "==", uid), limit(100));
-    this.setSub("farmerQueries", onSnapshot(fqQ, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
-        .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-      onUpdate("farmerQueries", list);
+      onUpdate("announcements", list, true);
     }, () => {}));
 
     // Meetings
@@ -428,7 +437,7 @@ class FirebaseService {
     this.setSub("meetings", onSnapshot(meetQ, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.scheduledAtEpochMs || 0) - (b.scheduledAtEpochMs || 0));
-      onUpdate("meetings", list);
+      onUpdate("meetings", list, true);
     }, () => {}));
 
     // Professors Directory (merged with authoritative 9 faculty)
@@ -442,27 +451,63 @@ class FirebaseService {
       const merged = Array.from(map.values())
         .filter((p) => isSuperAdmin || p.active !== false)
         .sort((a, b) => (a.displayOrder ?? 99) - (b.displayOrder ?? 99));
-      onUpdate("professors", merged);
+      onUpdate("professors", merged, true);
     }, () => {}));
 
-    // App Settings (/appSettings/global)
+    // Verified Market Prices (Admin-curated & published)
+    const mpQ = isAdmin
+      ? query(collection(this.db, "marketPrices"), limit(200))
+      : query(collection(this.db, "marketPrices"), where("published", "==", true), limit(200));
+    this.setSub("firestoreMarketPrices", onSnapshot(mpQ, (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
+        .sort((a, b) => String(b.reportDate || "").localeCompare(String(a.reportDate || "")) || b.updatedAtMs - a.updatedAtMs);
+      onUpdate("firestoreMarketPrices", list, true);
+    }, () => {}));
+
+    // App Settings (/appSettings/global — public read for WhatsApp Helpline & Notices)
     this.setSub("appSettings", onSnapshot(doc(this.db, "appSettings", "global"), (snap) => {
       if (snap.exists()) {
-        onUpdate("appSettings", { ...DEFAULT_APP_SETTINGS, ...snap.data() });
+        onUpdate("appSettings", { ...DEFAULT_APP_SETTINGS, ...snap.data() }, true);
       }
     }, () => {}));
+  }
 
-    // PRIVATE OWNER-ONLY: Student Money Manager (/users/{uid}/transactions & /budgets)
-    // Strictly scoped ONLY to request.auth.uid — NEVER queried for any other student!
-    this.setSub("moneyTransactions", onSnapshot(query(collection(this.db, "users", uid, "transactions"), limit(300)), (snap) => {
+  // --------------------------------------------------------------------------
+  // 2B. AUTHENTICATED & PRIVATE OWNER-ONLY COLLECTIONS LISTENERS
+  // --------------------------------------------------------------------------
+  subscribeEcosystemCollections({ isAdmin, isSuperAdmin, isAuthorizedMeetingHost, uid, onUpdate }) {
+    if (!this.ready || !uid) return;
+    const { collection, query, where, limit, onSnapshot } = this.mods.fsMod;
+
+    // Upgrade public subscriptions if user is Admin / SuperAdmin / Host
+    this.subscribePublicCollections({ isAdmin, isSuperAdmin, isAuthorizedMeetingHost, onUpdate });
+
+    // Farmer Queries (own queries or all for Admin)
+    const fqQ = isAdmin
+      ? query(collection(this.db, "farmerQueries"), limit(150))
+      : query(collection(this.db, "farmerQueries"), where("userId", "==", uid), limit(100));
+    this.setSub("farmerQueries", onSnapshot(fqQ, (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
+        .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("farmerQueries", list);
+    }, () => {}));
+
+    // PRIVATE OWNER-ONLY: Student Money Manager & Farmer Farm Ledger
+    // Strictly scoped ONLY to request.auth.uid — ZERO Admin approval, NEVER exposed to Admin/Professors!
+    this.setSub("moneyTransactions", onSnapshot(query(collection(this.db, "users", uid, "transactions"), limit(400)), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAtMs: getTimestampMs(d.data().createdAt) }))
         .sort((a, b) => (b.dateLabel || "").localeCompare(a.dateLabel || "") || b.createdAtMs - a.createdAtMs);
       onUpdate("moneyTransactions", list);
     }, () => {}));
 
     this.setSub("moneyBudgets", onSnapshot(query(collection(this.db, "users", uid, "budgets"), limit(100)), (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      onUpdate("moneyBudgets", list);
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const openingDoc = all.find((d) => d.kind === "OPENING_BALANCE" || d.id === "opening_balance");
+      const goals = all.filter((d) => d.kind !== "OPENING_BALANCE" && d.id !== "opening_balance");
+      onUpdate("moneyBudgets", goals);
+      if (openingDoc) {
+        onUpdate("openingBalance", Number(openingDoc.targetAmount) || 0);
+      }
     }, () => {}));
 
     // PRIVATE OWNER-ONLY: Quiz Attempts
@@ -474,21 +519,25 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // 3. PRIVATE STUDENT MONEY MANAGER CRUD (Owner-ONLY)
+  // 3. PRIVATE STUDENT MONEY MANAGER & FARMER FARM LEDGER CRUD (Owner-ONLY, NO Admin Approval)
   // --------------------------------------------------------------------------
   async saveMoneyTransaction(uid, tx, editId = "") {
+    if (!this.ready || !uid) throw new Error("Sign in required to save personal financial entries.");
     const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const base = {
       title: String(tx.title || "").trim().slice(0, 100),
       amount: Math.max(0.01, Math.min(10000000, Number(tx.amount) || 0)),
       type: tx.type === "INCOME" ? "INCOME" : "EXPENSE",
       category: tx.category || "OTHER",
+      ledgerScope: tx.ledgerScope === "FARMER" ? "FARMER" : "STUDENT",
       note: String(tx.note || "").trim().slice(0, 300),
       dateLabel: String(tx.dateLabel || new Date().toISOString().slice(0, 10)).trim().slice(0, 30),
       updatedAt: serverTimestamp()
     };
     const shared = String(tx.sharedWith || "").trim().slice(0, 100);
     if (shared) base.sharedWith = shared;
+    const cropTag = String(tx.cropTag || "").trim().slice(0, 60);
+    if (cropTag) base.cropTag = cropTag;
 
     if (editId) {
       await updateDoc(doc(this.db, "users", uid, "transactions", editId), base);
@@ -498,11 +547,41 @@ class FirebaseService {
   }
 
   async deleteMoneyTransaction(uid, txId) {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
     const { doc, deleteDoc } = this.mods.fsMod;
     await deleteDoc(doc(this.db, "users", uid, "transactions", txId));
   }
 
+  async saveOpeningBalance(uid, amount) {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    const { doc, getDoc, setDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const cleanAmt = Math.max(0, Math.min(10000000, Number(amount) || 0));
+    const ref = doc(this.db, "users", uid, "budgets", "opening_balance");
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await updateDoc(ref, {
+        name: "Opening Balance",
+        kind: "OPENING_BALANCE",
+        targetAmount: cleanAmt,
+        savedAmount: cleanAmt,
+        monthKey: "GLOBAL",
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      await setDoc(ref, {
+        name: "Opening Balance",
+        kind: "OPENING_BALANCE",
+        targetAmount: cleanAmt,
+        savedAmount: cleanAmt,
+        monthKey: "GLOBAL",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+  }
+
   async saveFinancialGoal(uid, goal, editId = "") {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
     const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const base = {
       name: String(goal.name || "").trim().slice(0, 80),
@@ -520,6 +599,7 @@ class FirebaseService {
   }
 
   async deleteFinancialGoal(uid, goalId) {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
     const { doc, deleteDoc } = this.mods.fsMod;
     await deleteDoc(doc(this.db, "users", uid, "budgets", goalId));
   }
@@ -551,24 +631,38 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // 5. FARMER QUERIES (/farmerQueries)
+  // 5. FARMER QUERIES (/farmerQueries — Full Create / Edit / Delete + Photo)
   // --------------------------------------------------------------------------
-  async createFarmerQuery(uid, farmerName, data) {
-    const { collection, addDoc, serverTimestamp } = this.mods.fsMod;
-    await addDoc(collection(this.db, "farmerQueries"), {
-      userId: uid,
-      farmerName: String(farmerName || "Farmer").trim().slice(0, 80),
+  async createFarmerQuery(uid, farmerName, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const payload = {
       cropName: String(data.cropName || "").trim().slice(0, 80),
       category: ["DISEASE", "PEST", "FERTILIZER", "SOIL", "WEATHER", "OTHER"].includes(data.category) ? data.category : "DISEASE",
       description: String(data.description || "").trim().slice(0, 1000),
       district: String(data.district || "").trim().slice(0, 80),
-      hasImage: Boolean(data.hasImage),
-      imageSummary: String(data.imageSummary || "").trim().slice(0, 400),
-      status: "OPEN",
-      adminReply: "",
-      createdAt: serverTimestamp(),
+      hasImage: Boolean(data.imageBase64 || data.hasImage),
+      imageSummary: String(data.imageSummary || (data.imageBase64 ? "Crop photograph uploaded" : "")).trim().slice(0, 400),
       updatedAt: serverTimestamp()
-    });
+    };
+    if (data.imageBase64) payload.imageBase64 = data.imageBase64;
+
+    if (editId) {
+      await updateDoc(doc(this.db, "farmerQueries", editId), payload);
+    } else {
+      await addDoc(collection(this.db, "farmerQueries"), {
+        ...payload,
+        userId: uid,
+        farmerName: String(farmerName || "Farmer").trim().slice(0, 80),
+        status: "OPEN",
+        adminReply: "",
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async deleteFarmerQuery(queryId) {
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "farmerQueries", queryId));
   }
 
   async replyFarmerQueryAsAdmin(queryId, status, adminReply) {
@@ -583,20 +677,32 @@ class FirebaseService {
   // --------------------------------------------------------------------------
   // 6. COMMUNITY POSTS & REPORTS (/communityPosts, /contentReports)
   // --------------------------------------------------------------------------
-  async createCommunityPost(uid, authorName, data) {
-    const { collection, addDoc, serverTimestamp } = this.mods.fsMod;
-    await addDoc(collection(this.db, "communityPosts"), {
-      authorId: uid,
-      authorName: String(authorName || "Student").trim().slice(0, 80),
+  async saveCommunityPost(uid, authorName, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const base = {
       collegeGroup: String(data.collegeGroup || "General Agriculture").trim().slice(0, 100),
       topic: ["DOUBT", "NOTES_SHARE", "EXAM_PREP", "FARM_TALK"].includes(data.topic) ? data.topic : "DOUBT",
       title: String(data.title || "").trim().slice(0, 140),
       body: String(data.body || "").trim().slice(0, 1500),
-      helpfulCount: 0,
-      status: "ACTIVE",
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
+    if (editId) {
+      await updateDoc(doc(this.db, "communityPosts", editId), base);
+    } else {
+      await addDoc(collection(this.db, "communityPosts"), {
+        ...base,
+        authorId: uid,
+        authorName: String(authorName || "Student").trim().slice(0, 80),
+        helpfulCount: 0,
+        status: "ACTIVE",
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async createCommunityPost(uid, authorName, data) {
+    return this.saveCommunityPost(uid, authorName, data, "");
   }
 
   async upvoteCommunityPost(postId, currentCount) {
@@ -744,12 +850,35 @@ class FirebaseService {
     }, () => onMessages([])));
   }
 
-  async sendDoubtMessage({ uid, professor, studentId, studentName, studentSemester, senderRole, senderName, text, imageBase64 = "" }) {
-    const { doc, collection, getDoc, writeBatch, serverTimestamp } = this.mods.fsMod;
-    const chatId = buildDoubtChatId(professor.id, studentId);
+  async sendDoubtMessage({
+    uid,
+    professor,
+    studentId,
+    studentName,
+    studentSemester,
+    senderRole,
+    senderName,
+    text,
+    imageBase64 = "",
+    serviceType = "STUDENT_CAREER",
+    questionTitle = "",
+    questionCategory = "",
+    contactInfo = "",
+    chatIdOverride = ""
+  }) {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    const { doc, collection, getDoc, setDoc, updateDoc, addDoc, serverTimestamp } = this.mods.fsMod;
+    const isFarmerService = serviceType === "FARMER_ADVISOR";
+    const chatId = chatIdOverride || (isFarmerService
+      ? `${buildDoubtChatId(professor.id, studentId)}__farmer`
+      : buildDoubtChatId(professor.id, studentId));
+
     const cleanText = String(text || "").trim().slice(0, 2000);
+    const cleanTitle = String(questionTitle || "").trim().slice(0, 140);
+    const cleanCat = String(questionCategory || "").trim().slice(0, 60);
+    const cleanContact = String(contactInfo || "").trim().slice(0, 80);
     const hasImg = Boolean(imageBase64);
-    if (!cleanText && !hasImg) throw new Error("Type a doubt or attach an image.");
+    if (!cleanText && !hasImg) throw new Error("Type a question or attach an image.");
 
     const threadRef = doc(this.db, "doubtChats", chatId);
     let existing = null;
@@ -758,26 +887,31 @@ class FirebaseService {
       if (snap.exists()) existing = snap.data();
     } catch (_) {}
 
-    const preview = cleanText ? cleanText.slice(0, 180) : "[Photo attachment]";
+    const previewSource = cleanTitle ? `${cleanTitle}: ${cleanText}` : cleanText;
+    const preview = previewSource ? previewSource.slice(0, 180) : "[Photo attachment]";
     const profEmailLower = String(existing?.professorEmail ?? professor.email ?? "").trim().toLowerCase().slice(0, 120);
     const effectiveProfUid =
       senderRole === "PROFESSOR"
         ? uid
         : (existing?.professorUid || professor.authorizedUid || "").trim().slice(0, 128);
+    const initialEmailStatus = senderRole === "STUDENT"
+      ? (profEmailLower ? "PENDING" : "NOT_CONFIGURED")
+      : undefined;
 
-    const batch = writeBatch(this.db);
+    // Step 1: Create or update parent thread FIRST (prevents Firestore rules exists() race on first message!)
     if (!existing) {
       if (senderRole !== "STUDENT" || studentId !== uid) {
-        throw new Error("Only the student can initiate a new private doubt thread.");
+        throw new Error("Only the student or farmer can start a new consultation thread.");
       }
-      batch.set(threadRef, {
+      const threadPayload = {
         studentId: uid,
-        studentName: String(studentName || "Student").trim().slice(0, 80) || "Student",
-        studentSemester: Math.min(8, Math.max(0, parseInt(studentSemester, 10) || 1)),
+        studentName: String(studentName || (isFarmerService ? "Farmer" : "Student")).trim().slice(0, 80) || "User",
+        studentSemester: isFarmerService ? 0 : Math.min(8, Math.max(0, parseInt(studentSemester, 10) || 1)),
         professorId: professor.id,
         professorName: String(professor.name || "Professor").slice(0, 100),
         professorEmail: profEmailLower,
         professorUid: effectiveProfUid,
+        serviceType: isFarmerService ? "FARMER_ADVISOR" : "STUDENT_CAREER",
         lastMessagePreview: preview,
         lastSenderRole: "STUDENT",
         unreadForStudent: 0,
@@ -785,23 +919,33 @@ class FirebaseService {
         studentLastReadAt: serverTimestamp(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
+      if (cleanTitle) threadPayload.questionTitle = cleanTitle;
+      if (cleanCat) threadPayload.questionCategory = cleanCat;
+      if (cleanContact) threadPayload.contactInfo = cleanContact;
+      if (initialEmailStatus) threadPayload.emailDeliveryStatus = initialEmailStatus;
+      await setDoc(threadRef, threadPayload);
     } else {
       const nextUnreadStudent = senderRole === "PROFESSOR" ? (existing.unreadForStudent || 0) + 1 : 0;
       const nextUnreadProf = senderRole === "STUDENT" ? (existing.unreadForProfessor || 0) + 1 : 0;
       if (senderRole === "STUDENT") {
-        batch.update(threadRef, {
-          studentName: String(studentName || existing.studentName || "Student").trim().slice(0, 80),
-          studentSemester: Math.min(8, Math.max(0, parseInt(studentSemester, 10) || 1)),
+        const updatePayload = {
+          studentName: String(studentName || existing.studentName || "User").trim().slice(0, 80),
+          studentSemester: isFarmerService ? 0 : Math.min(8, Math.max(0, parseInt(studentSemester, 10) || existing.studentSemester || 1)),
           lastMessagePreview: preview,
           lastSenderRole: "STUDENT",
           unreadForStudent: nextUnreadStudent,
           unreadForProfessor: nextUnreadProf,
           studentLastReadAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        });
+        };
+        if (cleanTitle) updatePayload.questionTitle = cleanTitle;
+        if (cleanCat) updatePayload.questionCategory = cleanCat;
+        if (cleanContact) updatePayload.contactInfo = cleanContact;
+        if (initialEmailStatus) updatePayload.emailDeliveryStatus = initialEmailStatus;
+        await updateDoc(threadRef, updatePayload);
       } else {
-        batch.update(threadRef, {
+        await updateDoc(threadRef, {
           professorName: String(professor.name || existing.professorName || "Professor").slice(0, 100),
           professorUid: effectiveProfUid,
           lastMessagePreview: preview,
@@ -814,14 +958,14 @@ class FirebaseService {
       }
     }
 
-    const msgRef = doc(collection(this.db, "doubtChats", chatId, "messages"));
+    // Step 2: Persist message inside /doubtChats/{chatId}/messages
     const msgPayload = {
       studentId: existing?.studentId || studentId,
       professorId: existing?.professorId || professor.id,
       professorEmail: profEmailLower,
       professorUid: effectiveProfUid,
       senderId: uid,
-      senderName: String(senderName || (senderRole === "PROFESSOR" ? professor.name : "Student")).trim().slice(0, 80),
+      senderName: String(senderName || (senderRole === "PROFESSOR" ? professor.name : "User")).trim().slice(0, 80),
       senderRole,
       text: cleanText,
       hasImage: hasImg,
@@ -829,9 +973,84 @@ class FirebaseService {
       createdAt: serverTimestamp()
     };
     if (hasImg) msgPayload.imageBase64 = imageBase64;
-    batch.set(msgRef, msgPayload);
-    await batch.commit();
-    return chatId;
+    if (cleanTitle) msgPayload.questionTitle = cleanTitle;
+    if (cleanCat) msgPayload.questionCategory = cleanCat;
+    if (initialEmailStatus) msgPayload.emailDeliveryStatus = initialEmailStatus;
+
+    const createdRef = await addDoc(collection(this.db, "doubtChats", chatId, "messages"), msgPayload);
+    return { chatId, messageId: createdRef.id, hasConfiguredProfessorEmail: Boolean(profEmailLower) };
+  }
+
+  async triggerProfessorEmailDelivery({
+    chatId,
+    messageId,
+    professorId,
+    serviceType,
+    senderName,
+    contactInfo = "",
+    questionTitle = "",
+    questionCategory = "",
+    questionText = "",
+    hasAttachment = false
+  }) {
+    if (!this.ready || !this.auth?.currentUser) {
+      return { ok: false, status: "FAILED", error: "User not signed in." };
+    }
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    let status = "FAILED";
+    let errText = "";
+
+    try {
+      const idToken = await this.auth.currentUser.getIdToken();
+      const res = await fetch("/.netlify/functions/send-professor-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          chatId,
+          messageId,
+          professorId,
+          serviceType,
+          senderName,
+          contactInfo,
+          questionTitle,
+          questionCategory,
+          questionText,
+          hasAttachment,
+          siteUrl: typeof window !== "undefined" ? window.location.origin : ""
+        })
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        status = "NOT_CONFIGURED";
+        errText = "Server email function runs on Netlify deployment once RESEND_API_KEY or BREVO_API_KEY is added.";
+      } else {
+        const data = await res.json();
+        status = ["SENT", "FAILED", "NOT_CONFIGURED", "PENDING"].includes(data?.status) ? data.status : (data?.ok ? "SENT" : "FAILED");
+        errText = String(data?.error || "").slice(0, 240);
+      }
+    } catch (err) {
+      status = "FAILED";
+      errText = String(err?.message || "Network error delivering email.").slice(0, 240);
+    }
+
+    // Record honest delivery status on message & thread in Firestore
+    await updateDoc(doc(this.db, "doubtChats", chatId, "messages", messageId), {
+      emailDeliveryStatus: status,
+      emailDeliveryError: errText
+    }).catch(() => {});
+
+    await updateDoc(doc(this.db, "doubtChats", chatId), {
+      emailDeliveryStatus: status,
+      emailDeliveryError: errText,
+      emailDeliveryMessageId: messageId,
+      updatedAt: serverTimestamp()
+    }).catch(() => {});
+
+    return { ok: status === "SENT", status, error: errText };
   }
 
   async markDoubtConversationRead(uid, thread, messages, asProfessor) {
@@ -1054,6 +1273,44 @@ class FirebaseService {
 
   async removeAdminRole(targetUid) {
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "admins", targetUid));
+  }
+
+  // Verified Market Prices CRUD (Admin-only writes, publicly readable)
+  async saveMarketPriceAsAdmin(uid, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const minP = Math.max(0, Number(data.minPrice) || 0);
+    const maxP = Math.max(minP, Number(data.maxPrice) || minP);
+    const modalP = Math.max(0, Number(data.modalPrice) || Math.round((minP + maxP) / 2));
+    const base = {
+      cropName: String(data.cropName || "").trim().slice(0, 80),
+      cropNameBn: String(data.cropNameBn || "").trim().slice(0, 80),
+      state: String(data.state || "West Bengal").trim().slice(0, 60),
+      district: String(data.district || "").trim().slice(0, 80),
+      marketName: String(data.marketName || "").trim().slice(0, 100),
+      unit: String(data.unit || "₹ / Quintal").trim().slice(0, 40),
+      minPrice: minP,
+      maxPrice: maxP,
+      modalPrice: modalP,
+      reportDate: String(data.reportDate || new Date().toISOString().slice(0, 10)).trim().slice(0, 30),
+      sourceName: String(data.sourceName || "").trim().slice(0, 120),
+      sourceUrl: String(data.sourceUrl || "").trim().slice(0, 400),
+      published: data.published !== false,
+      updatedAt: serverTimestamp()
+    };
+    if (editId) {
+      await updateDoc(doc(this.db, "marketPrices", editId), base);
+    } else {
+      await addDoc(collection(this.db, "marketPrices"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
+    }
+  }
+
+  async deleteMarketPriceAsAdmin(id) {
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "marketPrices", id));
+  }
+
+  async deleteProfessorAsAdmin(id) {
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "professors", id));
   }
 
   // Firebase Storage Upload (for Admin PDF uploads)

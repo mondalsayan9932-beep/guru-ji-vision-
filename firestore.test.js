@@ -47,13 +47,21 @@ beforeEach(async () => {
   }
 });
 
-test("Unauthenticated users are blocked from all collections", async () => {
+test("Unauthenticated users can read intended public collections but are strictly blocked from private collections and all writes", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
+  await assertSucceeds(db.collection("studyMaterials").where("published", "==", true).get());
+  await assertSucceeds(db.collection("communityPosts").where("status", "==", "ACTIVE").get());
+  await assertSucceeds(db.collection("marketPrices").where("published", "==", true).get());
+  await assertSucceeds(db.collection("appSettings").doc("global").get());
+
+  // Private & sensitive collections MUST remain strictly blocked
   await assertFails(db.collection("users").doc(STUDENT_UID).get());
-  await assertFails(db.collection("studyMaterials").where("published", "==", true).get());
+  await assertFails(db.collection("users").doc(STUDENT_UID).collection("transactions").get());
+  await assertFails(db.collection("users").doc(STUDENT_UID).collection("budgets").get());
   await assertFails(db.collection("farmerQueries").where("userId", "==", FARMER_UID).get());
-  await assertFails(db.collection("communityPosts").where("status", "==", "ACTIVE").get());
-  await assertFails(db.collection("appSettings").doc("global").get());
+  await assertFails(db.collection("doubtChats").where("studentId", "==", STUDENT_UID).get());
+  await assertFails(db.collection("admins").get());
+  await assertFails(db.collection("studyMaterials").where("published", "==", false).get());
 });
 
 test("User profile: owner create/read/update succeeds; PII & role escalation blocked", async () => {
@@ -1144,6 +1152,143 @@ test("AI Guru Free-Tier Settings & Verified Knowledge Base Rules", async () => {
     })
   );
 });
+
+test("Farmer Personal Farm Management & Opening Balance: Owner-only CRUD without Admin approval; Admin & other users blocked", async () => {
+  const farmerDb = testEnv.authenticatedContext(FARMER_UID, { email: "rahul@farm.in", email_verified: true }).firestore();
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, { email: "alice@agri.edu.in", email_verified: true }).firestore();
+  const superAdminDb = testEnv.authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true }).firestore();
+  const ts = pastTime(5000);
+
+  const txRef = farmerDb.collection("users").doc(FARMER_UID).collection("transactions").doc("farm_tx_1");
+  await assertSucceeds(
+    txRef.set({
+      title: "Aman Paddy Seeds & DAP",
+      amount: 3450,
+      type: "EXPENSE",
+      category: "SEEDS_FERTILIZER",
+      ledgerScope: "FARMER",
+      cropTag: "Aman Paddy",
+      note: "2 bigha basal application",
+      dateLabel: "2026-11-20",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  await assertSucceeds(txRef.update({ amount: 3600, updatedAt: pastTime(1000) }));
+
+  await assertSucceeds(
+    farmerDb.collection("users").doc(FARMER_UID).collection("budgets").doc("opening_balance").set({
+      name: "Opening Balance",
+      kind: "OPENING_BALANCE",
+      targetAmount: 15000,
+      savedAmount: 15000,
+      monthKey: "GLOBAL",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // STRICT PRIVACY: Student AND even Super Admin CANNOT read or edit Farmer's private financial records
+  await assertFails(studentDb.collection("users").doc(FARMER_UID).collection("transactions").doc("farm_tx_1").get());
+  await assertFails(superAdminDb.collection("users").doc(FARMER_UID).collection("transactions").doc("farm_tx_1").get());
+  await assertFails(superAdminDb.collection("users").doc(FARMER_UID).collection("budgets").doc("opening_balance").get());
+
+  await assertSucceeds(txRef.delete());
+});
+
+test("Verified Crop Market Prices (marketPrices): Publicly readable when published, Admin-only writes", async () => {
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, { email: "alice@agri.edu.in", email_verified: true }).firestore();
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true }).firestore();
+  const ts = pastTime(3000);
+
+  await assertSucceeds(
+    adminDb.collection("marketPrices").doc("mp_paddy_memari").set({
+      cropName: "Paddy (Common)",
+      cropNameBn: "ধান (সাধারণ)",
+      state: "West Bengal",
+      district: "Purba Bardhaman",
+      marketName: "Memari Mandi",
+      unit: "₹ / Quintal",
+      minPrice: 2150,
+      maxPrice: 2380,
+      modalPrice: 2290,
+      reportDate: "2026-11-22",
+      sourceName: "AGMARKNET / WB Agri Marketing Board",
+      sourceUrl: "https://agmarknet.gov.in/",
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  await assertSucceeds(publicDb.collection("marketPrices").doc("mp_paddy_memari").get());
+  await assertFails(
+    studentDb.collection("marketPrices").doc("mp_paddy_memari").update({
+      modalPrice: 9999,
+      updatedAt: pastTime(500),
+    })
+  );
+});
+
+test("Farmer Advisor Expert thread (__farmer) & emailDeliveryStatus tracking work cleanly and stay isolated from Admin", async () => {
+  const farmerDb = testEnv.authenticatedContext(FARMER_UID, { email: "rahul@farm.in", email_verified: true }).firestore();
+  const profDb = testEnv.authenticatedContext("prof_patar_uid", { email: "subhaspatar@gmail.com", email_verified: true }).firestore();
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true }).firestore();
+  const ts = pastTime(4000);
+  const chatId = `prof_subhas_patar__${FARMER_UID}__farmer`;
+
+  await assertSucceeds(
+    farmerDb.collection("doubtChats").doc(chatId).set({
+      studentId: FARMER_UID,
+      studentName: "Rahul Das",
+      studentSemester: 0,
+      professorId: "prof_subhas_patar",
+      professorName: "Dr. Subhas Patar",
+      professorEmail: "subhaspatar@gmail.com",
+      professorUid: "",
+      serviceType: "FARMER_ADVISOR",
+      questionTitle: "Rice Leaf Blast Spots",
+      questionCategory: "CROP_DISEASE",
+      emailDeliveryStatus: "PENDING",
+      lastMessagePreview: "Spindle shaped spots on paddy leaves",
+      lastSenderRole: "STUDENT",
+      unreadForStudent: 0,
+      unreadForProfessor: 1,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  const msgRef = farmerDb.collection("doubtChats").doc(chatId).collection("messages").doc("msg_1");
+  await assertSucceeds(
+    msgRef.set({
+      studentId: FARMER_UID,
+      professorId: "prof_subhas_patar",
+      professorEmail: "subhaspatar@gmail.com",
+      professorUid: "",
+      senderId: FARMER_UID,
+      senderName: "Rahul Das",
+      senderRole: "STUDENT",
+      questionTitle: "Rice Leaf Blast Spots",
+      questionCategory: "CROP_DISEASE",
+      emailDeliveryStatus: "PENDING",
+      text: "Spindle shaped spots on paddy leaves",
+      hasImage: false,
+      readByRecipient: false,
+      createdAt: ts,
+    })
+  );
+
+  await assertSucceeds(msgRef.update({ emailDeliveryStatus: "SENT" }));
+  await assertFails(msgRef.update({ text: "Tampered text" }));
+  await assertSucceeds(profDb.collection("doubtChats").doc(chatId).get());
+  await assertSucceeds(profDb.collection("doubtChats").doc(chatId).collection("messages").doc("msg_1").get());
+  await assertFails(adminDb.collection("doubtChats").doc(chatId).get());
+});
+
 
 
 
