@@ -27,60 +27,64 @@
 <body class="min-h-screen flex flex-col">
 
   <!-- ==================== STICKY TOP APP BAR ==================== -->
-  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#CDE0D3] shadow-sm">
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#D9EAE0] shadow-[0_1px_8px_rgba(20,83,45,0.05)]">
     <div class="max-w-7xl mx-auto px-3 sm:px-5 h-16 flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 min-w-0">
+      <div class="flex items-center gap-2.5 min-w-0">
         <!-- Mobile Drawer Trigger -->
-        <button data-action="open-drawer" type="button" class="lg:hidden w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center shrink-0" aria-label="Open navigation menu">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <button data-action="open-drawer" type="button" class="lg:hidden w-11 h-11 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] flex items-center justify-center shrink-0 transition-colors" aria-label="Open navigation menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
 
         <!-- Brand Logo -->
-        <button data-nav="home" type="button" class="flex items-center gap-2.5 min-w-0 text-left">
-          <img src="./assets/icons/logo.svg" alt="Guru Ji Vision Logo" class="w-9 h-9 rounded-xl shadow-sm shrink-0" />
+        <button data-nav="home" type="button" class="flex items-center gap-2.5 min-w-0 text-left group">
+          <div class="relative shrink-0">
+            <img src="./assets/icons/logo.svg" alt="Guru Ji Vision Logo" class="w-9 h-9 rounded-xl shadow-sm ring-1 ring-[#BBF7D0]" />
+            <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#22C55E] ring-2 ring-white" aria-hidden="true"></span>
+          </div>
           <div class="min-w-0">
             <div class="flex items-center gap-1.5">
-              <span data-i18n="brand" class="font-display text-base sm:text-lg font-bold text-[#14532D] truncate">Guru Ji Vision</span>
-              <span id="syncStatusPill" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 shrink-0">Public</span>
+              <span data-i18n="brand" class="font-display text-base sm:text-lg font-bold text-[#14532D] group-hover:text-[#15803D] transition-colors truncate">Guru Ji Vision</span>
+              <span id="syncStatusPill" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#15803D] border border-[#BBF7D0] shrink-0">Public</span>
             </div>
-            <p data-i18n="tagline" class="hidden sm:block text-[11px] text-[#496052] font-medium truncate">Indian Agriculture &amp; B.Sc Agri Ecosystem</p>
+            <p data-i18n="tagline" class="hidden sm:block text-[11px] text-[#475569] font-medium truncate">Smart Agriculture &amp; B.Sc Agri Technology Platform</p>
           </div>
         </button>
       </div>
 
       <!-- Top Bar Quick Actions -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <button data-nav="weather" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] items-center justify-center" title="Weather Report &amp; Forecasting" aria-label="Weather Report and Forecasting">
-          <span class="text-base">⛅</span>
+        <button data-nav="weather" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0]/80 text-[#15803D] items-center justify-center transition-colors" title="Weather Report &amp; Forecasting" aria-label="Weather Report and Forecasting">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>
         </button>
 
-        <button data-nav="market" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] items-center justify-center" title="Crop Market Price – ফসলের বাজারদর" aria-label="Crop Market Price">
-          <span class="text-base">📊</span>
+        <button data-nav="market" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0]/80 text-[#15803D] items-center justify-center transition-colors" title="Crop Market Price – ফসলের বাজারদর" aria-label="Crop Market Price">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
         </button>
 
-        <button data-nav="marketplace" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] items-center justify-center" title="Agricultural Marketplace – Green Heaven" aria-label="Agricultural Marketplace Green Heaven">
-          <span class="text-base">🌿</span>
+        <button data-nav="marketplace" type="button" class="hidden sm:flex w-10 h-10 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0]/80 text-[#15803D] items-center justify-center transition-colors" title="Agricultural Marketplace – Green Heaven" aria-label="Agricultural Marketplace Green Heaven">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
         </button>
 
-        <button data-nav="meeting" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Meeting Zone" aria-label="Meeting Zone">
-          <span class="text-base">📹</span>
+        <button data-nav="meeting" type="button" class="relative w-10 h-10 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0]/80 text-[#15803D] flex items-center justify-center transition-colors" title="Meeting Zone" aria-label="Meeting Zone">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
           <span data-badge="meetings" class="hidden absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#14532D] text-white text-[9px] font-extrabold leading-none"></span>
         </button>
 
-        <button data-nav="career-guidance" type="button" class="relative w-10 h-10 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] flex items-center justify-center" title="Student Career Guidance &amp; Advisors" aria-label="Student Career Guidance">
-          <span class="text-base">🧭</span>
+        <button data-nav="career-guidance" type="button" class="relative w-10 h-10 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0]/80 text-[#15803D] flex items-center justify-center transition-colors" title="Student Career Guidance &amp; Advisors" aria-label="Student Career Guidance">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
           <span data-badge="doubts" class="hidden absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold leading-none"></span>
         </button>
 
-        <button id="installAppBtn" data-action="install-app" type="button" class="hidden items-center gap-1 px-2.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-extrabold">
-          <span>⬇️</span><span class="hidden sm:inline" data-i18n="installApp">Install</span>
+        <button id="installAppBtn" data-action="install-app" type="button" class="hidden items-center gap-1 px-2.5 py-2 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          <span class="hidden sm:inline" data-i18n="installApp">Install</span>
         </button>
 
-        <button id="langToggleBtn" data-action="toggle-lang" type="button" class="px-2.5 py-2 rounded-xl border border-[#CDE0D3] bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">
+        <button id="langToggleBtn" data-action="toggle-lang" type="button" class="px-2.5 py-2 rounded-xl border border-[#D9EAE0] bg-[#F8FAFC] hover:bg-[#ECFDF5] text-[#14532D] text-xs font-extrabold transition-colors">
           বাংলা
         </button>
 
-        <button id="headerAuthBtn" data-action="open-auth" type="button" class="px-3 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold shadow-sm max-w-[130px] truncate">
+        <button id="headerAuthBtn" data-action="open-auth" type="button" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs font-extrabold shadow-sm max-w-[130px] truncate transition-opacity">
           Sign In
         </button>
       </div>
@@ -88,94 +92,104 @@
   </header>
 
   <!-- PWA New Version Update Banner -->
-  <div id="pwaUpdateBanner" class="hidden bg-amber-100 border-b border-amber-300 px-4 py-2 text-xs font-bold text-amber-950 flex items-center justify-center gap-3">
-    <span>✨ A newer version of Guru Ji Vision is ready.</span>
+  <div id="pwaUpdateBanner" class="hidden bg-[#ECFDF5] border-b border-[#BBF7D0] px-4 py-2 text-xs font-bold text-[#14532D] flex items-center justify-center gap-3">
+    <span>A newer version of Guru Ji Vision is ready.</span>
     <button id="pwaReloadBtn" data-action="apply-sw-update" type="button" class="px-3 py-1 rounded-lg bg-[#14532D] text-white text-xs font-extrabold">Update Now</button>
   </div>
 
   <!-- ==================== MOBILE COLLAPSIBLE DRAWER ==================== -->
-  <div id="mobileDrawerBackdrop" data-action="close-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
-  <aside id="mobileDrawer" class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-[#CDE0D3] shadow-2xl transform -translate-x-full transition-transform duration-200 ease-out flex flex-col lg:hidden">
-    <div class="p-4 border-b border-[#CDE0D3] bg-[#EDF4EE] flex items-center justify-between gap-2">
+  <div id="mobileDrawerBackdrop" data-action="close-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm lg:hidden"></div>
+  <aside id="mobileDrawer" class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-[#D9EAE0] shadow-2xl transform -translate-x-full transition-transform duration-200 ease-out flex flex-col lg:hidden">
+    <div class="p-4 border-b border-[#D9EAE0] bg-gradient-to-r from-[#ECFDF5] to-white flex items-center justify-between gap-2">
       <div class="flex items-center gap-2.5 min-w-0">
-        <img src="./assets/icons/logo.svg" alt="Logo" class="w-10 h-10 rounded-xl shrink-0" />
+        <img src="./assets/icons/logo.svg" alt="Logo" class="w-10 h-10 rounded-xl shadow-sm ring-1 ring-[#BBF7D0] shrink-0" />
         <div class="min-w-0">
           <div id="drawerUserName" class="text-sm font-extrabold text-[#14532D] truncate">Guest Visitor</div>
-          <div id="drawerUserSub" class="text-[11px] text-[#496052] truncate">Public access active</div>
+          <div id="drawerUserSub" class="text-[11px] text-[#475569] truncate">Public access active</div>
         </div>
       </div>
-      <button data-action="close-drawer" type="button" class="w-9 h-9 rounded-xl bg-white text-[#14532D] font-bold">✕</button>
+      <button data-action="close-drawer" type="button" class="w-9 h-9 rounded-xl bg-white border border-[#D9EAE0] text-[#14532D] font-bold flex items-center justify-center" aria-label="Close navigation menu">✕</button>
     </div>
 
     <div class="flex-1 overflow-y-auto p-3 space-y-1">
-      <button data-nav="home" class="drawer-nav-item"><span>🏠 Home Dashboard</span></button>
-      <button data-nav="weather" class="drawer-nav-item"><span>⛅ Weather &amp; Forecast</span></button>
-      <button data-nav="market" class="drawer-nav-item"><span>📊 Market Price (বাজারদর)</span></button>
+      <div class="px-3 pt-1 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#15803D]">Smart Farming &amp; Learning</div>
+      <button data-nav="home" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home Dashboard</span></button>
+      <button data-nav="weather" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2m-7.07.93 1.41 1.41M20 12h2m-2.93-7.07-1.41 1.41M15.95 12.65a4 4 0 0 0-5.93-4.13M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>Weather &amp; Forecast</span></button>
+      <button data-nav="market" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18m-2-12-5 5-4-4-3 3"/></svg>Market Price (বাজারদর)</span></button>
       <button data-nav="marketplace" class="drawer-nav-item">
-        <span>🌿 Green Heaven Store</span>
-        <span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[9px] font-extrabold">SHOP</span>
+        <span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10ZM2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>Green Heaven Store</span>
+        <span class="px-1.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[9px] font-extrabold">SHOP</span>
       </button>
-      <button data-nav="student" class="drawer-nav-item"><span>🎓 Student Portal</span></button>
-      <button data-nav="farmer" class="drawer-nav-item"><span>🌾 Farmer Help Desk</span></button>
-      <button data-nav="tools" class="drawer-nav-item"><span>🧮 Agri Calculators</span></button>
-      <button data-nav="ai" class="drawer-nav-item"><span>✨ AI Guru Knowledge Base</span></button>
-      <button data-nav="community" class="drawer-nav-item"><span>🤝 Community &amp; Careers</span></button>
-      <hr class="my-2 border-[#CDE0D3]" />
+      <button data-nav="student" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 10v6M2 10l10-5 10 5-10 5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 12v5c3 3 9 3 12 0v-5"/></svg>Student Portal</span></button>
+      <button data-nav="farmer" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/></svg>Farmer Help Desk</span></button>
+      <button data-nav="tools" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="8.01" y1="11" y2="11"/><line x1="12" x2="12.01" y1="11" y2="11"/><line x1="16" x2="16.01" y1="11" y2="11"/><line x1="8" x2="8.01" y1="15" y2="15"/><line x1="12" x2="12.01" y1="15" y2="15"/><line x1="16" x2="16.01" y1="15" y2="15"/></svg>Agri Calculators</span></button>
+      <button data-nav="ai" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>AI Guru Knowledge Base</span></button>
+      <button data-nav="community" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Community &amp; Careers</span></button>
+
+      <div class="pt-3 mt-2 border-t border-[#E2E8F0]">
+        <div class="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#15803D]">Advisors &amp; Private Tools</div>
+      </div>
       <button data-nav="career-guidance" class="drawer-nav-item">
-        <span>🧭 Student Career Guidance</span>
+        <span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>Student Career Guidance</span>
         <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
       </button>
-      <button data-nav="farmer-advisor" class="drawer-nav-item"><span>👨‍🌾 Farmer Advisor Expert</span></button>
-      <button data-nav="professor" data-role-only="professor" class="hidden drawer-nav-item"><span>👨‍🏫 Professor Dashboard</span></button>
+      <button data-nav="farmer-advisor" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Farmer Advisor Expert</span></button>
+      <button data-nav="professor" data-role-only="professor" class="hidden drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path stroke-linecap="round" stroke-linejoin="round" d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Professor Dashboard</span></button>
       <button data-nav="meeting" class="drawer-nav-item">
-        <span>📹 Meeting Zone</span>
-        <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-[#0C3B20] text-[10px] font-extrabold"></span>
+        <span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>Meeting Zone</span>
+        <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-[#22C55E] text-[#052E16] text-[10px] font-extrabold"></span>
       </button>
-      <button data-nav="money" class="drawer-nav-item"><span>🔒 Money &amp; Farm Manager (₹)</span></button>
-      <div data-role-only="admin" class="hidden pt-2 border-t border-[#CDE0D3] space-y-1">
-        <button data-nav="admin" class="drawer-nav-item"><span>🛡️ Admin Panel</span></button>
-        <button data-nav="owner" data-role-only="owner" class="hidden drawer-nav-item"><span>📊 Owner Control Center</span></button>
+      <button data-nav="money" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Money &amp; Farm Manager (₹)</span></button>
+      <div data-role-only="admin" class="hidden pt-3 mt-2 border-t border-[#E2E8F0] space-y-1">
+        <div class="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#15803D]">Administration</div>
+        <button data-nav="admin" class="drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin Panel</span></button>
+        <button data-nav="owner" data-role-only="owner" class="hidden drawer-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg>Owner Control Center</span></button>
       </div>
     </div>
 
-    <div class="p-3 border-t border-[#CDE0D3] space-y-2">
-      <button data-action="open-profile" type="button" class="w-full py-2 px-4 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">Edit My Profile</button>
-      <button id="drawerAuthAction" data-action="open-auth" type="button" class="w-full py-2.5 px-4 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Continue with Google</button>
+    <div class="p-3 border-t border-[#D9EAE0] bg-[#F8FAFC] space-y-2">
+      <button data-action="open-profile" type="button" class="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Edit My Profile</button>
+      <button id="drawerAuthAction" data-action="open-auth" type="button" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs font-extrabold shadow-sm">Continue with Google</button>
     </div>
   </aside>
 
   <!-- ==================== BODY SHELL (DESKTOP RAIL + MAIN CONTENT) ==================== -->
   <div class="flex-1 max-w-7xl w-full mx-auto flex">
     <!-- Desktop Persistent Navigation Rail -->
-    <aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-[#CDE0D3] bg-white/80 p-3 space-y-1 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
-      <button data-nav="home" class="rail-nav-item"><span>🏠 Home</span></button>
-      <button data-nav="weather" class="rail-nav-item"><span>⛅ Weather Forecast</span></button>
-      <button data-nav="market" class="rail-nav-item"><span>📊 Market Price (বাজারদর)</span></button>
+    <aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-[#D9EAE0] bg-white/85 backdrop-blur-sm p-3 space-y-1 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+      <div class="px-3 pt-1 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#15803D]">Smart Farming &amp; Study</div>
+      <button data-nav="home" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home</span></button>
+      <button data-nav="weather" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2m-7.07.93 1.41 1.41M20 12h2m-2.93-7.07-1.41 1.41M15.95 12.65a4 4 0 0 0-5.93-4.13M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>Weather Forecast</span></button>
+      <button data-nav="market" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18m-2-12-5 5-4-4-3 3"/></svg>Market Price (বাজারদর)</span></button>
       <button data-nav="marketplace" class="rail-nav-item">
-        <span>🌿 Green Heaven Store</span>
-        <span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[9px] font-extrabold">SHOP</span>
+        <span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10ZM2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>Green Heaven Store</span>
+        <span class="px-1.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[9px] font-extrabold">SHOP</span>
       </button>
-      <button data-nav="student" class="rail-nav-item"><span>🎓 Student Portal</span></button>
-      <button data-nav="farmer" class="rail-nav-item"><span>🌾 Farmer Help</span></button>
-      <button data-nav="tools" class="rail-nav-item"><span>🧮 Agri Calculators</span></button>
-      <button data-nav="ai" class="rail-nav-item"><span>✨ AI Guru</span></button>
-      <button data-nav="community" class="rail-nav-item"><span>🤝 Community &amp; Jobs</span></button>
-      <hr class="my-2 border-[#CDE0D3]" />
+      <button data-nav="student" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 10v6M2 10l10-5 10 5-10 5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 12v5c3 3 9 3 12 0v-5"/></svg>Student Portal</span></button>
+      <button data-nav="farmer" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/></svg>Farmer Help</span></button>
+      <button data-nav="tools" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="8.01" y1="11" y2="11"/><line x1="12" x2="12.01" y1="11" y2="11"/><line x1="16" x2="16.01" y1="11" y2="11"/><line x1="8" x2="8.01" y1="15" y2="15"/><line x1="12" x2="12.01" y1="15" y2="15"/><line x1="16" x2="16.01" y1="15" y2="15"/></svg>Agri Calculators</span></button>
+      <button data-nav="ai" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>AI Guru</span></button>
+      <button data-nav="community" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Community &amp; Jobs</span></button>
+
+      <div class="pt-3 mt-2 border-t border-[#E2E8F0]">
+        <div class="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#15803D]">Advisors &amp; Private</div>
+      </div>
       <button data-nav="career-guidance" class="rail-nav-item">
-        <span>🧭 Career Guidance</span>
+        <span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>Career Guidance</span>
         <span data-badge="doubts" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold"></span>
       </button>
-      <button data-nav="farmer-advisor" class="rail-nav-item"><span>👨‍🌾 Farmer Advisor</span></button>
-      <button data-nav="professor" data-role-only="professor" class="hidden rail-nav-item"><span>👨‍🏫 Professor Dashboard</span></button>
+      <button data-nav="farmer-advisor" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Farmer Advisor</span></button>
+      <button data-nav="professor" data-role-only="professor" class="hidden rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path stroke-linecap="round" stroke-linejoin="round" d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Professor Dashboard</span></button>
       <button data-nav="meeting" class="rail-nav-item">
-        <span>📹 Meeting Zone</span>
-        <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-[#0C3B20] text-[10px] font-extrabold"></span>
+        <span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>Meeting Zone</span>
+        <span data-badge="meetings" class="hidden px-2 py-0.5 rounded-full bg-[#22C55E] text-[#052E16] text-[10px] font-extrabold"></span>
       </button>
-      <button data-nav="money" class="rail-nav-item"><span>🔒 Money &amp; Farm (₹)</span></button>
+      <button data-nav="money" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Money &amp; Farm (₹)</span></button>
 
-      <div data-role-only="admin" class="hidden pt-2 mt-2 border-t border-[#CDE0D3] space-y-1">
-        <button data-nav="admin" class="rail-nav-item"><span>🛡️ Admin Panel</span></button>
-        <button data-nav="owner" data-role-only="owner" class="hidden rail-nav-item"><span>📊 Owner Center</span></button>
+      <div data-role-only="admin" class="hidden pt-3 mt-2 border-t border-[#E2E8F0] space-y-1">
+        <div class="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#15803D]">Administration</div>
+        <button data-nav="admin" class="rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin Panel</span></button>
+        <button data-nav="owner" data-role-only="owner" class="hidden rail-nav-item"><span class="inline-flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg>Owner Center</span></button>
       </div>
     </aside>
 
@@ -184,13 +198,28 @@
   </div>
 
   <!-- ==================== MOBILE 5-TAB BOTTOM NAVIGATION ==================== -->
-  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#CDE0D3] shadow-[0_-4px_16px_rgba(20,83,45,0.06)] safe-bottom" aria-label="Mobile bottom navigation">
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#D9EAE0] shadow-[0_-6px_20px_rgba(20,83,45,0.06)] safe-bottom" aria-label="Mobile bottom navigation">
     <div class="grid grid-cols-5 gap-1 px-1.5 pt-1.5 pb-1">
-      <button data-nav="home" class="bottom-nav-item"><span class="text-base">🏠</span><span data-i18n="navHome">Home</span></button>
-      <button data-nav="student" class="bottom-nav-item"><span class="text-base">🎓</span><span data-i18n="navStudent">Student</span></button>
-      <button data-nav="weather" class="bottom-nav-item"><span class="text-base">⛅</span><span data-i18n="navWeather">Weather</span></button>
-      <button data-nav="market" class="bottom-nav-item"><span class="text-base">📊</span><span data-i18n="navMarket">Mandi</span></button>
-      <button data-nav="farmer" class="bottom-nav-item"><span class="text-base">🌾</span><span data-i18n="navFarmer">Farmer</span></button>
+      <button data-nav="home" class="bottom-nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span data-i18n="navHome">Home</span>
+      </button>
+      <button data-nav="student" class="bottom-nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        <span data-i18n="navStudent">Student</span>
+      </button>
+      <button data-nav="weather" class="bottom-nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2v2m-7.07.93 1.41 1.41M20 12h2m-2.93-7.07-1.41 1.41M15.95 12.65a4 4 0 0 0-5.93-4.13M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>
+        <span data-i18n="navWeather">Weather</span>
+      </button>
+      <button data-nav="market" class="bottom-nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18m-2-12-5 5-4-4-3 3"/></svg>
+        <span data-i18n="navMarket">Mandi</span>
+      </button>
+      <button data-nav="farmer" class="bottom-nav-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/></svg>
+        <span data-i18n="navFarmer">Farmer</span>
+      </button>
     </div>
   </nav>
 

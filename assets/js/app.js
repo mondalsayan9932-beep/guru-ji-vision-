@@ -342,11 +342,11 @@ function renderShellChrome() {
   const syncPill = document.getElementById("syncStatusPill");
   if (syncPill) {
     if (state.cloudConnected) {
-      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 shrink-0";
-      syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Cloud`;
+      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#DCFCE7] text-[#14532D] border border-[#BBF7D0] shrink-0";
+      syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span> Live Cloud`;
     } else {
-      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 shrink-0";
-      syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Public`;
+      syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ECFDF5] text-[#15803D] border border-[#BBF7D0] shrink-0";
+      syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span> Public`;
     }
   }
 
@@ -355,7 +355,7 @@ function renderShellChrome() {
   if (authBtn) {
     if (state.user) {
       const label = (state.userProfile?.displayName || state.user.displayName || state.user.phoneNumber || state.user.email || "Account").split(" ")[0];
-      authBtn.textContent = `👤 ${label}`;
+      authBtn.textContent = label;
       authBtn.dataset.action = "open-profile";
     } else {
       authBtn.textContent = dict.signIn;
@@ -394,11 +394,13 @@ function renderShellChrome() {
 
     if (isBottom) {
       btn.className = active
-        ? "bottom-nav-item flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[10px] font-extrabold bg-[#D8F3DC] text-[#14532D]"
-        : "bottom-nav-item flex flex-col items-center justify-center min-h-[48px] rounded-xl text-[10px] font-semibold text-[#496052]";
+        ? "bottom-nav-item flex flex-col items-center justify-center gap-0.5 min-h-[48px] rounded-xl text-[10px] font-extrabold bg-[#DCFCE7] text-[#14532D] transition-colors"
+        : "bottom-nav-item flex flex-col items-center justify-center gap-0.5 min-h-[48px] rounded-xl text-[10px] font-semibold text-[#475569] hover:text-[#14532D] transition-colors";
     } else if (isRail || isDrawer) {
-      btn.className = `${isRail ? "rail-nav-item" : "drawer-nav-item"} w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition-colors ${
-        active ? "bg-[#14532D] text-white font-extrabold shadow-sm" : "text-[#132219] hover:bg-[#EDF4EE] font-semibold"
+      btn.className = `${isRail ? "rail-nav-item" : "drawer-nav-item"} w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs sm:text-sm transition-all ${
+        active
+          ? "bg-gradient-to-r from-[#14532D] to-[#15803D] text-white font-extrabold shadow-sm"
+          : "text-[#0F172A] hover:bg-[#ECFDF5] hover:text-[#14532D] font-semibold"
       }`;
     }
   });
@@ -413,13 +415,13 @@ function renderShellChrome() {
       drawerSub.textContent = state.user.phoneNumber || state.user.email || state.user.uid;
       drawerAuthAction.textContent = dict.signOut;
       drawerAuthAction.dataset.action = "sign-out";
-      drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold";
+      drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition-colors";
     } else {
       drawerName.textContent = "Guest Visitor";
       drawerSub.textContent = "Public access active • Sign in with Google for private tools";
       drawerAuthAction.textContent = "Continue with Google";
       drawerAuthAction.dataset.action = "open-auth";
-      drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold";
+      drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition-opacity";
     }
   }
 }

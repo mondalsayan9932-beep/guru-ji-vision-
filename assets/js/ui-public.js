@@ -24,7 +24,7 @@ import {
 } from "./calculators.js";
 
 const GREEN_HEAVEN_LOGO_SVG = `
-  <span class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-[#14532D] text-emerald-100 shadow-sm shrink-0" aria-hidden="true">
+  <span class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-[#DCFCE7] shadow-sm shrink-0" aria-hidden="true">
     <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M11 20a10 10 0 0 0 10-10 25.9 25.9 0 0 0-1.04-7.281 1 1 0 0 0-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0 0 11 20"></path>
       <path d="M2 21a5 5 0 0 1 2.911-4.544C7.613 15.212 8.351 15.24 11 13"></path>
@@ -32,27 +32,83 @@ const GREEN_HEAVEN_LOGO_SVG = `
   </span>
 `;
 
+// Lightweight Unified Smart Agriculture Line Icons (Zero external library overhead)
+const AGRI_ICONS = {
+  weather: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>`,
+  market: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>`,
+  marketplace: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`,
+  student: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`,
+  career: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>`,
+  advisor: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`,
+  money: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  farmer: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/></svg>`,
+  tools: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="8.01" y1="11" y2="11"/><line x1="12" x2="12.01" y1="11" y2="11"/><line x1="16" x2="16.01" y1="11" y2="11"/><line x1="8" x2="8.01" y1="15" y2="15"/><line x1="12" x2="12.01" y1="15" y2="15"/><line x1="16" x2="16.01" y1="15" y2="15"/></svg>`,
+  ai: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>`,
+  community: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  meeting: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>`,
+  professor: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>`,
+  bell: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`,
+  message: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>`,
+  chevron: `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`
+};
+
+// Lightweight Precision Agriculture Landscape Background Illustration (Inline SVG — 0 network requests)
+const SMART_FARMING_HERO_ART = `
+  <svg class="absolute inset-0 w-full h-full pointer-events-none select-none opacity-90" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <radialGradient id="gvHeroGlow" cx="85%" cy="18%" r="48%">
+        <stop offset="0%" stop-color="#22C55E" stop-opacity="0.34"/>
+        <stop offset="55%" stop-color="#15803D" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="#14532D" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="gvFieldWave1" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#22C55E" stop-opacity="0.10"/>
+        <stop offset="50%" stop-color="#DCFCE7" stop-opacity="0.16"/>
+        <stop offset="100%" stop-color="#22C55E" stop-opacity="0.06"/>
+      </linearGradient>
+    </defs>
+    <rect width="1200" height="420" fill="url(#gvHeroGlow)"/>
+    <!-- Subtle terraced smart-farming crop field contours -->
+    <path d="M0 335 C 240 275, 480 375, 760 305 C 940 260, 1080 280, 1200 250 L 1200 420 L 0 420 Z" fill="url(#gvFieldWave1)"/>
+    <path d="M0 370 C 290 325, 560 405, 860 340 C 1020 306, 1120 320, 1200 300 L 1200 420 L 0 420 Z" fill="#22C55E" fill-opacity="0.09"/>
+    <path d="M-20 315 C 250 255, 500 355, 780 285 C 950 242, 1090 258, 1220 228" fill="none" stroke="#DCFCE7" stroke-opacity="0.18" stroke-width="1.5" stroke-dasharray="6 8"/>
+    <!-- Precision Agriculture Telemetry Nodes & Signal Arcs -->
+    <g stroke="#DCFCE7" stroke-opacity="0.22" fill="none">
+      <circle cx="980" cy="110" r="34" stroke-width="1.2"/>
+      <circle cx="980" cy="110" r="64" stroke-width="1" stroke-dasharray="4 6"/>
+      <circle cx="980" cy="110" r="96" stroke-width="0.9" stroke-dasharray="2 8"/>
+      <line x1="980" y1="110" x2="860" y2="195" stroke-width="1" stroke-dasharray="3 5"/>
+      <line x1="980" y1="110" x2="1095" y2="180" stroke-width="1" stroke-dasharray="3 5"/>
+    </g>
+    <g fill="#22C55E" fill-opacity="0.7">
+      <circle cx="980" cy="110" r="4.5"/>
+      <circle cx="860" cy="195" r="3.5"/>
+      <circle cx="1095" cy="180" r="3.5"/>
+    </g>
+  </svg>
+`;
+
 function renderGreenHeavenCompactCard() {
   const gh = GREEN_HEAVEN_CONFIG;
   return `
-    <div class="rounded-3xl border border-emerald-300/80 bg-gradient-to-r from-[#ECFDF5] via-white to-[#F0FDF4] p-4 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="rounded-3xl border border-[#BBF7D0] bg-gradient-to-r from-[#ECFDF5] via-white to-[#F0FDF4] p-4 sm:p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex items-start gap-3.5 min-w-0">
         ${GREEN_HEAVEN_LOGO_SVG}
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm sm:text-base font-extrabold text-[#14532D]">${escapeHtml(gh.sectionTitle)}</span>
-            <span class="px-2 py-0.5 rounded-full bg-emerald-200/80 text-[#0C3B20] text-[10px] font-extrabold uppercase tracking-wide">Open Access • No Login Needed</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold uppercase tracking-wide">Open Access • No Login Needed</span>
           </div>
-          <p class="text-xs sm:text-sm text-[#496052] mt-0.5">
+          <p class="text-xs sm:text-sm text-[#475569] mt-0.5">
             Shop verified Indoor, Flowering, Outdoor &amp; Succulent plants, Gladiolus bulbs, and organic Vermi Compost directly on Green Heaven.
           </p>
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-2 shrink-0">
-        <a href="${escapeHtml(gh.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+        <a href="${escapeHtml(gh.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs sm:text-sm font-extrabold shadow-sm transition-opacity">
           <span>Shop Now ↗</span>
         </a>
-        <button data-nav="marketplace" type="button" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#EDF4EE] border border-[#CDE0D3] text-[#14532D] text-xs font-extrabold transition-colors">
+        <button data-nav="marketplace" type="button" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">
           View Categories
         </button>
       </div>
@@ -61,7 +117,7 @@ function renderGreenHeavenCompactCard() {
 }
 
 // ----------------------------------------------------------------------------
-// 1. HOME DASHBOARD
+// 1. HOME DASHBOARD — SMART AGRICULTURE TECHNOLOGY & DIGITAL FARMING UI
 // ----------------------------------------------------------------------------
 export function renderHomeView(state) {
   const settings = state.appSettings;
@@ -74,153 +130,255 @@ export function renderHomeView(state) {
   const unreadDoubts = state.totalUnreadDoubts || 0;
   const marketCount = (state.mandiApiRecords?.length || 0) + (state.firestoreMarketPrices?.filter((r) => r.published !== false).length || 0);
 
+  const userDisplayName = state.userProfile?.displayName || state.user?.displayName || state.user?.email?.split("@")[0] || "Scholar";
+  const userPhoto = safeUrl(state.userProfile?.photoUrl || state.user?.photoURL || "");
+  const userRoleLabel = isProf
+    ? "Verified Professor"
+    : (state.userProfile?.role === "FARMER" ? "Farmer" : (state.isAdmin ? "Admin" : "Student"));
+  const userSubMeta = state.userProfile?.institutionOrVillage || state.userProfile?.district || state.user?.email || "";
+
   const moduleCards = [
-    { tab: "weather", title: "Weather Report & Forecast", sub: "আবহাওয়া পূর্বাভাস • Hourly, 7-Day & Agri Alerts", icon: "⛅", bg: "bg-sky-50 border-sky-200" },
-    { tab: "market", title: "Crop Market Price (বাজারদর)", sub: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates", icon: "📊", bg: "bg-amber-50 border-amber-200" },
-    { tab: "marketplace", title: "Green Heaven Marketplace", sub: "Official Plant Store • Indoor, Flowering, Bulbs & Vermi Compost", icon: "🌿", bg: "bg-emerald-50 border-emerald-300" },
-    { tab: "student", title: "Student Academic Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: "🎓", bg: "bg-emerald-50 border-emerald-200" },
-    { tab: "career-guidance", title: "Student Career Guidance", sub: unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors", icon: "🧭", bg: "bg-indigo-50 border-indigo-200" },
-    { tab: "farmer-advisor", title: "Farmer Advisor Expert", sub: "কৃষক পরামর্শ বিশেষজ্ঞ • Crop Photos & Q&A", icon: "👨‍🌾", bg: "bg-lime-50 border-lime-200" },
-    { tab: "money", title: "Money & Farm Manager (₹)", sub: "100% Private Student & Farmer Ledger • No Approval", icon: "🔒", bg: "bg-emerald-50 border-emerald-200" },
-    { tab: "farmer", title: "Farmer Help & Crop Guide", sub: "ICAR Diseases, IPM & Direct WhatsApp Help", icon: "🌾", bg: "bg-amber-50 border-amber-200" },
-    { tab: "tools", title: "Agri Calculators", sub: "NPK Fertilizer (DAP/SSP) & Seed Rate", icon: "🧮", bg: "bg-teal-50 border-teal-200" },
-    { tab: "ai", title: "AI Guru Knowledge Base", sub: "Verified Notes + Free Encyclopedia Search", icon: "✨", bg: "bg-lime-50 border-lime-200" },
-    { tab: "community", title: "Community & Agri Jobs", sub: `${state.careerOpportunities.length} Jobs & Student Forum`, icon: "🤝", bg: "bg-sky-50 border-sky-200" },
-    { tab: "meeting", title: "Meeting Zone", sub: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`, icon: "📹", bg: "bg-indigo-50 border-indigo-200" }
+    { tab: "weather", tag: "Smart Farming", title: "Weather Report & Forecast", sub: "আবহাওয়া পূর্বাভাস • Hourly, 7-Day & Agri Alerts", icon: AGRI_ICONS.weather },
+    { tab: "market", tag: "Market Intel", title: "Crop Market Price (বাজারদর)", sub: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates", icon: AGRI_ICONS.market },
+    { tab: "marketplace", tag: "Agri Store", title: "Green Heaven Marketplace", sub: "Official Plant Store • Indoor, Flowering, Bulbs & Vermi Compost", icon: AGRI_ICONS.marketplace },
+    { tab: "student", tag: "Agri Education", title: "Student Academic Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: AGRI_ICONS.student },
+    { tab: "career-guidance", tag: "Mentorship", title: "Student Career Guidance", sub: unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors", icon: AGRI_ICONS.career, badge: unreadDoubts > 0 ? `${unreadDoubts} new` : "" },
+    { tab: "farmer-advisor", tag: "Crop Care", title: "Farmer Advisor Expert", sub: "কৃষক পরামর্শ বিশেষজ্ঞ • Crop Photos & Q&A", icon: AGRI_ICONS.advisor },
+    { tab: "money", tag: "Private Ledger", title: "Money & Farm Manager (₹)", sub: "100% Private Student & Farmer Ledger • No Approval", icon: AGRI_ICONS.money },
+    { tab: "farmer", tag: "Field Guide", title: "Farmer Help & Crop Guide", sub: "ICAR Diseases, IPM & Direct WhatsApp Help", icon: AGRI_ICONS.farmer },
+    { tab: "tools", tag: "Precision Tech", title: "Agri Calculators", sub: "NPK Fertilizer (DAP/SSP) & Seed Rate", icon: AGRI_ICONS.tools },
+    { tab: "ai", tag: "Digital AI", title: "AI Guru Knowledge Base", sub: "Verified Notes + Free Encyclopedia Search", icon: AGRI_ICONS.ai },
+    { tab: "community", tag: "Network", title: "Community & Agri Jobs", sub: `${state.careerOpportunities.length} Jobs & Student Forum`, icon: AGRI_ICONS.community },
+    { tab: "meeting", tag: "Live Classes", title: "Meeting Zone", sub: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`, icon: AGRI_ICONS.meeting }
   ];
 
   if (isProf) {
     moduleCards.unshift({
       tab: "professor",
+      tag: "Faculty Portal",
       title: "Professor Dashboard",
       sub: `${state.professorDoubtThreads.length} Assigned Student & Farmer Consultations`,
-      icon: "👨‍🏫",
-      bg: "bg-emerald-100/80 border-emerald-400"
+      icon: AGRI_ICONS.professor,
+      featured: true
     });
   }
 
   return `
-    <div class="space-y-5 animate-fade-up">
+    <div class="space-y-6 animate-fade-up">
       ${settings.maintenanceBanner ? `
-        <div class="rounded-2xl bg-amber-100 border border-amber-300 px-4 py-3 text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2.5">
-          <span>⚠️</span>
+        <div class="rounded-2xl bg-amber-50 border border-amber-300 px-4 py-3 text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2.5 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
           <span>${escapeHtml(settings.maintenanceBanner)}</span>
         </div>
       ` : ""}
 
-      <!-- Hero Banner -->
-      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0C3B20] via-[#14532D] to-[#1E7E45] text-white p-5 sm:p-7 shadow-lg">
-        <div class="absolute -right-12 -top-12 w-52 h-52 rounded-full bg-amber-300/15 blur-2xl pointer-events-none"></div>
-        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div class="space-y-2.5 max-w-2xl">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold text-emerald-100">
-              <span class="w-2 h-2 rounded-full ${state.cloudConnected ? "bg-emerald-300" : "bg-amber-300"}"></span>
-              <span>${state.cloudConnected ? "Live Public Cloud Connected" : "Instant Public Access • Open to Everyone"}</span>
+      <!-- ==================== SMART AGRICULTURE HERO SECTION ==================== -->
+      <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white">
+        <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
+        ${SMART_FARMING_HERO_ART}
+
+        <div class="relative z-10 p-5 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="space-y-4 max-w-2xl">
+            <!-- Status & User Identity Row -->
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/12 border border-white/20 backdrop-blur-sm text-[11px] font-bold text-[#DCFCE7]">
+                <span class="w-2 h-2 rounded-full bg-[#22C55E] shadow-[0_0_8px_#22C55E]"></span>
+                <span>${state.cloudConnected ? "Live Smart Agri Cloud Connected" : "Smart Agriculture • Open Public Access"}</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22C55E]/15 border border-[#22C55E]/30 text-[11px] font-bold text-[#DCFCE7]">
+                Digital Farming &amp; Agri Education
+              </span>
             </div>
-            <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">${escapeHtml(settings.heroHeadline)}</h2>
-            <p class="text-sm sm:text-base text-emerald-100/95 leading-relaxed">${escapeHtml(settings.aboutText)}</p>
+
+            ${state.user ? `
+              <!-- Personalized Welcome Identity Bar for Signed-In User -->
+              <div class="inline-flex items-center gap-3 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-sm px-3.5 py-2.5 max-w-full">
+                ${userPhoto
+                  ? `<img src="${escapeHtml(userPhoto)}" alt="${escapeHtml(userDisplayName)}" class="w-9 h-9 rounded-xl object-cover ring-2 ring-[#22C55E]/70 shrink-0" />`
+                  : `<div class="w-9 h-9 rounded-xl bg-[#22C55E]/25 border border-[#DCFCE7]/30 text-white font-extrabold text-sm flex items-center justify-center shrink-0">${escapeHtml(userDisplayName.charAt(0).toUpperCase())}</div>`
+                }
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-xs sm:text-sm font-extrabold text-white truncate">Welcome, ${escapeHtml(userDisplayName)}</span>
+                    <span class="px-2 py-0.5 rounded-full bg-[#22C55E]/25 text-[#DCFCE7] text-[10px] font-extrabold">${escapeHtml(userRoleLabel)}</span>
+                  </div>
+                  ${userSubMeta ? `<div class="text-[11px] text-[#DCFCE7]/85 truncate">${escapeHtml(userSubMeta)}</div>` : ""}
+                </div>
+                <button data-action="open-profile" type="button" class="ml-1 px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-[11px] font-extrabold text-white shrink-0 transition-colors">
+                  Profile
+                </button>
+              </div>
+            ` : ""}
+
+            <div class="space-y-2">
+              <h2 class="font-display text-2xl sm:text-4xl font-bold leading-tight tracking-tight text-white">
+                ${escapeHtml(settings.heroHeadline)}
+              </h2>
+              <p class="text-sm sm:text-base text-[#DCFCE7]/90 leading-relaxed max-w-xl">
+                ${escapeHtml(settings.aboutText)}
+              </p>
+            </div>
+
+            <!-- Hero Primary & Quick Action Buttons -->
             <div class="flex flex-wrap gap-2.5 pt-1">
-              <button data-nav="weather" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-                ⛅ Weather Forecast
+              <button data-nav="weather" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-md transition-colors">
+                ${AGRI_ICONS.weather}
+                <span>Weather Forecast</span>
               </button>
-              <button data-nav="market" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
-                📊 বাজারদর / Market Price
+              <button data-nav="market" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/14 hover:bg-white/24 border border-white/25 text-white text-xs sm:text-sm font-bold backdrop-blur-sm transition-colors">
+                ${AGRI_ICONS.market}
+                <span>বাজারদর / Market Price</span>
               </button>
-              <button data-nav="student" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
-                🎓 Study Notes
+              <button data-nav="student" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/14 hover:bg-white/24 border border-white/25 text-white text-xs sm:text-sm font-bold backdrop-blur-sm transition-colors">
+                ${AGRI_ICONS.student}
+                <span>Study Notes</span>
               </button>
               ${!state.user ? `
-                <button data-action="open-auth" class="px-4 py-2.5 rounded-xl bg-white hover:bg-[#EDF4EE] text-[#14532D] text-xs sm:text-sm font-extrabold transition-colors shadow-sm">
-                  Continue with Google
+                <button data-action="open-auth" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#052E16] text-xs sm:text-sm font-extrabold shadow-md transition-colors">
+                  <span>Continue with Google</span>
                 </button>
               ` : `
-                <button data-action="open-profile" class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs sm:text-sm font-bold transition-colors">
-                  Hi, ${escapeHtml(state.userProfile?.displayName || state.user.displayName || state.user.phoneNumber || "Scholar")} • Profile
+                <button data-action="open-profile" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/14 hover:bg-white/24 border border-white/25 text-white text-xs sm:text-sm font-bold backdrop-blur-sm transition-colors">
+                  <span>My Account &amp; Role</span>
                 </button>
               `}
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-2.5 shrink-0">
-            <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-3 text-center">
-              <div class="text-xl sm:text-2xl font-extrabold">${publicMaterials.length}</div>
-              <div class="text-[11px] text-emerald-100">Notes/PDFs</div>
+          <!-- Right-Side Smart Platform Telemetry Stats -->
+          <div class="grid grid-cols-3 lg:grid-cols-2 gap-2.5 sm:gap-3 shrink-0 lg:w-72">
+            <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Resources</div>
+              <div class="text-xl sm:text-2xl font-extrabold text-white mt-0.5">${publicMaterials.length}</div>
+              <div class="text-[11px] text-[#DCFCE7]/85">Notes &amp; PDFs</div>
             </div>
-            <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-3 text-center">
-              <div class="text-xl sm:text-2xl font-extrabold text-amber-300">${state.professors.length}</div>
-              <div class="text-[11px] text-emerald-100">Advisors</div>
+            <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Experts</div>
+              <div class="text-xl sm:text-2xl font-extrabold text-[#86EFAC] mt-0.5">${state.professors.length}</div>
+              <div class="text-[11px] text-[#DCFCE7]/85">Faculty Advisors</div>
             </div>
-            <div class="rounded-2xl bg-white/10 border border-white/15 px-3 py-3 text-center">
-              <div class="text-xl sm:text-2xl font-extrabold text-emerald-200">${activeNotices.length}</div>
-              <div class="text-[11px] text-emerald-100">Notices</div>
+            <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Updates</div>
+              <div class="text-xl sm:text-2xl font-extrabold text-white mt-0.5">${activeNotices.length}</div>
+              <div class="text-[11px] text-[#DCFCE7]/85">Active Notices</div>
+            </div>
+            <div class="hidden lg:block rounded-2xl bg-[#22C55E]/15 border border-[#22C55E]/30 backdrop-blur-md p-3.5 text-left">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/85">Live Sessions</div>
+              <div class="text-xl sm:text-2xl font-extrabold text-[#DCFCE7] mt-0.5">${upcomingMeetings.length}</div>
+              <div class="text-[11px] text-[#DCFCE7]/85">Scheduled Meets</div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- 3 Community Role Entry Cards (Students, Farmers, Professors) -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        <div class="gv-card p-4 space-y-2.5 border-l-4 border-l-emerald-700">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-extrabold text-[#14532D]">🎓 For Students (ছাত্র-ছাত্রী)</h3>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">B.Sc Agri</span>
-          </div>
-          <p class="text-xs text-[#496052]">Notes, ICAR syllabus, MCQ practice, Career Guidance with Professors &amp; Private Money Manager.</p>
-          <div class="flex flex-wrap gap-1.5 pt-1">
-            <button data-nav="student" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Notes</button>
-            <button data-nav="career-guidance" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Career Guidance</button>
-            <button data-nav="money" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">Money Manager</button>
-            <button data-nav="marketplace" class="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-[#0C3B20] text-xs font-extrabold">🌿 Green Heaven</button>
+      <!-- ==================== 3 COMMUNITY ROLE PATHWAYS ==================== -->
+      <section class="space-y-3">
+        <div class="flex items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Built for Every Member of Agriculture</h3>
+            <p class="text-xs text-[#475569]">Direct pathways for Students, Farmers, and Agricultural Professors</p>
           </div>
         </div>
 
-        <div class="gv-card p-4 space-y-2.5 border-l-4 border-l-amber-500">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-extrabold text-[#14532D]">🌾 For Farmers (কৃষক বন্ধু)</h3>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-950">বাংলা সহায়ক</span>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Students Card -->
+          <div class="gv-role-card overflow-hidden flex flex-col">
+            <div class="h-1.5 bg-gradient-to-r from-[#14532D] to-[#22C55E]"></div>
+            <div class="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-10 h-10 rounded-xl gv-icon-box flex items-center justify-center shrink-0">${AGRI_ICONS.student}</span>
+                    <div>
+                      <h4 class="text-sm font-extrabold text-[#14532D]">For Students</h4>
+                      <div class="text-[11px] font-semibold text-[#15803D]">ছাত্র-ছাত্রী • B.Sc Agri</div>
+                    </div>
+                  </div>
+                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#14532D]">Education</span>
+                </div>
+                <p class="text-xs text-[#475569] leading-relaxed">Notes, ICAR syllabus, MCQ practice, Career Guidance with Professors &amp; Private Money Manager.</p>
+              </div>
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button data-nav="student" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Notes</button>
+                <button data-nav="career-guidance" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Career Guidance</button>
+                <button data-nav="money" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Money Manager</button>
+                <button data-nav="marketplace" type="button" class="px-3 py-1.5 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">Green Heaven</button>
+              </div>
+            </div>
           </div>
-          <p class="text-xs text-[#496052]">Live Weather &amp; Rain alerts, Crop Market Prices (বাজারদর), Expert Crop Advice, Green Heaven Store &amp; Private Farm Accounts.</p>
-          <div class="flex flex-wrap gap-1.5 pt-1">
-            <button data-nav="weather" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">আবহাওয়া</button>
-            <button data-nav="market" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">বাজারদর</button>
-            <button data-nav="farmer-advisor" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-extrabold">বিশেষজ্ঞ পরামর্শ</button>
-            <button data-nav="marketplace" class="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-[#0C3B20] text-xs font-extrabold">🌿 Green Heaven</button>
+
+          <!-- Farmers Card -->
+          <div class="gv-role-card overflow-hidden flex flex-col">
+            <div class="h-1.5 bg-gradient-to-r from-[#15803D] to-[#22C55E]"></div>
+            <div class="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-10 h-10 rounded-xl gv-icon-box flex items-center justify-center shrink-0">${AGRI_ICONS.farmer}</span>
+                    <div>
+                      <h4 class="text-sm font-extrabold text-[#14532D]">For Farmers</h4>
+                      <div class="text-[11px] font-semibold text-[#15803D]">কৃষক বন্ধু • বাংলা সহায়ক</div>
+                    </div>
+                  </div>
+                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#14532D]">Smart Farm</span>
+                </div>
+                <p class="text-xs text-[#475569] leading-relaxed">Live Weather &amp; Rain alerts, Crop Market Prices (বাজারদর), Expert Crop Advice, Green Heaven Store &amp; Private Farm Accounts.</p>
+              </div>
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button data-nav="weather" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">আবহাওয়া</button>
+                <button data-nav="market" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">বাজারদর</button>
+                <button data-nav="farmer-advisor" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">বিশেষজ্ঞ পরামর্শ</button>
+                <button data-nav="marketplace" type="button" class="px-3 py-1.5 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">Green Heaven</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Professors Card -->
+          <div class="gv-role-card overflow-hidden flex flex-col">
+            <div class="h-1.5 bg-gradient-to-r from-[#0F3D22] to-[#15803D]"></div>
+            <div class="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-10 h-10 rounded-xl gv-icon-box flex items-center justify-center shrink-0">${AGRI_ICONS.professor}</span>
+                    <div>
+                      <h4 class="text-sm font-extrabold text-[#14532D]">For Professors &amp; Experts</h4>
+                      <div class="text-[11px] font-semibold text-[#15803D]">Verified Faculty Desk</div>
+                    </div>
+                  </div>
+                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#14532D]">Faculty</span>
+                </div>
+                <p class="text-xs text-[#475569] leading-relaxed">Answer Student Career Guidance &amp; Farmer Advisor questions, host live Google Meet sessions &amp; track replies.</p>
+              </div>
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button data-nav="${isProf ? "professor" : "career-guidance"}" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">${isProf ? "Open Professor Dashboard" : "Faculty Directory"}</button>
+                <button data-nav="meeting" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Meeting Zone</button>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div class="gv-card p-4 space-y-2.5 border-l-4 border-l-indigo-600">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-extrabold text-[#14532D]">👨‍🏫 For Professors &amp; Experts</h3>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">Faculty</span>
-          </div>
-          <p class="text-xs text-[#496052]">Answer Student Career Guidance &amp; Farmer Advisor questions, host live Google Meet sessions &amp; track replies.</p>
-          <div class="flex flex-wrap gap-1.5 pt-1">
-            <button data-nav="${isProf ? "professor" : "career-guidance"}" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-extrabold">${isProf ? "Open Professor Dashboard" : "Faculty Directory"}</button>
-            <button data-nav="meeting" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-extrabold">Meeting Zone</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Featured Partner Store: Agricultural Marketplace – Green Heaven -->
-      <section class="relative overflow-hidden rounded-3xl border-2 border-[#1E7E45]/35 bg-gradient-to-br from-[#F0FDF4] via-white to-[#ECFDF5] p-5 sm:p-6 shadow-sm">
+      <!-- ==================== FEATURED OFFICIAL STORE: GREEN HEAVEN ==================== -->
+      <section class="relative overflow-hidden rounded-3xl border border-[#BBF7D0] bg-gradient-to-br from-[#ECFDF5] via-white to-[#F0FDF4] p-5 sm:p-6 shadow-[0_6px_22px_-10px_rgba(20,83,45,0.14)]">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div class="space-y-2.5 max-w-2xl">
-            <div class="flex flex-wrap items-center gap-2.5">
+          <div class="space-y-3 max-w-2xl">
+            <div class="flex flex-wrap items-center gap-3">
               ${GREEN_HEAVEN_LOGO_SVG}
               <div>
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-xs font-extrabold uppercase tracking-wider text-[#1E7E45]">GREEN HEAVEN • OFFICIAL STORE</span>
-                  <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-[#14532D] text-[10px] font-extrabold">No Login Required</span>
+                  <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">Green Heaven • Official Partner Store</span>
+                  <span class="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold">No Login Required</span>
                 </div>
-                <h3 class="font-display text-lg sm:text-xl font-bold text-[#14532D]">${escapeHtml(GREEN_HEAVEN_CONFIG.sectionTitle)}</h3>
+                <h3 class="font-display text-lg sm:text-xl font-bold text-[#14532D] mt-0.5">${escapeHtml(GREEN_HEAVEN_CONFIG.sectionTitle)}</h3>
               </div>
             </div>
-            <p class="text-xs sm:text-sm text-[#496052] leading-relaxed">
+            <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">
               Bring nature home with our official plant &amp; gardening marketplace. Explore live Indoor, Flowering, Succulent &amp; Outdoor plants, Gladiolus planting bulbs, organic Vermi Compost, and plant care guides—with independent cart &amp; checkout.
             </p>
             <div class="flex flex-wrap gap-1.5 pt-0.5">
               ${GREEN_HEAVEN_CONFIG.verifiedCategories.slice(0, 5).map((cat) => `
-                <a href="${escapeHtml(cat.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#D8F3DC] border border-[#CDE0D3] text-[#14532D] text-[11px] font-bold transition-colors">
+                <a href="${escapeHtml(cat.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold transition-colors">
                   <span>${cat.icon}</span><span>${escapeHtml(cat.name)}</span>
                 </a>
               `).join("")}
@@ -228,74 +386,98 @@ export function renderHomeView(state) {
           </div>
 
           <div class="flex flex-wrap sm:flex-nowrap lg:flex-col gap-2.5 shrink-0">
-            <a href="${escapeHtml(GREEN_HEAVEN_CONFIG.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs sm:text-sm font-extrabold shadow-md transition-colors">
-              <span>🌿 Shop Now at Green Heaven ↗</span>
+            <a href="${escapeHtml(GREEN_HEAVEN_CONFIG.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs sm:text-sm font-extrabold shadow-md transition-opacity">
+              <span>Shop Now at Green Heaven ↗</span>
             </a>
-            <button data-nav="marketplace" type="button" class="px-4 py-2.5 rounded-2xl bg-white hover:bg-[#EDF4EE] border border-[#CDE0D3] text-[#14532D] text-xs font-extrabold transition-colors">
+            <button data-nav="marketplace" type="button" class="px-4 py-2.5 rounded-2xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">
               Explore Marketplace Section →
             </button>
           </div>
         </div>
       </section>
 
-      <!-- Active Notices Banner -->
+      <!-- ==================== ACTIVE NOTICES & UPDATES ==================== -->
       ${activeNotices.length > 0 ? `
-        <div class="gv-card p-4 sm:p-5 space-y-2.5">
+        <section class="gv-card p-5 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <h3 class="text-sm font-extrabold uppercase tracking-wider text-[#14532D] flex items-center gap-2">
-              <span>📢</span> Latest Notices &amp; Updates
+              <span class="w-8 h-8 rounded-xl gv-icon-box inline-flex items-center justify-center">${AGRI_ICONS.bell}</span>
+              <span>Latest Notices &amp; Updates</span>
             </h3>
-            <span class="text-xs font-semibold text-[#496052]">${activeNotices.length} active</span>
+            <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-xs font-bold text-[#15803D]">${activeNotices.length} active</span>
           </div>
-          <div class="space-y-2">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             ${activeNotices.slice(0, 3).map((n) => `
-              <div class="rounded-2xl bg-[#FFFBEB] border border-amber-200/80 p-3.5">
+              <div class="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#BBF7D0] p-4 transition-colors space-y-1.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                  <span class="font-bold text-sm text-amber-950">${escapeHtml(n.title)}</span>
-                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-200/80 text-amber-950">${escapeHtml(n.audience || "ALL")}</span>
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#DCFCE7] text-[#14532D]">${escapeHtml(n.audience || "ALL")}</span>
                 </div>
-                <p class="text-xs sm:text-sm text-amber-900/90 mt-1 leading-relaxed">${escapeHtml(n.message)}</p>
+                <div class="font-bold text-sm text-[#0F172A] leading-snug">${escapeHtml(n.title)}</div>
+                <p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(n.message)}</p>
               </div>
             `).join("")}
           </div>
-        </div>
+        </section>
       ` : ""}
 
-      <!-- Complete Ecosystem Quick Launch Grid -->
-      <div>
-        <h3 class="text-base font-extrabold text-[#14532D] mb-3 px-1">Explore All Guru Ji Vision Services</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <!-- ==================== COMPLETE SMART AGRICULTURE ECOSYSTEM GRID ==================== -->
+      <section class="space-y-3.5">
+        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Explore Smart Agriculture Services</h3>
+            <p class="text-xs text-[#475569]">Digital farming tools, academic resources, precision calculators &amp; expert consultations</p>
+          </div>
+          <span class="text-[11px] font-bold text-[#15803D] bg-[#ECFDF5] border border-[#D9EAE0] px-3 py-1 rounded-full">${moduleCards.length} Integrated Modules</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
           ${moduleCards.map((c) => `
-            <button data-nav="${c.tab}" type="button" class="text-left p-4 rounded-2xl border ${c.bg} hover:shadow-md transition-all flex items-start gap-3.5">
-              <span class="text-2xl shrink-0 leading-none mt-0.5">${c.icon}</span>
-              <div class="min-w-0">
-                <div class="text-sm font-extrabold text-[#132219]">${escapeHtml(c.title)}</div>
-                <div class="text-xs text-[#496052] mt-0.5 leading-snug">${escapeHtml(c.sub)}</div>
+            <button data-nav="${c.tab}" type="button" class="gv-module-card group text-left p-4 sm:p-5 flex flex-col justify-between gap-3 ${c.featured ? "ring-2 ring-[#22C55E]/60 bg-gradient-to-br from-[#ECFDF5] to-white" : ""}">
+              <div class="flex items-start justify-between gap-3">
+                <span class="w-11 h-11 rounded-2xl gv-icon-box flex items-center justify-center shrink-0">
+                  ${c.icon}
+                </span>
+                <div class="flex items-center gap-1.5">
+                  ${c.badge ? `<span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">${escapeHtml(c.badge)}</span>` : ""}
+                  <span class="px-2 py-0.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[10px] font-bold text-[#15803D]">${escapeHtml(c.tag)}</span>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-sm font-extrabold text-[#0F172A] group-hover:text-[#14532D] transition-colors">${escapeHtml(c.title)}</div>
+                  <span class="text-[#94A3B8] group-hover:text-[#15803D] group-hover:translate-x-0.5 transition-all">${AGRI_ICONS.chevron}</span>
+                </div>
+                <div class="text-xs text-[#475569] leading-relaxed">${escapeHtml(c.sub)}</div>
               </div>
             </button>
           `).join("")}
         </div>
-      </div>
+      </section>
 
-      <!-- Direct WhatsApp Support & Official Group Bar -->
-      <div class="gv-card-tinted p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 class="text-base font-extrabold text-[#14532D]">Direct WhatsApp Helpline &amp; Official Community</h3>
-          <p class="text-xs sm:text-sm text-[#496052] mt-0.5">Need quick help with crop problems, study materials, or account guidance? Message us directly on WhatsApp.</p>
+      <!-- ==================== DIRECT WHATSAPP SUPPORT & OFFICIAL COMMUNITY ==================== -->
+      <section class="gv-card-tinted p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5 min-w-0">
+          <span class="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#15803D] to-[#22C55E] text-white flex items-center justify-center shadow-sm shrink-0">
+            ${AGRI_ICONS.message}
+          </span>
+          <div>
+            <h3 class="text-sm sm:text-base font-extrabold text-[#14532D]">Direct WhatsApp Helpline &amp; Official Community</h3>
+            <p class="text-xs sm:text-sm text-[#475569] mt-0.5">Need quick help with crop problems, study materials, or account guidance? Message us directly on WhatsApp.</p>
+          </div>
         </div>
         <div class="flex flex-wrap gap-2.5 shrink-0">
           ${waDirect ? `
             <a href="${escapeHtml(waDirect)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-              <span>💬 WhatsApp Help (${escapeHtml(settings.whatsappNumber)})</span>
+              <span>WhatsApp Help (${escapeHtml(settings.whatsappNumber)})</span>
             </a>
           ` : ""}
           ${waGroup ? `
-            <a href="${escapeHtml(waGroup)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+            <a href="${escapeHtml(waGroup)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0F3D22] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
               <span>Join Official Group</span>
             </a>
           ` : ""}
         </div>
-      </div>
+      </section>
     </div>
   `;
 }
