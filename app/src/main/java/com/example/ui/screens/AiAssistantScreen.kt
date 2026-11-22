@@ -9,6 +9,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,9 +19,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -59,6 +63,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.core.AppLanguage
@@ -71,6 +76,8 @@ import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.StatusPill
 import com.example.ui.components.decodeScaledBitmap
 import com.example.ui.components.openExternalUrl
+import com.example.ui.components.rememberDebouncedAction
+import com.example.ui.components.rememberResponsiveMetrics
 import com.example.viewmodel.AiAssistantUiState
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -125,20 +132,44 @@ fun AiAssistantScreen(
         )
     }
 
-    Column(
+    val debouncedSend = rememberDebouncedAction(debounceMs = 500L) {
+        if (!uiState.isLoading && (promptText.isNotBlank() || selectedBitmap != null)) {
+            val currentPrompt = promptText
+            val currentBmp = selectedBitmap
+            promptText = ""
+            selectedUri = null
+            selectedBitmap = null
+            onSendQuestion(currentPrompt, currentBmp, language)
+        }
+    }
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .imePadding()
     ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+        val chatMaxWidth = 840.dp
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         // Preserved Branded Header Strip (AI Guru – Free Tier)
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
             modifier = Modifier.fillMaxWidth()
         ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .widthIn(max = chatMaxWidth)
+                    .padding(horizontal = metrics.horizontalPadding, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
@@ -156,14 +187,16 @@ fun AiAssistantScreen(
                             contentDescription = "AI Guru",
                             tint = MaterialTheme.colorScheme.primary
                         )
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Column(modifier = Modifier.weight(1f)) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
                                     text = L10n.aiAssistant(language),
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 StatusPill(
                                     label = t(language, "FREE TIER", "ফ্রি"),
@@ -178,7 +211,9 @@ fun AiAssistantScreen(
                                     "ইংরেজি ও বাংলা • $knowledgeBaseCount টি যাচাইকৃত নোটস • আজ বাকি $remainingToday/$effectiveDailyLimit"
                                 ),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -231,6 +266,7 @@ fun AiAssistantScreen(
                     }
                 }
             }
+            }
         }
 
         // Chat Feed (Preserves Existing Chat History)
@@ -238,8 +274,9 @@ fun AiAssistantScreen(
             state = listState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(16.dp),
+                .fillMaxWidth()
+                .widthIn(max = chatMaxWidth),
+            contentPadding = metrics.screenContentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (uiState.errorMessage != null) {
@@ -285,10 +322,18 @@ fun AiAssistantScreen(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(quickPrompts) { preset ->
                             AssistChip(
+                                enabled = !uiState.isLoading,
                                 onClick = {
                                     onSendQuestion(preset, null, language)
                                 },
-                                label = { Text(preset, maxLines = 1) },
+                                label = {
+                                    Text(
+                                        text = preset,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 260.dp)
+                                    )
+                                },
                                 modifier = Modifier.testTag("ai_preset_chip")
                             )
                         }
@@ -302,7 +347,9 @@ fun AiAssistantScreen(
                         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                     ) {
                         Card(
-                            modifier = Modifier.fillMaxWidth(0.92f),
+                            modifier = Modifier
+                                .fillMaxWidth(0.88f)
+                                .widthIn(max = 600.dp),
                             shape = RoundedCornerShape(
                                 topStart = 18.dp,
                                 topEnd = 18.dp,
@@ -428,8 +475,15 @@ fun AiAssistantScreen(
             tonalElevation = 4.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = chatMaxWidth)
+                    .padding(horizontal = metrics.horizontalPadding, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (selectedUri != null) {
@@ -495,14 +549,7 @@ fun AiAssistantScreen(
                     )
 
                     IconButton(
-                        onClick = {
-                            val currentPrompt = promptText
-                            val currentBmp = selectedBitmap
-                            promptText = ""
-                            selectedUri = null
-                            selectedBitmap = null
-                            onSendQuestion(currentPrompt, currentBmp, language)
-                        },
+                        onClick = debouncedSend,
                         enabled = !uiState.isLoading && (promptText.isNotBlank() || selectedBitmap != null),
                         modifier = Modifier.testTag("ai_send_button")
                     ) {
@@ -518,6 +565,8 @@ fun AiAssistantScreen(
                     }
                 }
             }
+            }
+        }
         }
     }
 }

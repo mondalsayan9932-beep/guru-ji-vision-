@@ -3,18 +3,23 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -41,6 +46,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,6 +65,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.core.AppLanguage
@@ -73,7 +80,9 @@ import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.StatusPill
 import com.example.ui.components.openExternalUrl
+import com.example.ui.components.rememberResponsiveMetrics
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StudentHubScreen(
     profile: UserProfile?,
@@ -93,59 +102,67 @@ fun StudentHubScreen(
         mutableLongStateOf(profile?.semester?.takeIf { it in 1L..8L } ?: 0L) // 0 = All Semesters
     }
     var selectedCategory by remember { mutableStateOf("ALL") }
+    var visibleMaterialCount by remember(selectedSemester, selectedCategory) { mutableIntStateOf(20) }
 
     // Interactive MCQ exam session state
     val selectedAnswers = remember { mutableStateMapOf<String, Int>() }
     var examSubmitted by remember { mutableStateOf(false) }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+    ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TabRow(selectedTabIndex = selectedTab) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text(t(language, "Study Hub", "স্টাডি হাব")) },
+                text = { Text(t(language, "Study Hub", "স্টাডি হাব"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("student_tab_study")
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text(t(language, "MCQ Exam", "MCQ পরীক্ষা")) },
+                text = { Text(t(language, "MCQ Exam", "MCQ পরীক্ষা"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("student_tab_exam")
             )
             Tab(
                 selected = selectedTab == 2,
                 onClick = { selectedTab = 2 },
-                text = { Text(t(language, "My Scores", "আমার ফলাফল")) },
+                text = { Text(t(language, "My Scores", "আমার ফলাফল"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("student_tab_scores")
             )
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = metrics.contentMaxWidth),
+            contentPadding = metrics.screenContentPadding,
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)
         ) {
             // Editorial Banner + Student Money Manager CTA
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(156.dp)
                         .clip(MaterialTheme.shapes.large)
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_student_portal_art_1795234984986),
                         contentDescription = "B.Sc Agriculture Study Hub",
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.matchParentSize()
                     )
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .matchParentSize()
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
@@ -157,8 +174,9 @@ fun StudentHubScreen(
                     )
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
+                            .fillMaxWidth()
+                            .heightIn(min = 156.dp)
+                            .padding(metrics.cardPadding),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -177,9 +195,12 @@ fun StudentHubScreen(
                                 color = Color.White.copy(alpha = 0.9f)
                             )
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = onOpenMoneyManager,
-                            modifier = Modifier.testTag("student_open_money_manager_button"),
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag("student_open_money_manager_button"),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
@@ -188,7 +209,11 @@ fun StudentHubScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(L10n.moneyManager(language) + " (₹)")
+                            Text(
+                                text = L10n.moneyManager(language) + " (₹)",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -196,14 +221,11 @@ fun StudentHubScreen(
 
             // Quick shortcuts to Meeting Zone & Doubt Zone
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+                val meetingShortcut: @Composable (Modifier) -> Unit = { mod ->
                     OutlinedButton(
                         onClick = onOpenMeetingZone,
-                        modifier = Modifier
-                            .weight(1f)
+                        modifier = mod
+                            .heightIn(min = 48.dp)
                             .testTag("student_open_meeting_zone_button"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -213,12 +235,18 @@ fun StudentHubScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(L10n.meetingZone(language), maxLines = 1)
+                        Text(
+                            text = L10n.meetingZone(language),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
+                }
+                val doubtShortcut: @Composable (Modifier) -> Unit = { mod ->
                     Button(
                         onClick = onOpenDoubtZone,
-                        modifier = Modifier
-                            .weight(1f)
+                        modifier = mod
+                            .heightIn(min = 48.dp)
                             .testTag("student_open_doubt_zone_button"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -234,8 +262,26 @@ fun StudentHubScreen(
                             } else {
                                 L10n.doubtZone(language)
                             },
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                    }
+                }
+                if (metrics.isUltraCompact) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        meetingShortcut(Modifier.fillMaxWidth())
+                        doubtShortcut(Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        meetingShortcut(Modifier.weight(1f))
+                        doubtShortcut(Modifier.weight(1f))
                     }
                 }
             }
@@ -320,12 +366,58 @@ fun StudentHubScreen(
                                     )
                                 }
                             } else {
-                                items(filtered, key = { it.id }) { mat ->
-                                    StudyMaterialCard(
-                                        material = mat,
-                                        language = language,
-                                        onOpenResource = { openExternalUrl(context, mat.resourceUrl) }
-                                    )
+                                val displayedMaterials = filtered.take(visibleMaterialCount)
+                                if (metrics.gridColumns > 1) {
+                                    items(
+                                        items = displayedMaterials.chunked(metrics.gridColumns),
+                                        key = { row -> row.joinToString("_") { it.id } }
+                                    ) { rowMaterials ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            rowMaterials.forEach { mat ->
+                                                Box(modifier = Modifier.weight(1f)) {
+                                                    StudyMaterialCard(
+                                                        material = mat,
+                                                        language = language,
+                                                        onOpenResource = { openExternalUrl(context, mat.resourceUrl) }
+                                                    )
+                                                }
+                                            }
+                                            if (rowMaterials.size < metrics.gridColumns) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    items(displayedMaterials, key = { it.id }) { mat ->
+                                        StudyMaterialCard(
+                                            material = mat,
+                                            language = language,
+                                            onOpenResource = { openExternalUrl(context, mat.resourceUrl) }
+                                        )
+                                    }
+                                }
+                                if (filtered.size > visibleMaterialCount) {
+                                    item {
+                                        OutlinedButton(
+                                            onClick = { visibleMaterialCount += 20 },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(min = 48.dp)
+                                                .testTag("student_load_more_materials")
+                                        ) {
+                                            Text(
+                                                t(
+                                                    language,
+                                                    "Load more study materials (${filtered.size - visibleMaterialCount} more)",
+                                                    "আরও স্টাডি ম্যাটেরিয়াল দেখুন (আরও ${filtered.size - visibleMaterialCount} টি)"
+                                                )
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -372,9 +464,10 @@ fun StudentHubScreen(
                                             modifier = Modifier.padding(16.dp),
                                             verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Row(
+                                            FlowRow(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 StatusPill(
                                                     label = "Sem ${q.semester} • ${q.subject}",
@@ -397,7 +490,14 @@ fun StudentHubScreen(
                                             )
                                             q.options.forEachIndexed { idx, opt ->
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .clickable(enabled = !examSubmitted) {
+                                                            selectedAnswers[q.id] = idx
+                                                        }
+                                                        .minimumInteractiveComponentSize()
+                                                        .padding(end = 8.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     RadioButton(
@@ -417,7 +517,8 @@ fun StudentHubScreen(
                                                         },
                                                         fontWeight = if (examSubmitted && idx.toLong() == q.correctIndex) {
                                                             FontWeight.Bold
-                                                        } else FontWeight.Normal
+                                                        } else FontWeight.Normal,
+                                                        modifier = Modifier.weight(1f)
                                                     )
                                                 }
                                             }
@@ -449,11 +550,16 @@ fun StudentHubScreen(
                                             enabled = !examSubmitted && selectedAnswers.isNotEmpty(),
                                             modifier = Modifier
                                                 .weight(1f)
+                                                .heightIn(min = 48.dp)
                                                 .testTag("submit_mcq_exam_button")
                                         ) {
                                             Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                                             Spacer(Modifier.width(6.dp))
-                                            Text(t(language, "Submit & Save Score", "জমা দিন ও স্কোর সেভ করুন"))
+                                            Text(
+                                                text = t(language, "Submit & Save Score", "জমা দিন ও স্কোর সেভ করুন"),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                         if (examSubmitted) {
                                             OutlinedButton(
@@ -461,7 +567,9 @@ fun StudentHubScreen(
                                                     selectedAnswers.clear()
                                                     examSubmitted = false
                                                 },
-                                                modifier = Modifier.testTag("retake_mcq_exam_button")
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("retake_mcq_exam_button")
                                             ) {
                                                 Text(t(language, "Retake", "আবার দিন"))
                                             }
@@ -536,6 +644,7 @@ fun StudentHubScreen(
                 }
             }
         }
+    }
     }
 }
 

@@ -10,18 +10,20 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.R
@@ -80,6 +83,7 @@ import com.example.ui.components.StatusPill
 import com.example.ui.components.WhatsAppSupportButton
 import com.example.ui.components.decodeScaledBitmap
 import com.example.ui.components.openWhatsAppGroupInvite
+import com.example.ui.components.rememberResponsiveMetrics
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -118,48 +122,55 @@ fun FarmerHubScreen(
         pickedBitmap = uri?.let { decodeScaledBitmap(context, it, maxDimPx = 960) }
     }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+    ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TabRow(selectedTabIndex = selectedTab) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text(t(language, "My Crop Queries", "আমার ফসল প্রশ্ন")) },
+                text = { Text(t(language, "My Crop Queries", "আমার ফসল প্রশ্ন"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("farmer_tab_queries")
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text(t(language, "Crop & Pest Guide", "ফসল ও রোগ নির্দেশিকা")) },
+                text = { Text(t(language, "Crop & Pest Guide", "ফসল ও রোগ নির্দেশিকা"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("farmer_tab_guide")
             )
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = metrics.contentMaxWidth),
+            contentPadding = metrics.screenContentPadding,
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)
         ) {
             // Editorial Farmer Banner + Direct WhatsApp Support
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(158.dp)
                         .clip(MaterialTheme.shapes.large)
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_farmer_support_art_1795235007622),
                         contentDescription = "Farmer Support Banner",
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.matchParentSize()
                     )
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .matchParentSize()
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
@@ -171,8 +182,9 @@ fun FarmerHubScreen(
                     )
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
+                            .fillMaxWidth()
+                            .heightIn(min = 164.dp)
+                            .padding(metrics.cardPadding),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -191,6 +203,7 @@ fun FarmerHubScreen(
                                 color = Color.White.copy(alpha = 0.9f)
                             )
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
                         WhatsAppSupportButton(
                             onClick = {
                                 openWhatsAppGroupInvite(
@@ -274,13 +287,18 @@ fun FarmerHubScreen(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                         )
                                     },
-                                    modifier = Modifier.testTag("farmer_pick_photo_button")
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 48.dp)
+                                        .testTag("farmer_pick_photo_button")
                                 ) {
                                     Icon(Icons.Filled.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text(
-                                        if (pickedPhotoUri != null) t(language, "Change Photo", "ছবি বদলান")
-                                        else t(language, "Attach Crop Photo (AI Pre-Scan)", "ফসলের ছবি যোগ করুন")
+                                        text = if (pickedPhotoUri != null) t(language, "Change Photo", "ছবি বদলান")
+                                        else t(language, "Attach Crop Photo (AI Pre-Scan)", "ফসলের ছবি যোগ করুন"),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 if (pickedPhotoUri != null) {
@@ -379,11 +397,17 @@ fun FarmerHubScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
+                                            FlowRow(
+                                                modifier = Modifier.weight(1f),
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                Text(q.cropName, style = MaterialTheme.typography.titleMedium)
+                                                Text(
+                                                    text = q.cropName,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
                                                 StatusPill(q.status, statusColor.first, statusColor.second)
                                             }
                                             if (q.status == "OPEN") {
@@ -451,58 +475,71 @@ fun FarmerHubScreen(
                         subtitle = t(language, "Standard ICAR reference parameters for field crops", "প্রধান ফসলের সার, রোগ ও সমন্বিত বালাই ব্যবস্থাপনা")
                     )
                 }
-                items(AgriKnowledgeBase.crops) { crop ->
-                    Card(
+                items(AgriKnowledgeBase.crops.chunked(metrics.gridColumns)) { cropRow ->
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        cropRow.forEach { crop ->
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.medium,
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                             ) {
-                                Text(
-                                    text = if (language == AppLanguage.BN) "${crop.nameBn} (${crop.nameEn})" else crop.nameEn,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Icon(Icons.Filled.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                                Column(
+                                    modifier = Modifier.padding(metrics.cardPadding),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = if (language == AppLanguage.BN) "${crop.nameBn} (${crop.nameEn})" else crop.nameEn,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Icon(Icons.Filled.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                                    }
+                                    Text(
+                                        text = "Season: ${crop.season} | Soil pH: ${crop.soilPh}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "Recommended NPK: ${crop.npkPerHa.first.toInt()}:${crop.npkPerHa.second.toInt()}:${crop.npkPerHa.third.toInt()} kg/ha | Seed Rate: ${crop.seedRateKgPerHa}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Major Diseases: ${crop.majorDiseases.joinToString(", ")}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Text(
+                                        text = "Major Pests: ${crop.majorPests.joinToString(", ")}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                    Text(
+                                        text = "IPM & Fertilizer Guidance: ${crop.ipmGuidance}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                            Text(
-                                text = "Season: ${crop.season} | Soil pH: ${crop.soilPh}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Recommended NPK: ${crop.npkPerHa.first.toInt()}:${crop.npkPerHa.second.toInt()}:${crop.npkPerHa.third.toInt()} kg/ha | Seed Rate: ${crop.seedRateKgPerHa}",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Major Diseases: ${crop.majorDiseases.joinToString(", ")}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Text(
-                                text = "Major Pests: ${crop.majorPests.joinToString(", ")}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                            Text(
-                                text = "IPM & Fertilizer Guidance: ${crop.ipmGuidance}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        }
+                        if (cropRow.size < metrics.gridColumns) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
         }
+    }
     }
 }

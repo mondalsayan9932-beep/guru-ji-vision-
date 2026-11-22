@@ -1,25 +1,30 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -44,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.core.AppLanguage
 import com.example.core.L10n
@@ -66,6 +73,7 @@ import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.StatusPill
+import com.example.ui.components.rememberResponsiveMetrics
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -162,6 +170,9 @@ fun MoneyManagerScreen(
     var editingTx by remember { mutableStateOf<MoneyTransaction?>(null) }
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var editingGoal by remember { mutableStateOf<FinancialGoal?>(null) }
+    var visibleTxCount by remember { mutableIntStateOf(25) }
+
+    BackHandler { onBack() }
 
     val transactions = (transactionsState as? UiState.Success)?.data.orEmpty()
     val goals = (goalsState as? UiState.Success)?.data.orEmpty()
@@ -185,12 +196,20 @@ fun MoneyManagerScreen(
             .sortedByDescending { it.second }
     }
 
-    LazyColumn(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentAlignment = Alignment.TopCenter
+    ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .widthIn(max = 960.dp),
+        contentPadding = metrics.screenContentPadding,
+        verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)
     ) {
         // Header with Back + Privacy Shield
         item {
@@ -303,14 +322,11 @@ fun MoneyManagerScreen(
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+                    val addEntryBtn: @Composable (Modifier) -> Unit = { mod ->
                         Button(
                             onClick = { showAddTxDialog = true },
-                            modifier = Modifier
-                                .weight(1f)
+                            modifier = mod
+                                .heightIn(min = 48.dp)
                                 .testTag("money_add_tx_button"),
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                                 containerColor = Color.White,
@@ -319,11 +335,19 @@ fun MoneyManagerScreen(
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(t(language, "Add Entry", "লেনদেন যোগ করুন"))
+                            Text(
+                                text = t(language, "Add Entry", "লেনদেন যোগ করুন"),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
+                    }
+                    val addGoalBtn: @Composable (Modifier) -> Unit = { mod ->
                         OutlinedButton(
                             onClick = { showAddGoalDialog = true },
-                            modifier = Modifier.testTag("money_add_goal_button"),
+                            modifier = mod
+                                .heightIn(min = 48.dp)
+                                .testTag("money_add_goal_button"),
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f))
                         ) {
                             Icon(
@@ -333,7 +357,30 @@ fun MoneyManagerScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(t(language, "Budget / Goal", "বাজেট / লক্ষ্য"), color = Color.White)
+                            Text(
+                                text = t(language, "Budget / Goal", "বাজেট / লক্ষ্য"),
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    if (metrics.isUltraCompact) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            addEntryBtn(Modifier.fillMaxWidth())
+                            addGoalBtn(Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            addEntryBtn(Modifier.weight(1f))
+                            addGoalBtn(Modifier.weight(1f))
                         }
                     }
                 }
@@ -522,7 +569,8 @@ fun MoneyManagerScreen(
                         )
                     }
                 } else {
-                    items(transactions, key = { it.id }) { tx ->
+                    val displayedTx = transactions.take(visibleTxCount)
+                    items(displayedTx, key = { it.id }) { tx ->
                         val isIncome = tx.type == "INCOME"
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -539,10 +587,13 @@ fun MoneyManagerScreen(
                             ) {
                                 Column(
                                     modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(tx.title, style = MaterialTheme.typography.titleSmall)
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
                                         StatusPill(
                                             label = tx.category.replace('_', ' '),
                                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -551,8 +602,7 @@ fun MoneyManagerScreen(
                                         Text(
                                             text = tx.dateLabel,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.align(Alignment.CenterVertically)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     if (!tx.sharedWith.isNullOrBlank()) {
@@ -605,9 +655,29 @@ fun MoneyManagerScreen(
                             }
                         }
                     }
+                    if (transactions.size > visibleTxCount) {
+                        item {
+                            OutlinedButton(
+                                onClick = { visibleTxCount += 25 },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .testTag("money_load_more_tx")
+                            ) {
+                                Text(
+                                    t(
+                                        language,
+                                        "Show more records (${transactions.size - visibleTxCount} remaining)",
+                                        "আরও রেকর্ড দেখুন (বাকি ${transactions.size - visibleTxCount} টি)"
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
     }
 
     if (showAddTxDialog) {
@@ -623,8 +693,14 @@ fun MoneyManagerScreen(
             onDismissRequest = { showAddTxDialog = false },
             title = { Text(t(language, "Record Private Entry (₹)", "নতুন আয় / ব্যয় যোগ করুন (₹)")) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         FilterChip(
                             selected = txType == "EXPENSE",
                             onClick = {
@@ -729,8 +805,14 @@ fun MoneyManagerScreen(
             onDismissRequest = { showAddGoalDialog = false },
             title = { Text(t(language, "Set Budget or Savings Goal (₹)", "বাজেট বা সঞ্চয় লক্ষ্য সেট করুন (₹)")) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         FilterChip(
                             selected = kind == "MONTHLY_BUDGET",
                             onClick = { kind = "MONTHLY_BUDGET" },
@@ -798,8 +880,14 @@ fun MoneyManagerScreen(
             onDismissRequest = { editingTx = null },
             title = { Text(t(language, "Edit Personal Record (₹)", "ব্যক্তিগত লেনদেন এডিট করুন (₹)")) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         FilterChip(
                             selected = txType == "EXPENSE",
                             onClick = {
@@ -915,8 +1003,14 @@ fun MoneyManagerScreen(
             onDismissRequest = { editingGoal = null },
             title = { Text(t(language, "Edit Budget or Savings Goal (₹)", "বাজেট বা সঞ্চয় লক্ষ্য এডিট করুন (₹)")) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         FilterChip(
                             selected = kind == "MONTHLY_BUDGET",
                             onClick = { kind = "MONTHLY_BUDGET" },

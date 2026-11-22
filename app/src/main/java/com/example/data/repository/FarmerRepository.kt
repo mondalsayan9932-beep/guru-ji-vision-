@@ -35,6 +35,7 @@ class FarmerRepository(
         emitAll(
             db.collection("farmerQueries")
                 .whereEqualTo("userId", uid)
+                .limit(100)
                 .snapshots()
                 .map { snap ->
                     snap.toObjects(
@@ -61,6 +62,7 @@ class FarmerRepository(
         val path = "farmerQueries"
         emitAll(
             db.collection("farmerQueries")
+                .limit(250)
                 .snapshots()
                 .map { snap ->
                     snap.toObjects(

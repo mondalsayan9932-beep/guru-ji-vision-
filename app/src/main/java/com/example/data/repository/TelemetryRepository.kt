@@ -303,7 +303,7 @@ class TelemetryRepository(
         val uid = requireUserId()
         val path = "activityEvents"
         emitAll(
-            db.collection(path).snapshots()
+            db.collection(path).limit(300).snapshots()
                 .map { snap ->
                     snap.toObjects(
                         ActivityEvent::class.java,
@@ -328,7 +328,7 @@ class TelemetryRepository(
         val uid = requireUserId()
         val path = "examStats"
         emitAll(
-            db.collection(path).snapshots()
+            db.collection(path).limit(300).snapshots()
                 .map { snap ->
                     snap.toObjects(
                         ExamStat::class.java,
@@ -353,7 +353,7 @@ class TelemetryRepository(
         val uid = requireUserId()
         val path = "aiUsageLogs"
         emitAll(
-            db.collection(path).snapshots()
+            db.collection(path).limit(300).snapshots()
                 .map { snap ->
                     snap.toObjects(
                         AiUsageLog::class.java,
@@ -378,7 +378,7 @@ class TelemetryRepository(
         val uid = requireUserId()
         val path = "errorLogs"
         emitAll(
-            db.collection(path).snapshots()
+            db.collection(path).limit(200).snapshots()
                 .map { snap ->
                     snap.toObjects(
                         ErrorLog::class.java,
@@ -403,7 +403,7 @@ class TelemetryRepository(
         val uid = requireUserId()
         val path = "contentReports"
         emitAll(
-            db.collection(path).snapshots()
+            db.collection(path).limit(200).snapshots()
                 .map { snap ->
                     snap.toObjects(
                         ContentReport::class.java,
@@ -460,7 +460,7 @@ class TelemetryRepository(
         val uid = requireUserId()
         val path = "adminAuditLogs"
         emitAll(
-            db.collection(path).snapshots()
+            db.collection(path).limit(200).snapshots()
                 .map { snap ->
                     snap.toObjects(
                         AdminAuditLog::class.java,

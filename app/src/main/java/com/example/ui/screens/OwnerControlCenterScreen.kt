@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -63,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.ReportTimeframe
@@ -73,6 +77,7 @@ import com.example.data.model.UiState
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.PrivacyGuardBadge
 import com.example.ui.components.StatusPill
+import com.example.ui.components.rememberResponsiveMetrics
 import com.example.viewmodel.OwnerControlViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -97,7 +102,7 @@ private val ownerSections = listOf(
     OwnerSectionDef(4, "Controls & Staff", "Controls", Icons.Filled.Tune, "owner_sec_controls")
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun OwnerControlCenterScreen(
     isFounder: Boolean,
@@ -213,11 +218,18 @@ fun OwnerControlCenterScreen(
                 ),
                 title = {
                     Column {
-                        Text("Owner Monitoring & Control", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Owner Monitoring & Control",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Text(
                             "Guru Ji Vision • Super Admin Live Telemetry",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.85f)
+                            color = Color.White.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 },
@@ -249,8 +261,10 @@ fun OwnerControlCenterScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            val metrics = rememberResponsiveMetrics(maxWidth)
             val isDesktopOrTablet = maxWidth >= 840.dp
             val isWide = maxWidth >= 600.dp
+            val stackCmsAction = maxWidth < 400.dp
 
             Row(modifier = Modifier.fillMaxSize()) {
                 if (isDesktopOrTablet) {
@@ -281,7 +295,7 @@ fun OwnerControlCenterScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .widthIn(max = 1120.dp),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = metrics.screenContentPadding,
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // Compact / Phone Section Navigation Chips
@@ -315,10 +329,10 @@ fun OwnerControlCenterScreen(
                                     modifier = Modifier.padding(14.dp),
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Row(
+                                    FlowRow(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
@@ -345,35 +359,91 @@ fun OwnerControlCenterScreen(
                                         }
                                     }
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                csvExportLauncher.launch("GuruJiVision_Report_${selectedTimeframe.name}_$fileStamp.csv")
-                                            },
-                                            modifier = Modifier.weight(1f).testTag("owner_export_csv_button")
+                                    if (stackCmsAction) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(4.dp))
-                                            Text("Export CSV", maxLines = 1)
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        csvExportLauncher.launch("GuruJiVision_Report_${selectedTimeframe.name}_$fileStamp.csv")
+                                                    },
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .heightIn(min = 48.dp)
+                                                        .testTag("owner_export_csv_button")
+                                                ) {
+                                                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text("CSV", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        pdfExportLauncher.launch("GuruJiVision_Report_${selectedTimeframe.name}_$fileStamp.pdf")
+                                                    },
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .heightIn(min = 48.dp)
+                                                        .testTag("owner_export_pdf_button")
+                                                ) {
+                                                    Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text("PDF", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                }
+                                            }
+                                            OutlinedButton(
+                                                onClick = onOpenAdminContentConsole,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("owner_open_cms_button")
+                                            ) {
+                                                Text("Open Admin CMS", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
                                         }
-                                        Button(
-                                            onClick = {
-                                                pdfExportLauncher.launch("GuruJiVision_Report_${selectedTimeframe.name}_$fileStamp.pdf")
-                                            },
-                                            modifier = Modifier.weight(1f).testTag("owner_export_pdf_button")
+                                    } else {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(4.dp))
-                                            Text("Export PDF", maxLines = 1)
-                                        }
-                                        OutlinedButton(
-                                            onClick = onOpenAdminContentConsole,
-                                            modifier = Modifier.testTag("owner_open_cms_button")
-                                        ) {
-                                            Text("CMS", maxLines = 1)
+                                            OutlinedButton(
+                                                onClick = {
+                                                    csvExportLauncher.launch("GuruJiVision_Report_${selectedTimeframe.name}_$fileStamp.csv")
+                                                },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("owner_export_csv_button")
+                                            ) {
+                                                Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("Export CSV", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    pdfExportLauncher.launch("GuruJiVision_Report_${selectedTimeframe.name}_$fileStamp.pdf")
+                                                },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("owner_export_pdf_button")
+                                            ) {
+                                                Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("Export PDF", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                            OutlinedButton(
+                                                onClick = onOpenAdminContentConsole,
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("owner_open_cms_button")
+                                            ) {
+                                                Text("CMS", maxLines = 1)
+                                            }
                                         }
                                     }
                                 }

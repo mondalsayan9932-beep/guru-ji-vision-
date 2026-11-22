@@ -15,15 +15,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -57,15 +65,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -99,6 +110,8 @@ import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.StatusPill
 import com.example.ui.components.decodeScaledBitmap
+import com.example.ui.components.rememberDebouncedAction
+import com.example.ui.components.rememberResponsiveMetrics
 import com.example.viewmodel.ActiveChatSession
 import com.example.viewmodel.DoubtZoneViewModel
 import java.text.SimpleDateFormat
@@ -174,6 +187,7 @@ fun DoubtZoneScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
         val isTwoPane = maxWidth >= 840.dp
 
         // On compact phones, pressing system back closes the active chat back to the directory/inbox
@@ -284,11 +298,17 @@ fun DoubtZoneScreen(
 
                     // Tabs: Faculty Directory | My Chats | (Professor Inbox if authorized faculty)
                     val safeTab = if (!facultyIdentity.isAuthorizedProfessor && selectedTab == 2) 0 else selectedTab
-                    TabRow(selectedTabIndex = safeTab) {
+                    val tabsContent: @Composable () -> Unit = {
                         Tab(
                             selected = safeTab == 0,
                             onClick = { selectedTab = 0 },
-                            text = { Text("${t(language, "Professors", "অধ্যাপক")} (${professors.size})", maxLines = 1) },
+                            text = {
+                                Text(
+                                    text = "${t(language, "Professors", "অধ্যাপক")} (${professors.size})",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
                             modifier = Modifier.testTag("doubt_tab_professors")
                         )
                         Tab(
@@ -299,7 +319,11 @@ fun DoubtZoneScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Text(t(language, "My Chats", "আমার চ্যাট"), maxLines = 1)
+                                    Text(
+                                        text = t(language, "My Chats", "আমার চ্যাট"),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                     if (studentUnreadTotal > 0) {
                                         Badge(containerColor = MaterialTheme.colorScheme.error) {
                                             Text("$studentUnreadTotal", color = Color.White)
@@ -318,7 +342,11 @@ fun DoubtZoneScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        Text(t(language, "Inbox", "শিক্ষার্থী প্রশ্ন"), maxLines = 1)
+                                        Text(
+                                            text = t(language, "Inbox", "শিক্ষার্থী প্রশ্ন"),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                         if (profUnreadTotal > 0) {
                                             Badge(containerColor = MaterialTheme.colorScheme.error) {
                                                 Text("$profUnreadTotal", color = Color.White)
@@ -328,6 +356,15 @@ fun DoubtZoneScreen(
                                 },
                                 modifier = Modifier.testTag("doubt_tab_prof_inbox")
                             )
+                        }
+                    }
+                    if (metrics.isUltraCompact && facultyIdentity.isAuthorizedProfessor) {
+                        ScrollableTabRow(selectedTabIndex = safeTab, edgePadding = 8.dp) {
+                            tabsContent()
+                        }
+                    } else {
+                        TabRow(selectedTabIndex = safeTab) {
+                            tabsContent()
                         }
                     }
 
@@ -350,7 +387,7 @@ fun DoubtZoneScreen(
 
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(16.dp),
+                                contentPadding = metrics.screenContentPadding,
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 item {
@@ -410,7 +447,7 @@ fun DoubtZoneScreen(
                                     } else {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(16.dp),
+                                            contentPadding = metrics.screenContentPadding,
                                             verticalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             items(state.data, key = { it.id }) { thread ->
@@ -455,7 +492,7 @@ fun DoubtZoneScreen(
                                     } else {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(16.dp),
+                                            contentPadding = metrics.screenContentPadding,
                                             verticalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             items(state.data, key = { it.id }) { thread ->
@@ -531,6 +568,7 @@ fun DoubtZoneScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProfessorProfileCard(
     professor: ProfessorProfile,
@@ -624,9 +662,10 @@ private fun ProfessorProfileCard(
             }
 
             // Metadata Chips — strictly showing only provided fields (never inventing missing ones)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 StatusPill(
                     label = "Dept: ${professor.department}",
@@ -687,11 +726,16 @@ private fun ProfessorProfileCard(
                 onClick = onAskDoubt,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 48.dp)
                     .testTag("ask_doubt_${professor.id}")
             ) {
                 Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(t(language, "Ask Doubt / Start Chat", "প্রশ্ন করুন / চ্যাট শুরু করুন"))
+                Text(
+                    text = t(language, "Ask Doubt / Start Chat", "প্রশ্ন করুন / চ্যাট শুরু করুন"),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -819,11 +863,28 @@ private fun PrivateChatRoomPane(
     }
 
     val messages = (messagesState as? UiState.Success)?.data.orEmpty()
+    var visibleLimit by remember(session.chatId) { mutableIntStateOf(40) }
+    val visibleMessages = remember(messages, visibleLimit) {
+        if (messages.size > visibleLimit) messages.takeLast(visibleLimit) else messages
+    }
+    val hiddenCount = (messages.size - visibleMessages.size).coerceAtLeast(0)
     val listState = rememberLazyListState()
 
+    val debouncedSend = rememberDebouncedAction(debounceMs = 500L) {
+        val txt = draftText
+        val img = attachedBitmap
+        if (!sending && (txt.isNotBlank() || img != null)) {
+            onSend(txt, img) {
+                draftText = ""
+                attachedBitmap = null
+            }
+        }
+    }
+
     LaunchedEffect(session.chatId, messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+        if (visibleMessages.isNotEmpty()) {
+            val targetIdx = visibleMessages.lastIndex + if (hiddenCount > 0) 1 else 0
+            listState.animateScrollToItem(targetIdx)
             onMarkRead(messages)
         }
     }
@@ -841,6 +902,7 @@ private fun PrivateChatRoomPane(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -875,6 +937,8 @@ private fun PrivateChatRoomPane(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
+                .imePadding()
+                .navigationBarsPadding()
         ) {
             // Private encryption/isolation reminder banner
             Surface(
@@ -926,10 +990,33 @@ private fun PrivateChatRoomPane(
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(14.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(messages, key = { it.id }) { msg ->
+                                if (hiddenCount > 0) {
+                                    item(key = "load_earlier_messages") {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            TextButton(
+                                                onClick = { visibleLimit += 40 },
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("chat_load_earlier_button")
+                                            ) {
+                                                Text(
+                                                    t(
+                                                        language,
+                                                        "Load earlier messages ($hiddenCount more)",
+                                                        "আগের বার্তাগুলো দেখুন (আরও $hiddenCount টি)"
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                items(visibleMessages, key = { it.id }) { msg ->
                                     val isMine = msg.senderId == currentUserId
                                     ChatMessageBubble(
                                         message = msg,
@@ -1021,14 +1108,7 @@ private fun PrivateChatRoomPane(
                 )
 
                 IconButton(
-                    onClick = {
-                        val txt = draftText
-                        val img = attachedBitmap
-                        onSend(txt, img) {
-                            draftText = ""
-                            attachedBitmap = null
-                        }
-                    },
+                    onClick = debouncedSend,
                     enabled = !sending && (draftText.isNotBlank() || attachedBitmap != null),
                     modifier = Modifier.testTag("chat_send_button")
                 ) {
@@ -1093,7 +1173,9 @@ private fun ChatMessageBubble(
         horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start
     ) {
         Card(
-            modifier = Modifier.widthIn(max = 310.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.84f)
+                .widthIn(max = 460.dp),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -1116,18 +1198,21 @@ private fun ChatMessageBubble(
                         text = if (isMine) "You" else message.senderName,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = metaColor
+                        color = metaColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                     if (isMine && message.id.isNotBlank()) {
                         IconButton(
                             onClick = onDeleteOwn,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.minimumInteractiveComponentSize()
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteOutline,
                                 contentDescription = "Delete own message",
                                 tint = metaColor,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

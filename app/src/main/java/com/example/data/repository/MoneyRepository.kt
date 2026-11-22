@@ -34,6 +34,7 @@ class MoneyRepository(
         val path = "users/$uid/transactions"
         emitAll(
             db.collection("users").document(uid).collection("transactions")
+                .limit(300)
                 .snapshots()
                 .map { snap ->
                     snap.toObjects(
@@ -61,6 +62,7 @@ class MoneyRepository(
         val path = "users/$uid/budgets"
         emitAll(
             db.collection("users").document(uid).collection("budgets")
+                .limit(100)
                 .snapshots()
                 .map { snap ->
                     snap.toObjects(

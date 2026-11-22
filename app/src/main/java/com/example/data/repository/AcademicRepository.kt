@@ -38,9 +38,9 @@ class AcademicRepository(
         val uid = requireUserId()
         val path = "studyMaterials"
         val query = if (includeUnpublishedForAdmin) {
-            db.collection(path)
+            db.collection(path).limit(200)
         } else {
-            db.collection(path).whereEqualTo("published", true)
+            db.collection(path).whereEqualTo("published", true).limit(200)
         }
         emitAll(
             query.snapshots()
@@ -128,9 +128,9 @@ class AcademicRepository(
         val uid = requireUserId()
         val path = "quizzes"
         val query = if (includeUnpublishedForAdmin) {
-            db.collection(path)
+            db.collection(path).limit(250)
         } else {
-            db.collection(path).whereEqualTo("published", true)
+            db.collection(path).whereEqualTo("published", true).limit(250)
         }
         emitAll(
             query.snapshots()
@@ -160,6 +160,7 @@ class AcademicRepository(
         val path = "users/$uid/quizAttempts"
         emitAll(
             db.collection("users").document(uid).collection("quizAttempts")
+                .limit(100)
                 .snapshots()
                 .map { snap ->
                     snap.toObjects(
@@ -264,9 +265,9 @@ class AcademicRepository(
         val uid = requireUserId()
         val path = "careerOpportunities"
         val query = if (includeUnpublishedForAdmin) {
-            db.collection(path)
+            db.collection(path).limit(150)
         } else {
-            db.collection(path).whereEqualTo("published", true)
+            db.collection(path).whereEqualTo("published", true).limit(150)
         }
         emitAll(
             query.snapshots()
@@ -349,9 +350,9 @@ class AcademicRepository(
         val uid = requireUserId()
         val path = "communityPosts"
         val query = if (includeHiddenForAdmin) {
-            db.collection(path)
+            db.collection(path).limit(200)
         } else {
-            db.collection(path).whereEqualTo("status", "ACTIVE")
+            db.collection(path).whereEqualTo("status", "ACTIVE").limit(200)
         }
         emitAll(
             query.snapshots()
@@ -456,9 +457,9 @@ class AcademicRepository(
         val uid = requireUserId()
         val path = "announcements"
         val query = if (includeInactiveForAdmin) {
-            db.collection(path)
+            db.collection(path).limit(100)
         } else {
-            db.collection(path).whereEqualTo("active", true)
+            db.collection(path).whereEqualTo("active", true).limit(100)
         }
         emitAll(
             query.snapshots()

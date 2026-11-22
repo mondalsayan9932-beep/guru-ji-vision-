@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -57,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import com.example.R
@@ -70,6 +73,7 @@ import com.example.ui.components.LanguageTogglePill
 import com.example.ui.components.OFFICIAL_WHATSAPP_GROUP_INVITE_URL
 import com.example.ui.components.WhatsAppSupportButton
 import com.example.ui.components.openWhatsAppGroupInvite
+import com.example.ui.components.rememberResponsiveMetrics
 
 @Composable
 fun AuthScreen(
@@ -97,20 +101,23 @@ fun AuthScreen(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
         contentAlignment = Alignment.TopCenter
     ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+        val useCompactLang = maxWidth < 380.dp
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(horizontal = metrics.horizontalPadding, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Top bar with brand icon & bilingual pill
             Row(
@@ -119,6 +126,7 @@ fun AuthScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -126,42 +134,50 @@ fun AuthScreen(
                         painter = painterResource(id = R.drawable.ic_guruji_logo_clean),
                         contentDescription = "Guru Ji Vision Emblem",
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(42.dp)
                             .clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop
                     )
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = L10n.brandName(language),
                             style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = t(language, "India Agri-Edu Ecosystem", "ভারতীয় কৃষি ও শিক্ষা প্ল্যাটফর্ম"),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
-                LanguageTogglePill(language = language, onToggle = onLanguageChange)
+                Spacer(modifier = Modifier.width(8.dp))
+                LanguageTogglePill(
+                    language = language,
+                    onToggle = onLanguageChange,
+                    compact = useCompactLang
+                )
             }
 
             // Hero Agricultural Artwork Card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
                     .clip(MaterialTheme.shapes.large)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.img_hero_agri_banner_1795234984548),
                     contentDescription = "Sunlit Indian green paddy fields",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.matchParentSize()
                 )
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .matchParentSize()
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
@@ -173,9 +189,10 @@ fun AuthScreen(
                 )
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .fillMaxWidth()
+                        .heightIn(min = if (metrics.isUltraCompact) 196.dp else 220.dp)
+                        .padding(if (metrics.isUltraCompact) 16.dp else 20.dp),
+                    verticalArrangement = Arrangement.Bottom
                 ) {
                     Surface(
                         shape = RoundedCornerShape(50),
@@ -186,9 +203,12 @@ fun AuthScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = t(
                             language,

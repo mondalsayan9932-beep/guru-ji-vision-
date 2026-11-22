@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.AppLanguage
@@ -83,6 +86,7 @@ import com.example.data.model.isValidGoogleMeetUrl
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.StatusPill
+import com.example.ui.components.rememberResponsiveMetrics
 import com.example.viewmodel.MeetingZoneViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -217,6 +221,9 @@ fun MeetingZoneScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            val metrics = rememberResponsiveMetrics(maxWidth)
+            val meetingCols = if (maxWidth >= 720.dp) 2 else 1
+
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopCenter
@@ -224,28 +231,22 @@ fun MeetingZoneScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .widthIn(max = 900.dp)
+                        .widthIn(max = 960.dp)
                 ) {
                     // Role & Host Header Strip
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = metrics.horizontalPadding, vertical = 10.dp),
                         shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
                         ),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        val headerInfo: @Composable (Modifier) -> Unit = { mod ->
                             Row(
-                                modifier = Modifier.weight(1f),
+                                modifier = mod,
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
@@ -255,7 +256,7 @@ fun MeetingZoneScreen(
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(28.dp)
                                 )
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = if (canHost) {
                                             t(language, "Authorized Meeting Host", "অনুমোদিত মিটিং হোস্ট")
@@ -284,15 +285,48 @@ fun MeetingZoneScreen(
                                     )
                                 }
                             }
-                            if (canHost) {
-                                Spacer(Modifier.width(8.dp))
+                        }
+                        if (metrics.isUltraCompact && canHost) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(metrics.cardPadding),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                headerInfo(Modifier.fillMaxWidth())
                                 Button(
                                     onClick = { showCreateDialog = true },
-                                    modifier = Modifier.testTag("meeting_schedule_banner_button")
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .testTag("meeting_schedule_banner_button")
                                 ) {
                                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text(t(language, "New", "নতুন"))
+                                    Text(t(language, "Schedule New Meeting", "নতুন মিটিং তৈরি করুন"))
+                                }
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(metrics.cardPadding),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                headerInfo(Modifier.weight(1f))
+                                if (canHost) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Button(
+                                        onClick = { showCreateDialog = true },
+                                        modifier = Modifier
+                                            .heightIn(min = 48.dp)
+                                            .testTag("meeting_schedule_banner_button")
+                                    ) {
+                                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(t(language, "New", "নতুন"))
+                                    }
                                 }
                             }
                         }
@@ -303,13 +337,25 @@ fun MeetingZoneScreen(
                         Tab(
                             selected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
-                            text = { Text("${t(language, "Upcoming", "আসন্ন")} (${upcomingMeetings.size})") },
+                            text = {
+                                Text(
+                                    "${t(language, "Upcoming", "আসন্ন")} (${upcomingMeetings.size})",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
                             modifier = Modifier.testTag("meeting_tab_upcoming")
                         )
                         Tab(
                             selected = selectedTab == 1,
                             onClick = { selectedTab = 1 },
-                            text = { Text("${t(language, "Past Meetings", "পূর্ববর্তী মিটিং")} (${pastMeetings.size})") },
+                            text = {
+                                Text(
+                                    "${t(language, "Past Meetings", "পূর্ববর্তী মিটিং")} (${pastMeetings.size})",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
                             modifier = Modifier.testTag("meeting_tab_past")
                         )
                     }
@@ -357,24 +403,40 @@ fun MeetingZoneScreen(
                             } else {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(16.dp),
+                                    contentPadding = metrics.screenContentPadding,
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    items(visibleList, key = { it.id }) { meeting ->
-                                        val isUpcoming = selectedTab == 0
-                                        val canModifyThis = canHost && (isFounder || meeting.hostUid == meetingViewModel.currentUserId)
-                                        MeetingSessionCard(
-                                            meeting = meeting,
-                                            isUpcoming = isUpcoming,
-                                            canModify = canModifyThis,
-                                            language = language,
-                                            onJoin = {
-                                                meetingViewModel.logMeetingJoined(meeting, profile?.role ?: "STUDENT")
-                                                openGoogleMeetLink(context, meeting.meetUrl)
-                                            },
-                                            onEdit = { editingMeeting = meeting },
-                                            onDelete = { deletingMeeting = meeting }
-                                        )
+                                    items(
+                                        items = visibleList.chunked(meetingCols),
+                                        key = { row -> row.joinToString("_") { it.id } }
+                                    ) { meetingRow ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            meetingRow.forEach { meeting ->
+                                                val isUpcoming = selectedTab == 0
+                                                val canModifyThis = canHost && (isFounder || meeting.hostUid == meetingViewModel.currentUserId)
+                                                Box(modifier = Modifier.weight(1f)) {
+                                                    MeetingSessionCard(
+                                                        meeting = meeting,
+                                                        isUpcoming = isUpcoming,
+                                                        canModify = canModifyThis,
+                                                        language = language,
+                                                        onJoin = {
+                                                            meetingViewModel.logMeetingJoined(meeting, profile?.role ?: "STUDENT")
+                                                            openGoogleMeetLink(context, meeting.meetUrl)
+                                                        },
+                                                        onEdit = { editingMeeting = meeting },
+                                                        onDelete = { deletingMeeting = meeting }
+                                                    )
+                                                }
+                                            }
+                                            if (meetingRow.size < meetingCols) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
                                     }
                                     item { Spacer(Modifier.height(72.dp)) }
                                 }
@@ -469,6 +531,7 @@ fun MeetingZoneScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MeetingSessionCard(
     meeting: MeetingSession,
@@ -500,9 +563,10 @@ private fun MeetingSessionCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
+                FlowRow(
+                    modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     StatusPill(
                         label = meeting.subject,
@@ -627,22 +691,32 @@ private fun MeetingSessionCard(
                     onClick = onJoin,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .testTag("join_meeting_${meeting.id}")
                 ) {
                     Icon(Icons.Filled.VideoCall, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(t(language, "Join Meeting (Google Meet)", "মিটিংয়ে যোগ দিন (Google Meet)"))
+                    Text(
+                        text = t(language, "Join Meeting (Google Meet)", "মিটিংয়ে যোগ দিন (Google Meet)"),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             } else {
                 OutlinedButton(
                     onClick = onJoin,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .testTag("join_meeting_${meeting.id}")
                 ) {
                     Icon(Icons.Filled.VideoCall, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(t(language, "Open Meeting Link", "মিটিং লিংক খুলুন"))
+                    Text(
+                        text = t(language, "Open Meeting Link", "মিটিং লিংক খুলুন"),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -731,23 +805,21 @@ private fun MeetingEditorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("meeting_url_input")
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = date,
-                        onValueChange = { date = it },
-                        label = { Text("Date (YYYY-MM-DD) *") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f).testTag("meeting_date_input")
-                    )
-                    OutlinedTextField(
-                        value = time,
-                        onValueChange = { time = it },
-                        label = { Text("Time *") },
-                        placeholder = { Text("04:00 PM") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f).testTag("meeting_time_input")
-                    )
-                }
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    label = { Text("Date (YYYY-MM-DD) *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("meeting_date_input")
+                )
+                OutlinedTextField(
+                    value = time,
+                    onValueChange = { time = it },
+                    label = { Text("Time (e.g. 04:00 PM) *") },
+                    placeholder = { Text("04:00 PM") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("meeting_time_input")
+                )
                 OutlinedTextField(
                     value = hostName,
                     onValueChange = { hostName = it },

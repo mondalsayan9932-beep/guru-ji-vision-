@@ -3,14 +3,17 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
@@ -28,10 +31,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.core.AppLanguage
 import com.example.core.t
@@ -39,6 +44,7 @@ import com.example.data.reference.AgriCalculators
 import com.example.data.reference.AgriKnowledgeBase
 import com.example.data.reference.AreaUnit
 import com.example.ui.components.SectionHeader
+import com.example.ui.components.rememberResponsiveMetrics
 import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -46,49 +52,59 @@ import java.util.Locale
 fun AgriToolsScreen(language: AppLanguage) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+    ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+        val isNarrow = maxWidth < 380.dp
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TabRow(selectedTabIndex = selectedTab) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text(t(language, "Fertilizer", "সার হিসাব")) },
+                text = { Text(t(language, "Fertilizer", "সার হিসাব"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("tool_tab_fertilizer")
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text(t(language, "Seed Rate", "বীজ হার")) },
+                text = { Text(t(language, "Seed Rate", "বীজ হার"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("tool_tab_seed")
             )
             Tab(
                 selected = selectedTab == 2,
                 onClick = { selectedTab = 2 },
-                text = { Text(t(language, "Population", "চারার সংখ্যা")) },
+                text = { Text(t(language, "Population", "চারার সংখ্যা"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("tool_tab_population")
             )
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 860.dp),
+            contentPadding = metrics.screenContentPadding,
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)
         ) {
             when (selectedTab) {
-                0 -> item { FertilizerCalculatorCard(language) }
-                1 -> item { SeedRateCalculatorCard(language) }
+                0 -> item { FertilizerCalculatorCard(language, isNarrow) }
+                1 -> item { SeedRateCalculatorCard(language, isNarrow) }
                 2 -> item { PlantPopulationCalculatorCard(language) }
             }
         }
+    }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FertilizerCalculatorCard(language: AppLanguage) {
+private fun FertilizerCalculatorCard(language: AppLanguage, isNarrow: Boolean = false) {
     var selectedUnit by remember { mutableStateOf(AreaUnit.BIGHA) }
     var areaInput by remember { mutableStateOf("1") }
     var nInput by remember { mutableStateOf("120") }
@@ -155,31 +171,60 @@ private fun FertilizerCalculatorCard(language: AppLanguage) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("fert_area_input")
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isNarrow) {
                     OutlinedTextField(
                         value = nInput,
                         onValueChange = { nInput = it },
                         label = { Text("N (kg/ha)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = pInput,
-                        onValueChange = { pInput = it },
-                        label = { Text("P2O5") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = kInput,
-                        onValueChange = { kInput = it },
-                        label = { Text("K2O") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = pInput,
+                            onValueChange = { pInput = it },
+                            label = { Text("P2O5 (kg/ha)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = kInput,
+                            onValueChange = { kInput = it },
+                            label = { Text("K2O (kg/ha)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = nInput,
+                            onValueChange = { nInput = it },
+                            label = { Text("N (kg/ha)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = pInput,
+                            onValueChange = { pInput = it },
+                            label = { Text("P2O5") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = kInput,
+                            onValueChange = { kInput = it },
+                            label = { Text("K2O") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
@@ -215,7 +260,7 @@ private fun FertilizerCalculatorCard(language: AppLanguage) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SeedRateCalculatorCard(language: AppLanguage) {
+private fun SeedRateCalculatorCard(language: AppLanguage, isNarrow: Boolean = false) {
     var selectedUnit by remember { mutableStateOf(AreaUnit.HECTARE) }
     var areaInput by remember { mutableStateOf("1") }
     var rowCm by remember { mutableStateOf("20") }
@@ -281,31 +326,60 @@ private fun SeedRateCalculatorCard(language: AppLanguage) {
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isNarrow) {
                     OutlinedTextField(
                         value = testWeight,
                         onValueChange = { testWeight = it },
-                        label = { Text("1000-Seed (g)") },
+                        label = { Text("1000-Seed Test Weight (g)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = germination,
-                        onValueChange = { germination = it },
-                        label = { Text("Germ %") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = purity,
-                        onValueChange = { purity = it },
-                        label = { Text("Purity %") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = germination,
+                            onValueChange = { germination = it },
+                            label = { Text("Germ %") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = purity,
+                            onValueChange = { purity = it },
+                            label = { Text("Purity %") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = testWeight,
+                            onValueChange = { testWeight = it },
+                            label = { Text("1000-Seed (g)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = germination,
+                            onValueChange = { germination = it },
+                            label = { Text("Germ %") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = purity,
+                            onValueChange = { purity = it },
+                            label = { Text("Purity %") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
@@ -412,10 +486,22 @@ private fun PlantPopulationCalculatorCard(language: AppLanguage) {
 private fun ResultLine(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-        Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 

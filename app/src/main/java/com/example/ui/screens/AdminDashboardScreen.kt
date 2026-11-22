@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -13,9 +14,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -58,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.AppLanguage
@@ -70,6 +74,7 @@ import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.StatusPill
+import com.example.ui.components.rememberResponsiveMetrics
 import com.example.viewmodel.AdminViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -144,57 +149,73 @@ fun AdminDashboardScreen(
         t(language, "AI Guru", "এআই গুরু")
     )
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Admin Header Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("admin_back_button")
+        val metrics = rememberResponsiveMetrics(maxWidth)
+        val stackFacultyActions = maxWidth < 380.dp
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Admin Header Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primary)
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("admin_back_button")
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+                Icon(Icons.Filled.AdminPanelSettings, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = L10n.adminDashboard(language),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Verified Founder / Owner Exclusive Console",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-            Icon(Icons.Filled.AdminPanelSettings, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(
-                    text = L10n.adminDashboard(language),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
-                )
-                Text(
-                    text = "Verified Founder / Owner Exclusive Console",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-        }
 
-        ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 12.dp) {
-            tabs.forEachIndexed { idx, label ->
-                Tab(
-                    selected = selectedTab == idx,
-                    onClick = { selectedTab = idx },
-                    text = { Text(label) },
-                    modifier = Modifier.testTag("admin_tab_$idx")
-                )
+            ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 12.dp) {
+                tabs.forEachIndexed { idx, label ->
+                    Tab(
+                        selected = selectedTab == idx,
+                        onClick = { selectedTab = idx },
+                        text = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        modifier = Modifier.testTag("admin_tab_$idx")
+                    )
+                }
             }
-        }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 1080.dp),
+                    contentPadding = metrics.screenContentPadding,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
             if (banner != null) {
                 item {
                     Card(
@@ -314,9 +335,17 @@ fun AdminDashboardScreen(
                                         ) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("${q.cropName} — ${q.farmerName}", style = MaterialTheme.typography.titleSmall)
+                                                Text(
+                                                    "${q.cropName} — ${q.farmerName}",
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(Modifier.width(8.dp))
                                                 StatusPill(q.status, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
                                             }
                                             Text("${q.category} • ${q.district}", style = MaterialTheme.typography.labelSmall)
@@ -324,7 +353,10 @@ fun AdminDashboardScreen(
                                             if (q.imageSummary.isNotBlank()) {
                                                 Text("AI Photo Note: ${q.imageSummary}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                             }
-                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            FlowRow(
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
                                                 listOf("OPEN", "IN_REVIEW", "RESOLVED").forEach { st ->
                                                     FilterChip(
                                                         selected = nextStatus == st,
@@ -343,7 +375,9 @@ fun AdminDashboardScreen(
                                             Button(
                                                 onClick = { adminViewModel.replyToFarmerQuery(q.id, nextStatus, replyText) },
                                                 enabled = !busy,
-                                                modifier = Modifier.testTag("admin_reply_query_${q.id}")
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("admin_reply_query_${q.id}")
                                             ) {
                                                 Text("Update Query")
                                             }
@@ -428,7 +462,10 @@ fun AdminDashboardScreen(
                                 OutlinedTextField(opt1, { opt1 = it }, label = { Text("Option B") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                                 OutlinedTextField(opt2, { opt2 = it }, label = { Text("Option C") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                                 OutlinedTextField(opt3, { opt3 = it }, label = { Text("Option D") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     listOf(0L to "A", 1L to "B", 2L to "C", 3L to "D").forEach { (idx, lbl) ->
                                         FilterChip(selected = correctIdx == idx, onClick = { correctIdx = idx }, label = { Text("Ans: $lbl") })
                                     }
@@ -546,7 +583,10 @@ fun AdminDashboardScreen(
                                 Text("Broadcast Platform Announcement", style = MaterialTheme.typography.titleMedium)
                                 OutlinedTextField(nTitle, { nTitle = it }, label = { Text("Notice Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                                 OutlinedTextField(nMsg, { nMsg = it }, label = { Text("Message") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     listOf("ALL", "STUDENTS", "FARMERS").forEach { a ->
                                         FilterChip(selected = nAud == a, onClick = { nAud = a }, label = { Text(a) })
                                     }
@@ -750,7 +790,15 @@ fun AdminDashboardScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(log.action.replace('_', ' '), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                                Text(
+                                                    log.action.replace('_', ' '),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(Modifier.width(8.dp))
                                                 StatusPill(
                                                     label = log.targetType,
                                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -812,39 +860,75 @@ fun AdminDashboardScreen(
                     }
 
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = { adminViewModel.syncDefaultProfessors() },
-                                enabled = !busy,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("admin_sync_professors_button")
+                        val openAddFaculty = {
+                            editingProfessor = ProfessorProfile(
+                                id = "",
+                                name = "",
+                                designation = "Assistant Professor",
+                                department = "Biological Science",
+                                active = true,
+                                canHostMeetings = true,
+                                displayOrder = (((allProfessorsState as? UiState.Success)?.data?.size ?: 9) + 1).toLong()
+                            )
+                        }
+                        if (stackFacultyActions) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Sync 9 Official Faculty", maxLines = 1)
+                                Button(
+                                    onClick = { adminViewModel.syncDefaultProfessors() },
+                                    enabled = !busy,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .testTag("admin_sync_professors_button")
+                                ) {
+                                    Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Sync 9 Official Faculty", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                OutlinedButton(
+                                    onClick = openAddFaculty,
+                                    enabled = !busy,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .testTag("admin_add_professor_button")
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Add Faculty", maxLines = 1)
+                                }
                             }
-                            OutlinedButton(
-                                onClick = {
-                                    editingProfessor = ProfessorProfile(
-                                        id = "",
-                                        name = "",
-                                        designation = "Assistant Professor",
-                                        department = "Biological Science",
-                                        active = true,
-                                        canHostMeetings = true,
-                                        displayOrder = (((allProfessorsState as? UiState.Success)?.data?.size ?: 9) + 1).toLong()
-                                    )
-                                },
-                                enabled = !busy,
-                                modifier = Modifier.testTag("admin_add_professor_button")
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Add")
+                                Button(
+                                    onClick = { adminViewModel.syncDefaultProfessors() },
+                                    enabled = !busy,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 48.dp)
+                                        .testTag("admin_sync_professors_button")
+                                ) {
+                                    Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Sync 9 Official Faculty", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                OutlinedButton(
+                                    onClick = openAddFaculty,
+                                    enabled = !busy,
+                                    modifier = Modifier
+                                        .heightIn(min = 48.dp)
+                                        .testTag("admin_add_professor_button")
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Add", maxLines = 1)
+                                }
                             }
                         }
                     }
@@ -914,7 +998,10 @@ fun AdminDashboardScreen(
                                                 color = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
                                             StatusPill(
                                                 label = if (prof.active) "ACTIVE" else "HIDDEN",
                                                 containerColor = if (prof.active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
@@ -977,6 +1064,8 @@ fun AdminDashboardScreen(
                 }
             }
         }
+        }
+    }
     }
 
     editingProfessor?.let { target ->

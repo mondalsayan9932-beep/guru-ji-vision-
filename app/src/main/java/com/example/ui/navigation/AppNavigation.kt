@@ -1,5 +1,6 @@
 package com.example.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -8,23 +9,29 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Agriculture
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.icons.filled.WorkOutline
@@ -40,12 +47,18 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -56,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +77,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,7 +88,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
+
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -158,6 +178,10 @@ private val primaryTabs = listOf(
     NavTab(ROUTE_AI, L10n::navAi, Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome, "nav_ai"),
     NavTab(ROUTE_CAREER_COMMUNITY, L10n::navCommunity, Icons.Filled.WorkOutline, Icons.Outlined.WorkOutline, "nav_community")
 )
+
+// M3 mobile bottom navigation holds max 5 crisp items so 320dp-480dp phones never clip labels;
+// Community, Money Manager, Meeting Zone, Doubt Zone, and Founder tools live in the collapsible Mobile Drawer.
+private val mobileBottomTabs = primaryTabs.take(5)
 
 @Composable
 fun AppRoot(
@@ -365,17 +389,8 @@ private fun AuthenticatedEcosystemShell(
     val isFounder by ecoViewModel.isFounder.collectAsStateWithLifecycle()
     val announcementsState by ecoViewModel.announcementsState.collectAsStateWithLifecycle()
     val appSettings by ecoViewModel.appSettings.collectAsStateWithLifecycle()
-    val studyMaterialsState by ecoViewModel.studyMaterialsState.collectAsStateWithLifecycle()
-    val quizzesState by ecoViewModel.quizzesState.collectAsStateWithLifecycle()
-    val myQuizAttemptsState by ecoViewModel.myQuizAttemptsState.collectAsStateWithLifecycle()
-    val careersState by ecoViewModel.careersState.collectAsStateWithLifecycle()
-    val communityPostsState by ecoViewModel.communityPostsState.collectAsStateWithLifecycle()
-    val myFarmerQueriesState by ecoViewModel.myFarmerQueriesState.collectAsStateWithLifecycle()
-    val transactionsState by ecoViewModel.transactionsState.collectAsStateWithLifecycle()
-    val goalsState by ecoViewModel.goalsState.collectAsStateWithLifecycle()
     val actionMessage by ecoViewModel.actionMessage.collectAsStateWithLifecycle()
     val actionBusy by ecoViewModel.actionBusy.collectAsStateWithLifecycle()
-    val aiUiState by aiViewModel.uiState.collectAsStateWithLifecycle()
     val totalUnreadDoubts by doubtViewModel.totalUnreadCount.collectAsStateWithLifecycle()
     val facultyIdentity by doubtViewModel.facultyIdentity.collectAsStateWithLifecycle()
     val meetingsState by meetingViewModel.meetingsState.collectAsStateWithLifecycle()
@@ -460,231 +475,504 @@ private fun AuthenticatedEcosystemShell(
         currentRoute == ROUTE_MEETING_ZONE ||
         currentRoute == ROUTE_DOUBT_ZONE
 
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val drawerScope = rememberCoroutineScope()
+
+    val toggleLanguage: (AppLanguage) -> Unit = { nextLang ->
+        onLanguageChange(nextLang)
+        if (userProfile != null) {
+            ecoViewModel.saveProfile(
+                displayName = userProfile.displayName,
+                role = userProfile.role,
+                institutionOrVillage = userProfile.institutionOrVillage,
+                district = userProfile.district,
+                semester = userProfile.semester,
+                language = nextLang.code,
+                isExisting = true
+            )
+        }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val useRail = maxWidth >= 600.dp
+        val isUltraCompact = maxWidth < 360.dp
+        val isNarrowPhone = maxWidth < 400.dp
 
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            topBar = {
-                if (!isFullScreenRoute) {
-                    TopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        title = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
+        BackHandler(enabled = drawerState.isOpen) {
+            drawerScope.launch { drawerState.close() }
+        }
+
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = !useRail && !isFullScreenRoute,
+            drawerContent = {
+                ModalDrawerSheet(
+                    modifier = Modifier.widthIn(max = 300.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 12.dp)
+                    ) {
+                        // Drawer Brand & User Header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            val avatarUrl = userProfile?.photoUrl?.ifBlank { userPhotoUrl } ?: userPhotoUrl
+                            if (avatarUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model = avatarUrl,
+                                    contentDescription = "User profile photo",
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_guruji_logo_clean),
                                     contentDescription = "Guru Ji Vision Logo",
                                     modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(RoundedCornerShape(9.dp)),
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp)),
                                     contentScale = ContentScale.Crop
                                 )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = L10n.brandName(language),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.primary
+                                    text = userProfile?.displayName?.ifBlank { L10n.brandName(language) }
+                                        ?: L10n.brandName(language),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                            }
-                        },
-                        actions = {
-                            IconButton(
-                                onClick = { navController.navigate(ROUTE_MEETING_ZONE) },
-                                modifier = Modifier.testTag("topbar_meeting_zone")
-                            ) {
-                                BadgedBox(
-                                    badge = {
-                                        if (upcomingMeetingsCount > 0) {
-                                            Badge { Text(upcomingMeetingsCount.toString()) }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.VideoCall,
-                                        contentDescription = L10n.meetingZone(language),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { navController.navigate(ROUTE_DOUBT_ZONE) },
-                                modifier = Modifier.testTag("topbar_doubt_zone")
-                            ) {
-                                BadgedBox(
-                                    badge = {
-                                        if (totalUnreadDoubts > 0) {
-                                            Badge {
-                                                Text(if (totalUnreadDoubts > 99) "99+" else totalUnreadDoubts.toString())
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Forum,
-                                        contentDescription = L10n.doubtZone(language),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                            LanguageTogglePill(
-                                language = language,
-                                onToggle = { nextLang ->
-                                    onLanguageChange(nextLang)
-                                    if (userProfile != null) {
-                                        ecoViewModel.saveProfile(
-                                            displayName = userProfile.displayName,
-                                            role = userProfile.role,
-                                            institutionOrVillage = userProfile.institutionOrVillage,
-                                            district = userProfile.district,
-                                            semester = userProfile.semester,
-                                            language = nextLang.code,
-                                            isExisting = true
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            IconButton(
-                                onClick = { showLogoutDialog = true },
-                                modifier = Modifier.testTag("topbar_logout_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                                    contentDescription = L10n.signOut(language),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                Text(
+                                    text = userEmail.ifBlank { userProfile?.email.orEmpty() },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
-                    )
-                }
-            },
-            bottomBar = {
-                if (!useRail && !isFullScreenRoute) {
-                    NavigationBar(
-                        modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                    ) {
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        // All Primary Modules
                         primaryTabs.forEach { tab ->
                             val selected = currentRoute == tab.route
-                            NavigationBarItem(
+                            NavigationDrawerItem(
+                                label = { Text(tab.label(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 selected = selected,
-                                onClick = { navigateToTab(tab.route) },
+                                onClick = {
+                                    drawerScope.launch { drawerState.close() }
+                                    navigateToTab(tab.route)
+                                },
                                 icon = {
                                     Icon(
                                         imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
                                         contentDescription = tab.label(language)
                                     )
                                 },
-                                label = { Text(tab.label(language), maxLines = 1) },
-                                modifier = Modifier.testTag(tab.testTag)
+                                modifier = Modifier
+                                    .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                    .testTag("drawer_${tab.route}")
                             )
                         }
-                    }
-                }
-            }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                if (!isOnline) {
-                    Surface(
-                        color = Color(0xFFFFFBEB),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("offline_session_banner")
-                    ) {
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        NavigationDrawerItem(
+                            label = { Text(L10n.meetingZone(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentRoute == ROUTE_MEETING_ZONE,
+                            onClick = {
+                                drawerScope.launch { drawerState.close() }
+                                navController.navigate(ROUTE_MEETING_ZONE)
+                            },
+                            icon = { Icon(Icons.Filled.VideoCall, contentDescription = L10n.meetingZone(language)) },
+                            badge = {
+                                if (upcomingMeetingsCount > 0) {
+                                    Badge { Text(upcomingMeetingsCount.toString()) }
+                                }
+                            },
+                            modifier = Modifier
+                                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                .testTag("drawer_meeting_zone")
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(L10n.doubtZone(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentRoute == ROUTE_DOUBT_ZONE,
+                            onClick = {
+                                drawerScope.launch { drawerState.close() }
+                                navController.navigate(ROUTE_DOUBT_ZONE)
+                            },
+                            icon = { Icon(Icons.Filled.Forum, contentDescription = L10n.doubtZone(language)) },
+                            badge = {
+                                if (totalUnreadDoubts > 0) {
+                                    Badge { Text(if (totalUnreadDoubts > 99) "99+" else totalUnreadDoubts.toString()) }
+                                }
+                            },
+                            modifier = Modifier
+                                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                .testTag("drawer_doubt_zone")
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text("${L10n.moneyManager(language)} (₹)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentRoute == ROUTE_MONEY,
+                            onClick = {
+                                drawerScope.launch { drawerState.close() }
+                                navController.navigate(ROUTE_MONEY)
+                            },
+                            icon = { Icon(Icons.Filled.AccountBalanceWallet, contentDescription = L10n.moneyManager(language)) },
+                            modifier = Modifier
+                                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                .testTag("drawer_money_manager")
+                        )
+
+                        if (isFounder) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            NavigationDrawerItem(
+                                label = { Text(t(language, "Owner Control Center", "ওনার কন্ট্রোল সেন্টার"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                selected = currentRoute == ROUTE_OWNER_CENTER,
+                                onClick = {
+                                    drawerScope.launch { drawerState.close() }
+                                    navController.navigate(ROUTE_OWNER_CENTER)
+                                },
+                                icon = { Icon(Icons.Filled.MonitorHeart, contentDescription = "Owner Control Center") },
+                                modifier = Modifier
+                                    .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                    .testTag("drawer_owner_center")
+                            )
+                            NavigationDrawerItem(
+                                label = { Text(L10n.adminDashboard(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                selected = currentRoute == ROUTE_ADMIN,
+                                onClick = {
+                                    drawerScope.launch { drawerState.close() }
+                                    navController.navigate(ROUTE_ADMIN)
+                                },
+                                icon = { Icon(Icons.Filled.AdminPanelSettings, contentDescription = L10n.adminDashboard(language)) },
+                                modifier = Modifier
+                                    .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                    .testTag("drawer_admin_dashboard")
+                            )
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.CloudOff,
-                                contentDescription = "Offline Mode",
-                                tint = Color(0xFFB45309),
-                                modifier = Modifier.size(16.dp)
-                            )
                             Text(
-                                text = t(
-                                    language,
-                                    "Offline mode — your login session stays active and will sync automatically when reconnected.",
-                                    "অফলাইন মোড — আপনার লগইন সেশন সক্রিয় আছে, ইন্টারনেট ফিরলে স্বয়ংক্রিয়ভাবে সিঙ্ক হবে।"
-                                ),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF78350F)
+                                text = t(language, "Language", "ভাষা"),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            LanguageTogglePill(
+                                language = language,
+                                onToggle = toggleLanguage
                             )
                         }
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                if (useRail && !isFullScreenRoute) {
-                    NavigationRail {
-                        primaryTabs.forEach { tab ->
-                            val selected = currentRoute == tab.route
-                            NavigationRailItem(
-                                selected = selected,
-                                onClick = { navigateToTab(tab.route) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                                        contentDescription = tab.label(language)
-                                    )
-                                },
-                                label = { Text(tab.label(language)) },
-                                modifier = Modifier.testTag(tab.testTag)
-                            )
-                        }
-                        NavigationRailItem(
-                            selected = currentRoute == ROUTE_MEETING_ZONE,
-                            onClick = { navController.navigate(ROUTE_MEETING_ZONE) },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Filled.VideoCall,
-                                    contentDescription = L10n.meetingZone(language)
+
+                        NavigationDrawerItem(
+                            label = {
+                                Text(
+                                    text = L10n.signOut(language),
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 1
                                 )
                             },
-                            label = { Text(L10n.meetingZone(language), maxLines = 1) },
-                            modifier = Modifier.testTag("rail_meeting_zone")
-                        )
-                        NavigationRailItem(
-                            selected = currentRoute == ROUTE_DOUBT_ZONE,
-                            onClick = { navController.navigate(ROUTE_DOUBT_ZONE) },
+                            selected = false,
+                            onClick = {
+                                drawerScope.launch { drawerState.close() }
+                                showLogoutDialog = true
+                            },
                             icon = {
-                                BadgedBox(
-                                    badge = {
-                                        if (totalUnreadDoubts > 0) {
-                                            Badge { Text(totalUnreadDoubts.toString()) }
-                                        }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                                    contentDescription = L10n.signOut(language),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            modifier = Modifier
+                                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                .testTag("drawer_logout_button")
+                        )
+                    }
+                }
+            }
+        ) {
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                topBar = {
+                    if (!isFullScreenRoute) {
+                        TopAppBar(
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            navigationIcon = {
+                                if (!useRail) {
+                                    IconButton(
+                                        onClick = { drawerScope.launch { drawerState.open() } },
+                                        modifier = Modifier.testTag("mobile_drawer_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Menu,
+                                            contentDescription = t(language, "Open navigation menu", "নেভিগেশন মেনু খুলুন"),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
+                                }
+                            },
+                            title = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(if (isUltraCompact) 6.dp else 10.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Forum,
-                                        contentDescription = L10n.doubtZone(language)
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_guruji_logo_clean),
+                                        contentDescription = "Guru Ji Vision Logo",
+                                        modifier = Modifier
+                                            .size(if (isUltraCompact) 28.dp else 32.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Text(
+                                        text = L10n.brandName(language),
+                                        style = if (isUltraCompact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             },
-                            label = { Text(L10n.doubtZone(language), maxLines = 1) },
-                            modifier = Modifier.testTag("rail_doubt_zone")
+                            actions = {
+                                IconButton(
+                                    onClick = { navController.navigate(ROUTE_MEETING_ZONE) },
+                                    modifier = Modifier.testTag("topbar_meeting_zone")
+                                ) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (upcomingMeetingsCount > 0) {
+                                                Badge { Text(upcomingMeetingsCount.toString()) }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.VideoCall,
+                                            contentDescription = L10n.meetingZone(language),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = { navController.navigate(ROUTE_DOUBT_ZONE) },
+                                    modifier = Modifier.testTag("topbar_doubt_zone")
+                                ) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (totalUnreadDoubts > 0) {
+                                                Badge {
+                                                    Text(if (totalUnreadDoubts > 99) "99+" else totalUnreadDoubts.toString())
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Forum,
+                                            contentDescription = L10n.doubtZone(language),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                LanguageTogglePill(
+                                    language = language,
+                                    onToggle = toggleLanguage,
+                                    compact = isNarrowPhone,
+                                    modifier = Modifier.padding(end = if (isNarrowPhone) 6.dp else 4.dp)
+                                )
+                                if (!isNarrowPhone) {
+                                    IconButton(
+                                        onClick = { showLogoutDialog = true },
+                                        modifier = Modifier.testTag("topbar_logout_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                                            contentDescription = L10n.signOut(language),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                         )
                     }
+                },
+                bottomBar = {
+                    if (!useRail && !isFullScreenRoute) {
+                        NavigationBar {
+                            mobileBottomTabs.forEach { tab ->
+                                val selected = currentRoute == tab.route
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { navigateToTab(tab.route) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                            contentDescription = tab.label(language)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = tab.label(language),
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                            fontSize = if (isUltraCompact) 10.sp else 11.sp
+                                        )
+                                    },
+                                    modifier = Modifier.testTag(tab.testTag)
+                                )
+                            }
+                        }
+                    }
                 }
-
-                NavHost(
-                    navController = navController,
-                    startDestination = ROUTE_HOME,
-                    modifier = Modifier.weight(1f)
+            ) { innerPadding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding)
                 ) {
+                    if (!isOnline) {
+                        Surface(
+                            color = Color(0xFFFFFBEB),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("offline_session_banner")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CloudOff,
+                                    contentDescription = "Offline Mode",
+                                    tint = Color(0xFFB45309),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = t(
+                                        language,
+                                        "Offline mode — your login session stays active and will sync automatically when reconnected.",
+                                        "অফলাইন মোড — আপনার লগইন সেশন সক্রিয় আছে, ইন্টারনেট ফিরলে স্বয়ংক্রিয়ভাবে সিঙ্ক হবে।"
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF78350F)
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        if (useRail && !isFullScreenRoute) {
+                            NavigationRail {
+                                Column(
+                                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    primaryTabs.forEach { tab ->
+                                        val selected = currentRoute == tab.route
+                                        NavigationRailItem(
+                                            selected = selected,
+                                            onClick = { navigateToTab(tab.route) },
+                                            icon = {
+                                                Icon(
+                                                    imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                                    contentDescription = tab.label(language)
+                                                )
+                                            },
+                                            label = { Text(tab.label(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                            modifier = Modifier.testTag(tab.testTag)
+                                        )
+                                    }
+                                    NavigationRailItem(
+                                        selected = currentRoute == ROUTE_MEETING_ZONE,
+                                        onClick = { navController.navigate(ROUTE_MEETING_ZONE) },
+                                        icon = {
+                                            BadgedBox(
+                                                badge = {
+                                                    if (upcomingMeetingsCount > 0) {
+                                                        Badge { Text(upcomingMeetingsCount.toString()) }
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.VideoCall,
+                                                    contentDescription = L10n.meetingZone(language)
+                                                )
+                                            }
+                                        },
+                                        label = { Text(L10n.meetingZone(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        modifier = Modifier.testTag("rail_meeting_zone")
+                                    )
+                                    NavigationRailItem(
+                                        selected = currentRoute == ROUTE_DOUBT_ZONE,
+                                        onClick = { navController.navigate(ROUTE_DOUBT_ZONE) },
+                                        icon = {
+                                            BadgedBox(
+                                                badge = {
+                                                    if (totalUnreadDoubts > 0) {
+                                                        Badge { Text(totalUnreadDoubts.toString()) }
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Forum,
+                                                    contentDescription = L10n.doubtZone(language)
+                                                )
+                                            }
+                                        },
+                                        label = { Text(L10n.doubtZone(language), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        modifier = Modifier.testTag("rail_doubt_zone")
+                                    )
+                                    NavigationRailItem(
+                                        selected = currentRoute == ROUTE_MONEY,
+                                        onClick = { navController.navigate(ROUTE_MONEY) },
+                                        icon = {
+                                            Icon(
+                                                imageVector = Icons.Filled.AccountBalanceWallet,
+                                                contentDescription = L10n.moneyManager(language)
+                                            )
+                                        },
+                                        label = { Text(t(language, "Money ₹", "হিসাব ₹"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        modifier = Modifier.testTag("rail_money_manager")
+                                    )
+                                }
+                            }
+                        }
+
+                        NavHost(
+                            navController = navController,
+                            startDestination = ROUTE_HOME,
+                            modifier = Modifier.weight(1f)
+                        ) {
                     composable(ROUTE_HOME) {
                         HomeScreen(
                             profile = userProfile,
@@ -720,6 +1008,9 @@ private fun AuthenticatedEcosystemShell(
                         if (!appSettings.studentModuleEnabled && !isFounder) {
                             ModulePausedPlaceholder("B.Sc Student Portal", language)
                         } else {
+                            val studyMaterialsState by ecoViewModel.studyMaterialsState.collectAsStateWithLifecycle()
+                            val quizzesState by ecoViewModel.quizzesState.collectAsStateWithLifecycle()
+                            val myQuizAttemptsState by ecoViewModel.myQuizAttemptsState.collectAsStateWithLifecycle()
                             StudentHubScreen(
                                 profile = userProfile,
                                 language = language,
@@ -741,6 +1032,8 @@ private fun AuthenticatedEcosystemShell(
                         if (!appSettings.moneyManagerEnabled && !isFounder) {
                             ModulePausedPlaceholder("Student Money Manager", language)
                         } else {
+                            val transactionsState by ecoViewModel.transactionsState.collectAsStateWithLifecycle()
+                            val goalsState by ecoViewModel.goalsState.collectAsStateWithLifecycle()
                             MoneyManagerScreen(
                                 language = language,
                                 transactionsState = transactionsState,
@@ -772,6 +1065,7 @@ private fun AuthenticatedEcosystemShell(
                         if (!appSettings.farmerModuleEnabled && !isFounder) {
                             ModulePausedPlaceholder("Farmer Portal", language)
                         } else {
+                            val myFarmerQueriesState by ecoViewModel.myFarmerQueriesState.collectAsStateWithLifecycle()
                             FarmerHubScreen(
                                 profile = userProfile,
                                 language = language,
@@ -798,6 +1092,8 @@ private fun AuthenticatedEcosystemShell(
                         if (!appSettings.aiAssistantEnabled && !isFounder) {
                             ModulePausedPlaceholder(L10n.aiAssistant(language), language)
                         } else {
+                            val studyMaterialsState by ecoViewModel.studyMaterialsState.collectAsStateWithLifecycle()
+                            val aiUiState by aiViewModel.uiState.collectAsStateWithLifecycle()
                             val publishedMaterials = (studyMaterialsState as? UiState.Success)?.data.orEmpty()
                             val verifiedKbCount = publishedMaterials.count { it.published && it.verifiedForAi }
                             AiAssistantScreen(
@@ -825,6 +1121,8 @@ private fun AuthenticatedEcosystemShell(
                         if (!appSettings.careerModuleEnabled && !appSettings.communityModuleEnabled && !isFounder) {
                             ModulePausedPlaceholder("Career & Community", language)
                         } else {
+                            val careersState by ecoViewModel.careersState.collectAsStateWithLifecycle()
+                            val communityPostsState by ecoViewModel.communityPostsState.collectAsStateWithLifecycle()
                             CareerCommunityScreen(
                                 profile = userProfile,
                                 language = language,
@@ -945,6 +1243,7 @@ private fun AuthenticatedEcosystemShell(
                 }
                 }
             }
+        }
         }
     }
 

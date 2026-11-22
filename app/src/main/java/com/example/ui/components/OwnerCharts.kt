@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -135,11 +136,7 @@ fun SegmentedDonutChart(
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
+            val donutRing = @Composable {
                 Box(
                     modifier = Modifier.size(110.dp),
                     contentAlignment = Alignment.Center
@@ -195,9 +192,11 @@ fun SegmentedDonutChart(
                         )
                     }
                 }
+            }
 
+            val legendList = @Composable { mod: Modifier ->
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = mod,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     segments.forEach { seg ->
@@ -226,12 +225,35 @@ fun SegmentedDonutChart(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+                            Spacer(Modifier.width(8.dp))
                             Text(
                                 text = "${seg.value} ($pct%)",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+            }
+
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                if (maxWidth < 290.dp) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        donutRing()
+                        legendList(Modifier.fillMaxWidth())
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        donutRing()
+                        legendList(Modifier.weight(1f))
                     }
                 }
             }

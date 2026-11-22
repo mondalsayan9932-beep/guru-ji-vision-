@@ -4,20 +4,24 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
@@ -49,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.core.AppLanguage
 import com.example.core.t
@@ -61,6 +66,7 @@ import com.example.ui.components.ErrorBannerCard
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.StatusPill
 import com.example.ui.components.openExternalUrl
+import com.example.ui.components.rememberResponsiveMetrics
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -84,33 +90,43 @@ fun CareerCommunityScreen(
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var careerFilter by remember { mutableStateOf("ALL") }
+    var visibleCareerCount by remember(careerFilter) { mutableIntStateOf(20) }
+    var visiblePostCount by remember { mutableIntStateOf(25) }
     var showCreatePost by remember { mutableStateOf(false) }
     var reportingPost by remember { mutableStateOf<CommunityPost?>(null) }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+    ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TabRow(selectedTabIndex = selectedTab) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text(t(language, "Career & Exams", "ক্যারিয়ার ও চাকরি")) },
+                text = { Text(t(language, "Career & Exams", "ক্যারিয়ার ও চাকরি"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("cc_tab_career")
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text(t(language, "Community Forum", "কমিউনিটি ফোরাম")) },
+                text = { Text(t(language, "Community Forum", "কমিউনিটি ফোরাম"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.testTag("cc_tab_community")
             )
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = metrics.contentMaxWidth),
+            contentPadding = metrics.screenContentPadding,
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)
         ) {
             if (selectedTab == 0) {
                 item {
@@ -162,53 +178,84 @@ fun CareerCommunityScreen(
                                 )
                             }
                         } else {
-                            items(filtered, key = { it.id }) { career ->
-                                Card(
+                            val displayedCareers = filtered.take(visibleCareerCount)
+                            items(
+                                items = displayedCareers.chunked(metrics.gridColumns),
+                                key = { row -> row.joinToString("_") { it.id } }
+                            ) { careerRow ->
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = MaterialTheme.shapes.medium,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.Top
                                 ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                    careerRow.forEach { career ->
+                                        Card(
+                                            modifier = Modifier.weight(1f),
+                                            shape = MaterialTheme.shapes.medium,
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                                         ) {
-                                            StatusPill(
-                                                label = career.category.replace('_', ' '),
-                                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                            )
-                                            StatusPill(
-                                                label = "Deadline: ${career.deadline}",
-                                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                        Text(career.title, style = MaterialTheme.typography.titleMedium)
-                                        Text(
-                                            text = "${career.organization} • ${career.eligibility}",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Text(
-                                            text = career.description,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        if (career.applyUrl.isNotBlank()) {
-                                            OutlinedButton(
-                                                onClick = { openExternalUrl(context, career.applyUrl) },
-                                                modifier = Modifier.testTag("career_open_${career.id}")
+                                            Column(
+                                                modifier = Modifier.padding(metrics.cardPadding),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                Spacer(Modifier.width(6.dp))
-                                                Text(t(language, "Official Details", "বিস্তারিত দেখুন"))
+                                                FlowRow(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    StatusPill(
+                                                        label = career.category.replace('_', ' '),
+                                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                    StatusPill(
+                                                        label = "Deadline: ${career.deadline}",
+                                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                                    )
+                                                }
+                                                Text(career.title, style = MaterialTheme.typography.titleMedium)
+                                                Text(
+                                                    text = "${career.organization} • ${career.eligibility}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = career.description,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                if (career.applyUrl.isNotBlank()) {
+                                                    OutlinedButton(
+                                                        onClick = { openExternalUrl(context, career.applyUrl) },
+                                                        modifier = Modifier
+                                                            .heightIn(min = 48.dp)
+                                                            .testTag("career_open_${career.id}")
+                                                    ) {
+                                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(Modifier.width(6.dp))
+                                                        Text(t(language, "Official Details", "বিস্তারিত দেখুন"))
+                                                    }
+                                                }
                                             }
                                         }
+                                    }
+                                    if (careerRow.size < metrics.gridColumns) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                            if (filtered.size > visibleCareerCount) {
+                                item {
+                                    OutlinedButton(
+                                        onClick = { visibleCareerCount += 20 },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
+                                            .testTag("career_load_more")
+                                    ) {
+                                        Text(t(language, "Load more opportunities (${filtered.size - visibleCareerCount} more)", "আরও দেখুন"))
                                     }
                                 }
                             }
@@ -255,7 +302,8 @@ fun CareerCommunityScreen(
                                 )
                             }
                         } else {
-                            items(postsState.data, key = { it.id }) { post ->
+                            val displayedPosts = postsState.data.take(visiblePostCount)
+                            items(displayedPosts, key = { it.id }) { post ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = MaterialTheme.shapes.medium,
@@ -263,13 +311,13 @@ fun CareerCommunityScreen(
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(16.dp),
+                                        modifier = Modifier.padding(metrics.cardPadding),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Row(
+                                        FlowRow(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             StatusPill(
                                                 label = "${post.topic.replace('_', ' ')} • ${post.collegeGroup}",
@@ -295,7 +343,9 @@ fun CareerCommunityScreen(
                                         ) {
                                             TextButton(
                                                 onClick = { reportingPost = post },
-                                                modifier = Modifier.testTag("post_report_${post.id}")
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("post_report_${post.id}")
                                             ) {
                                                 Icon(
                                                     Icons.Filled.Flag,
@@ -311,7 +361,9 @@ fun CareerCommunityScreen(
                                             }
                                             TextButton(
                                                 onClick = { onUpvotePost(post.id) },
-                                                modifier = Modifier.testTag("post_helpful_${post.id}")
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("post_helpful_${post.id}")
                                             ) {
                                                 Icon(Icons.Filled.ThumbUp, contentDescription = "Helpful", modifier = Modifier.size(16.dp))
                                                 Spacer(Modifier.width(6.dp))
@@ -321,11 +373,25 @@ fun CareerCommunityScreen(
                                     }
                                 }
                             }
+                            if (postsState.data.size > visiblePostCount) {
+                                item {
+                                    OutlinedButton(
+                                        onClick = { visiblePostCount += 25 },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
+                                            .testTag("community_load_more")
+                                    ) {
+                                        Text(t(language, "Load more discussions (${postsState.data.size - visiblePostCount} more)", "আরও আলোচনা দেখুন"))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+    }
     }
 
     if (showCreatePost) {
@@ -340,7 +406,10 @@ fun CareerCommunityScreen(
             onDismissRequest = { showCreatePost = false },
             title = { Text(t(language, "New Community Post", "নতুন কমিউনিটি পোস্ট")) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf("DOUBT", "NOTES_SHARE", "EXAM_PREP", "FARM_TALK").forEach { tp ->
                             FilterChip(
@@ -407,7 +476,10 @@ fun CareerCommunityScreen(
             onDismissRequest = { reportingPost = null },
             title = { Text(t(language, "Report Community Post", "কমিউনিটি পোস্ট রিপোর্ট করুন")) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
                         text = postToReport.title,
                         style = MaterialTheme.typography.labelLarge

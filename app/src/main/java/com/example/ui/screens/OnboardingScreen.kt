@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,9 +15,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -49,12 +53,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.core.AppLanguage
 import com.example.core.L10n
 import com.example.core.t
 import com.example.ui.components.LanguageTogglePill
+import com.example.ui.components.rememberResponsiveMetrics
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -80,19 +86,23 @@ fun OnboardingScreen(
     var district by remember { mutableStateOf("") }
     var selectedSemester by remember { mutableLongStateOf(1L) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding(),
         contentAlignment = Alignment.TopCenter
     ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+        val useCompactLang = maxWidth < 380.dp
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(horizontal = metrics.horizontalPadding, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
@@ -103,9 +113,17 @@ fun OnboardingScreen(
                 Text(
                     text = L10n.brandName(language),
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                LanguageTogglePill(language = language, onToggle = onLanguageChange)
+                Spacer(modifier = Modifier.width(8.dp))
+                LanguageTogglePill(
+                    language = language,
+                    onToggle = onLanguageChange,
+                    compact = useCompactLang
+                )
             }
 
             // Google Account Summary Card (auto-fetched display name, email & profile photo)
@@ -168,28 +186,54 @@ fun OnboardingScreen(
             )
 
             // Role Selection Cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                RoleCard(
-                    title = L10n.studentRole(language),
-                    subtitle = t(language, "B.Sc Agri, Notes & Money Manager", "B.Sc কৃষি ও মানি ম্যানেজার"),
-                    icon = Icons.Filled.School,
-                    selected = selectedRole == "STUDENT",
-                    tag = "role_select_student",
-                    onClick = { selectedRole = "STUDENT" },
-                    modifier = Modifier.weight(1f)
-                )
-                RoleCard(
-                    title = L10n.farmerRole(language),
-                    subtitle = t(language, "Crop Care, Queries & Calculators", "ফসল পরামর্শ ও ক্যালকুলেটর"),
-                    icon = Icons.Filled.Agriculture,
-                    selected = selectedRole == "FARMER",
-                    tag = "role_select_farmer",
-                    onClick = { selectedRole = "FARMER" },
-                    modifier = Modifier.weight(1f)
-                )
+            if (metrics.isUltraCompact) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    RoleCard(
+                        title = L10n.studentRole(language),
+                        subtitle = t(language, "B.Sc Agri, Notes & Money Manager", "B.Sc কৃষি ও মানি ম্যানেজার"),
+                        icon = Icons.Filled.School,
+                        selected = selectedRole == "STUDENT",
+                        tag = "role_select_student",
+                        onClick = { selectedRole = "STUDENT" },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    RoleCard(
+                        title = L10n.farmerRole(language),
+                        subtitle = t(language, "Crop Care, Queries & Calculators", "ফসল পরামর্শ ও ক্যালকুলেটর"),
+                        icon = Icons.Filled.Agriculture,
+                        selected = selectedRole == "FARMER",
+                        tag = "role_select_farmer",
+                        onClick = { selectedRole = "FARMER" },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    RoleCard(
+                        title = L10n.studentRole(language),
+                        subtitle = t(language, "B.Sc Agri, Notes & Money Manager", "B.Sc কৃষি ও মানি ম্যানেজার"),
+                        icon = Icons.Filled.School,
+                        selected = selectedRole == "STUDENT",
+                        tag = "role_select_student",
+                        onClick = { selectedRole = "STUDENT" },
+                        modifier = Modifier.weight(1f)
+                    )
+                    RoleCard(
+                        title = L10n.farmerRole(language),
+                        subtitle = t(language, "Crop Care, Queries & Calculators", "ফসল পরামর্শ ও ক্যালকুলেটর"),
+                        icon = Icons.Filled.Agriculture,
+                        selected = selectedRole == "FARMER",
+                        tag = "role_select_farmer",
+                        onClick = { selectedRole = "FARMER" },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             OutlinedTextField(
@@ -302,6 +346,7 @@ private fun RoleCard(
 ) {
     Card(
         modifier = modifier
+            .minimumInteractiveComponentSize()
             .testTag(tag)
             .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,

@@ -33,9 +33,9 @@ class MeetingRepository(
         val uid = requireUserId()
         val path = "meetings"
         val query = if (includeUnpublishedForHost) {
-            db.collection(path)
+            db.collection(path).limit(150)
         } else {
-            db.collection(path).whereEqualTo("published", true)
+            db.collection(path).whereEqualTo("published", true).limit(150)
         }
         emitAll(
             query.snapshots()

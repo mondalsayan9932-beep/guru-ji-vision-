@@ -54,9 +54,9 @@ class DoubtRepository(
         val uid = requireUserId()
         val path = "professors"
         val query = if (includeInactiveForAdmin) {
-            db.collection(path)
+            db.collection(path).limit(100)
         } else {
-            db.collection(path).whereEqualTo("active", true)
+            db.collection(path).whereEqualTo("active", true).limit(100)
         }
         emitAll(
             query.snapshots()
@@ -168,6 +168,7 @@ class DoubtRepository(
         emitAll(
             db.collection(path)
                 .whereEqualTo("studentId", studentId)
+                .limit(100)
                 .snapshots()
                 .map { snap ->
                     snap.toObjects(
@@ -201,9 +202,9 @@ class DoubtRepository(
         val path = "doubtChats"
         val query = when {
             identity.matchedByAccountLink && identity.professorId.isNotBlank() ->
-                db.collection(path).whereEqualTo("professorId", identity.professorId)
+                db.collection(path).whereEqualTo("professorId", identity.professorId).limit(200)
             identity.matchedByEmail.isNotBlank() ->
-                db.collection(path).whereEqualTo("professorEmail", identity.matchedByEmail)
+                db.collection(path).whereEqualTo("professorEmail", identity.matchedByEmail).limit(200)
             else -> {
                 emit(emptyList())
                 return@flow
@@ -247,13 +248,13 @@ class DoubtRepository(
         val query = if (asProfessor) {
             when {
                 identity.matchedByAccountLink && identity.professorId.isNotBlank() ->
-                    collectionRef.whereEqualTo("professorId", identity.professorId)
+                    collectionRef.whereEqualTo("professorId", identity.professorId).limit(250)
                 identity.matchedByEmail.isNotBlank() ->
-                    collectionRef.whereEqualTo("professorEmail", identity.matchedByEmail)
-                else -> collectionRef.whereEqualTo("professorUid", uid)
+                    collectionRef.whereEqualTo("professorEmail", identity.matchedByEmail).limit(250)
+                else -> collectionRef.whereEqualTo("professorUid", uid).limit(250)
             }
         } else {
-            collectionRef.whereEqualTo("studentId", studentId)
+            collectionRef.whereEqualTo("studentId", studentId).limit(250)
         }
         emitAll(
             query.snapshots()
@@ -315,9 +316,10 @@ class DoubtRepository(
                 else -> ""
             }
             val profEmailLower = (existingThread?.professorEmail ?: professor.email).trim().lowercase(Locale.ROOT)
+            val existingProfUid = existingThread?.professorUid?.takeIf { it.isNotBlank() }
             val effectiveProfUid = when {
                 senderRole == "PROFESSOR" -> uid
-                !existingThread?.professorUid.isNullOrBlank() -> existingThread!!.professorUid
+                existingProfUid != null -> existingProfUid
                 else -> professor.authorizedUid.trim()
             }
 
@@ -386,8 +388,8 @@ class DoubtRepository(
                 put("senderRole", senderRole)
                 put("text", cleanText)
                 put("hasImage", hasImg)
-                if (hasImg && encodedImage != null) {
-                    put("imageBase64", encodedImage)
+                encodedImage?.takeIf { it.isNotBlank() }?.let { safeImg ->
+                    put("imageBase64", safeImg)
                 }
                 put("readByRecipient", false)
                 put("createdAt", FieldValue.serverTimestamp())

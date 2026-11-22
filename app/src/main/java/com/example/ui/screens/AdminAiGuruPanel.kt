@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -199,10 +200,10 @@ fun AdminAiGuruPanel(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -299,6 +300,7 @@ fun AdminAiGuruPanel(
                     enabled = connectionTestState !is AiConnectionTestUiState.Testing && !busy,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .testTag("admin_test_ai_connection_button")
                 ) {
                     Icon(Icons.Filled.NetworkCheck, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -462,6 +464,7 @@ fun AdminAiGuruPanel(
                     enabled = !busy,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .testTag("admin_save_ai_settings_button")
                 ) {
                     Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -503,6 +506,7 @@ fun AdminAiGuruPanel(
                     enabled = !pdfExtracting && !busy,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .testTag("admin_pick_kb_pdf_button")
                 ) {
                     if (pdfExtracting) {
@@ -618,6 +622,7 @@ fun AdminAiGuruPanel(
                     enabled = !busy && !pdfExtracting && kbTitle.trim().length >= 2 && kbSubject.trim().length >= 2 && kbSummary.trim().length >= 5,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .testTag("admin_publish_kb_button")
                 ) {
                     Text("Publish to Student Portal & AI Guru Knowledge Base")

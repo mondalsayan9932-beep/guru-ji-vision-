@@ -68,7 +68,8 @@ fun resolveWhatsAppGroupInviteUrl(configuredUrl: String?): String {
 fun LanguageTogglePill(
     language: AppLanguage,
     onToggle: (AppLanguage) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val nextLang = if (language == AppLanguage.EN) AppLanguage.BN else AppLanguage.EN
     Surface(
@@ -82,25 +83,33 @@ fun LanguageTogglePill(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(
+                horizontal = if (compact) 10.dp else 12.dp,
+                vertical = 6.dp
+            ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp)
         ) {
             Text(
-                text = if (language == AppLanguage.EN) "EN" else "বাংলা",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                text = if (language == AppLanguage.EN) "EN" else if (compact) "বাং" else "বাংলা",
+                style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 1
             )
-            Text(
-                text = "⇄",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = if (language == AppLanguage.EN) "বাংলা" else "EN",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-            )
+            if (!compact) {
+                Text(
+                    text = "⇄",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+                Text(
+                    text = if (language == AppLanguage.EN) "বাংলা" else "EN",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -156,6 +165,8 @@ fun StatusPill(
             style = MaterialTheme.typography.labelSmall,
             color = contentColor,
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
     }
@@ -318,18 +329,24 @@ fun CategorySpendingBarChart(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = formatInr(amount),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
                     )
                 }
                 Canvas(

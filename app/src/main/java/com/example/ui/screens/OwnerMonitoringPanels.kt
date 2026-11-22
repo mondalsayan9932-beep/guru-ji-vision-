@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -55,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.core.OwnerReportSnapshot
 import com.example.core.formatByteSize
@@ -88,6 +90,7 @@ private fun formatTs(seconds: Long?): String {
     return fmt.format(Date(seconds * 1000L))
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OwnerOverviewPanel(
     snapshot: OwnerReportSnapshot,
@@ -136,27 +139,34 @@ fun OwnerOverviewPanel(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
                     onClick = onJumpToAlerts,
-                    modifier = Modifier.weight(1f).testTag("owner_alert_errors_btn")
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("owner_alert_errors_btn")
                 ) {
-                    Text("Errors: ${snapshot.unresolvedCriticalOrWarningCount}", maxLines = 1)
+                    Text("Errors: ${snapshot.unresolvedCriticalOrWarningCount}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 OutlinedButton(
                     onClick = onJumpToReports,
-                    modifier = Modifier.weight(1f).testTag("owner_alert_reports_btn")
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("owner_alert_reports_btn")
                 ) {
-                    Text("Reports: ${snapshot.pendingContentReports}", maxLines = 1)
+                    Text("Reports: ${snapshot.pendingContentReports}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 OutlinedButton(
                     onClick = onJumpToFarmerDesk,
-                    modifier = Modifier.weight(1f).testTag("owner_alert_queries_btn")
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("owner_alert_queries_btn")
                 ) {
-                    Text("Queries: ${snapshot.openQueries}", maxLines = 1)
+                    Text("Queries: ${snapshot.openQueries}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -432,6 +442,7 @@ fun OwnerActivityAcademicsPanel(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OwnerAiCloudHealthPanel(
     snapshot: OwnerReportSnapshot,
@@ -532,7 +543,14 @@ fun OwnerAiCloudHealthPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Firebase Database & Storage Usage", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Firebase Database & Storage Usage",
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
                 StatusPill(
                     label = formatByteSize(snapshot.estimatedFirestoreBytes),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -582,15 +600,27 @@ fun OwnerAiCloudHealthPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Icon(Icons.Filled.HealthAndSafety, contentDescription = null, tint = emerald)
-                    Text("Error Logs & System Health (${errorLogs.size})", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Error Logs & System Health (${errorLogs.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
+                Spacer(Modifier.width(8.dp))
                 OutlinedButton(
                     onClick = onRunDiagnosticPing,
-                    modifier = Modifier.testTag("owner_health_ping_button")
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("owner_health_ping_button")
                 ) {
-                    Text("Test Ping")
+                    Text("Test Ping", maxLines = 1)
                 }
             }
 
@@ -630,14 +660,22 @@ fun OwnerAiCloudHealthPanel(
                             }
                             Text(err.module, style = MaterialTheme.typography.labelLarge)
                             Text(err.message, style = MaterialTheme.typography.bodySmall)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 OutlinedButton(
                                     onClick = { onResolveError(err.id, !err.resolved) },
-                                    modifier = Modifier.testTag("owner_resolve_err_${err.id}")
+                                    modifier = Modifier
+                                        .heightIn(min = 48.dp)
+                                        .testTag("owner_resolve_err_${err.id}")
                                 ) {
                                     Text(if (err.resolved) "Reopen" else "Mark Resolved")
                                 }
-                                TextButton(onClick = { onDeleteError(err.id) }) {
+                                TextButton(
+                                    onClick = { onDeleteError(err.id) },
+                                    modifier = Modifier.heightIn(min = 48.dp)
+                                ) {
                                     Text("Delete", color = crimson)
                                 }
                             }
@@ -649,6 +687,7 @@ fun OwnerAiCloudHealthPanel(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OwnerDeskModerationPanel(
     snapshot: OwnerReportSnapshot,
@@ -700,7 +739,14 @@ fun OwnerDeskModerationPanel(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("${q.cropName} (${q.category})", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "${q.cropName} (${q.category})",
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
                         StatusPill(
                             label = q.status,
                             containerColor = when (q.status) {
@@ -727,14 +773,19 @@ fun OwnerDeskModerationPanel(
                         minLines = 2,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         OutlinedButton(
                             onClick = { onReplyFarmerQuery(q.id, "IN_REVIEW", replyText) },
-                            enabled = !busy
+                            enabled = !busy,
+                            modifier = Modifier.heightIn(min = 48.dp)
                         ) { Text("In Review") }
                         Button(
                             onClick = { onReplyFarmerQuery(q.id, "RESOLVED", replyText) },
-                            enabled = !busy
+                            enabled = !busy,
+                            modifier = Modifier.heightIn(min = 48.dp)
                         ) { Text("Mark Resolved") }
                     }
                 }
@@ -782,17 +833,24 @@ fun OwnerDeskModerationPanel(
                             Text("Reported by ${rep.reporterName} • ${formatTs(rep.createdAt?.seconds)}", style = MaterialTheme.typography.labelSmall)
                             Text("Reason: ${rep.reason}", style = MaterialTheme.typography.bodySmall)
                             if (rep.status == "PENDING") {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
                                     Button(
                                         onClick = { onHidePostAndResolve(rep) },
                                         enabled = !busy,
                                         colors = ButtonDefaults.buttonColors(containerColor = crimson),
-                                        modifier = Modifier.testTag("owner_hide_report_${rep.id}")
+                                        modifier = Modifier
+                                            .heightIn(min = 48.dp)
+                                            .testTag("owner_hide_report_${rep.id}")
                                     ) { Text("Hide Post & Close") }
                                     OutlinedButton(
                                         onClick = { onDismissReport(rep.id) },
                                         enabled = !busy,
-                                        modifier = Modifier.testTag("owner_dismiss_report_${rep.id}")
+                                        modifier = Modifier
+                                            .heightIn(min = 48.dp)
+                                            .testTag("owner_dismiss_report_${rep.id}")
                                     ) { Text("Dismiss") }
                                 }
                             }

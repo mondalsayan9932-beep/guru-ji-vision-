@@ -5,16 +5,20 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,10 +50,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.R
@@ -61,11 +67,23 @@ import com.example.data.model.AppSettings
 import com.example.data.model.UiState
 import com.example.data.model.UserProfile
 import com.example.ui.components.PortalFeatureCard
+import com.example.ui.components.ResponsiveCardGrid
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.StatusPill
 import com.example.ui.components.WhatsAppSupportButton
 import com.example.ui.components.openWhatsAppGroupInvite
+import com.example.ui.components.rememberResponsiveMetrics
 
+private data class HomePortalSpec(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val accentColor: Color,
+    val tag: String,
+    val onClick: () -> Unit
+)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     profile: UserProfile?,
@@ -91,12 +109,21 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
 
-    LazyColumn(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentAlignment = Alignment.TopCenter
+    ) {
+        val metrics = rememberResponsiveMetrics(maxWidth)
+        val stackBannerCta = maxWidth < 400.dp
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .widthIn(max = metrics.contentMaxWidth),
+        contentPadding = metrics.screenContentPadding,
+        verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)
     ) {
         // Live Maintenance / Priority Banner set by Platform Owner
         if (appSettings.maintenanceBanner.isNotBlank()) {
@@ -132,18 +159,17 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp)
                     .clip(MaterialTheme.shapes.large)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.img_hero_agri_banner_1795234984548),
                     contentDescription = "Guru Ji Vision Farmland Hero",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.matchParentSize()
                 )
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .matchParentSize()
                         .background(
                             Brush.verticalGradient(
                                 listOf(
@@ -155,8 +181,9 @@ fun HomeScreen(
                 )
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(18.dp),
+                        .fillMaxWidth()
+                        .heightIn(min = if (metrics.isUltraCompact) 186.dp else 210.dp)
+                        .padding(if (metrics.isUltraCompact) 14.dp else 18.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
@@ -164,23 +191,24 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        StatusPill(
-                            label = if (isFounder) {
-                                t(language, "FOUNDER / OWNER", "ফাউন্ডার / ওনার")
-                            } else if (isAuthorizedProfessor) {
-                                t(language, "FACULTY ADVISOR", "অধ্যাপক / উপদেষ্টা")
-                            } else if (profile?.role == "FARMER") {
-                                L10n.farmerRole(language).uppercase()
-                            } else {
-                                L10n.studentRole(language).uppercase()
-                            },
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = Color.White
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        FlowRow(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            StatusPill(
+                                label = if (isFounder) {
+                                    t(language, "FOUNDER / OWNER", "ফাউন্ডার / ওনার")
+                                } else if (isAuthorizedProfessor) {
+                                    t(language, "FACULTY ADVISOR", "অধ্যাপক / উপদেষ্টা")
+                                } else if (profile?.role == "FARMER") {
+                                    L10n.farmerRole(language).uppercase()
+                                } else {
+                                    L10n.studentRole(language).uppercase()
+                                },
+                                containerColor = MaterialTheme.colorScheme.secondary,
+                                contentColor = Color.White
+                            )
                             if (profile != null && profile.role == "STUDENT" && profile.semester > 0) {
                                 StatusPill(
                                     label = "B.Sc Agri • Sem ${profile.semester}",
@@ -188,19 +216,22 @@ fun HomeScreen(
                                     contentColor = Color.White
                                 )
                             }
-                            val avatarUrl = profile?.photoUrl?.ifBlank { userPhotoUrl } ?: userPhotoUrl
-                            if (avatarUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = avatarUrl,
-                                    contentDescription = "Google Profile Photo",
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
+                        }
+                        val avatarUrl = profile?.photoUrl?.ifBlank { userPhotoUrl } ?: userPhotoUrl
+                        if (avatarUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Google Profile Photo",
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
@@ -210,7 +241,9 @@ fun HomeScreen(
                                 "নমস্কার, ${profile?.displayName?.ifBlank { "বন্ধু" } ?: "সদস্য"}"
                             ),
                             style = MaterialTheme.typography.headlineSmall,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = appSettings.heroHeadline.ifBlank { L10n.tagline(language) },
@@ -235,15 +268,9 @@ fun HomeScreen(
                     ),
                     border = BorderStroke(1.5.dp, Color(0xFF4ADE80))
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    val headerContent: @Composable (Modifier) -> Unit = { mod ->
                         Row(
-                            modifier = Modifier.weight(1f),
+                            modifier = mod,
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -251,9 +278,9 @@ fun HomeScreen(
                                 imageVector = Icons.Filled.MonitorHeart,
                                 contentDescription = "Owner Monitoring Center",
                                 tint = Color(0xFF86EFAC),
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(30.dp)
                             )
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = t(language, "Owner Monitoring & Control Center", "ওনার মনিটরিং ও কন্ট্রোল সেন্টার"),
                                     style = MaterialTheme.typography.titleMedium,
@@ -270,16 +297,51 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = onOpenOwnerCenter,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4ADE80),
-                                contentColor = Color(0xFF0A2E18)
-                            ),
-                            modifier = Modifier.testTag("open_owner_center_button")
+                    }
+                    if (stackBannerCta) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(metrics.cardPadding),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(t(language, "Monitor", "মনিটর"))
+                            headerContent(Modifier.fillMaxWidth())
+                            Button(
+                                onClick = onOpenOwnerCenter,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4ADE80),
+                                    contentColor = Color(0xFF0A2E18)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .testTag("open_owner_center_button")
+                            ) {
+                                Text(t(language, "Open Monitor Center", "মনিটর খুলুন"))
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(metrics.cardPadding),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            headerContent(Modifier.weight(1f))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Button(
+                                onClick = onOpenOwnerCenter,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4ADE80),
+                                    contentColor = Color(0xFF0A2E18)
+                                ),
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .testTag("open_owner_center_button")
+                            ) {
+                                Text(t(language, "Monitor", "মনিটর"))
+                            }
                         }
                     }
                 }
@@ -299,15 +361,9 @@ fun HomeScreen(
                     ),
                     border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    val headerContent: @Composable (Modifier) -> Unit = { mod ->
                         Row(
-                            modifier = Modifier.weight(1f),
+                            modifier = mod,
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -317,7 +373,7 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(30.dp)
                             )
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = L10n.adminDashboard(language),
                                     style = MaterialTheme.typography.titleMedium,
@@ -334,12 +390,43 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = onOpenAdmin,
-                            modifier = Modifier.testTag("open_admin_dashboard_button")
+                    }
+                    if (stackBannerCta) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(metrics.cardPadding),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(t(language, "Open", "খুলুন"))
+                            headerContent(Modifier.fillMaxWidth())
+                            Button(
+                                onClick = onOpenAdmin,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .testTag("open_admin_dashboard_button")
+                            ) {
+                                Text(t(language, "Open Admin CMS", "অ্যাডমিন খুলুন"))
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(metrics.cardPadding),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            headerContent(Modifier.weight(1f))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Button(
+                                onClick = onOpenAdmin,
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .testTag("open_admin_dashboard_button")
+                            ) {
+                                Text(t(language, "Open", "খুলুন"))
+                            }
                         }
                     }
                 }
@@ -405,16 +492,16 @@ fun HomeScreen(
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                PortalFeatureCard(
+            val portalSpecs = listOf(
+                HomePortalSpec(
                     title = t(language, "B.Sc Agriculture Student Portal", "B.Sc কৃষি শিক্ষার্থী পোর্টাল"),
                     subtitle = t(language, "Semester 1–8 notes, video lectures, PYQs, practicals & online MCQ exams", "সেমিস্টার ১–৮ নোটস, ভিডিও, PYQ, প্র্যাকটিক্যাল ও অনলাইন MCQ পরীক্ষা"),
                     icon = Icons.Filled.School,
                     accentColor = MaterialTheme.colorScheme.primary,
                     tag = "home_portal_student",
                     onClick = onOpenStudent
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = if (upcomingMeetingsCount > 0) {
                         "${L10n.meetingZone(language)} ($upcomingMeetingsCount ${t(language, "Upcoming", "আসন্ন")})"
                     } else {
@@ -429,8 +516,8 @@ fun HomeScreen(
                     accentColor = Color(0xFF0E7490),
                     tag = "home_portal_meeting_zone",
                     onClick = onOpenMeetingZone
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = if (unreadDoubtsCount > 0) {
                         "${L10n.doubtZoneFull(language)} • $unreadDoubtsCount ${t(language, "New", "নতুন")}"
                     } else {
@@ -445,46 +532,61 @@ fun HomeScreen(
                     accentColor = Color(0xFF1B4332),
                     tag = "home_portal_doubt_zone",
                     onClick = onOpenDoubtZone
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = L10n.moneyManager(language),
                     subtitle = t(language, "Private INR (₹) mess, hostel, education, shared bills & savings goals", "ব্যক্তিগত মেস, হোস্টেল, পড়াশোনা ও সঞ্চয়ের হিসাব (₹)"),
                     icon = Icons.Filled.AccountBalanceWallet,
                     accentColor = Color(0xFF047857),
                     tag = "home_portal_money",
                     onClick = onOpenMoneyManager
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = t(language, "Farmer Portal & Query Desk", "কৃষক পোর্টাল ও প্রশ্ন ডেস্ক"),
                     subtitle = t(language, "Crop diseases, IPM pest control, submit crop issues & track replies", "ফসলের রোগ-পোকা সমাধান, প্রশ্ন জমা ও স্ট্যাটাস ট্র্যাকিং"),
                     icon = Icons.Filled.Agriculture,
                     accentColor = Color(0xFF15803D),
                     tag = "home_portal_farmer",
                     onClick = onOpenFarmer
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = L10n.agriCalculators(language),
                     subtitle = t(language, "Fertilizer (Urea/DAP/MOP), Seed Rate & Plant Population calculators", "সার, বীজ হার ও চারার সংখ্যা নির্ণায়ক ক্যালকুলেটর"),
                     icon = Icons.Filled.Calculate,
                     accentColor = MaterialTheme.colorScheme.secondary,
                     tag = "home_portal_tools",
                     onClick = onOpenTools
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = L10n.aiAssistant(language),
                     subtitle = t(language, "Gemini AI agronomy Q&A + crop photo analysis in English & Bengali", "ইংরেজি ও বাংলায় এআই কৃষি পরামর্শ ও ফসলের ছবি বিশ্লেষণ"),
                     icon = Icons.Filled.AutoAwesome,
                     accentColor = Color(0xFF0F766E),
                     tag = "home_portal_ai",
                     onClick = onOpenAi
-                )
-                PortalFeatureCard(
+                ),
+                HomePortalSpec(
                     title = t(language, "Career, Scholarships & Community", "ক্যারিয়ার, বৃত্তি ও কমিউনিটি"),
                     subtitle = t(language, "Govt/private agri jobs, ICAR exams, college groups & doubt solving", "সরকারি ও বেসরকারি কৃষি চাকরি, বৃত্তি ও শিক্ষার্থী ফোরাম"),
                     icon = Icons.Filled.WorkOutline,
                     accentColor = MaterialTheme.colorScheme.tertiary,
                     tag = "home_portal_career_community",
                     onClick = onOpenCareerCommunity
+                )
+            )
+            ResponsiveCardGrid(
+                items = portalSpecs,
+                columns = metrics.gridColumns,
+                horizontalSpacing = 12.dp,
+                verticalSpacing = 12.dp
+            ) { spec ->
+                PortalFeatureCard(
+                    title = spec.title,
+                    subtitle = spec.subtitle,
+                    icon = spec.icon,
+                    accentColor = spec.accentColor,
+                    tag = spec.tag,
+                    onClick = spec.onClick
                 )
             }
         }
@@ -533,6 +635,7 @@ fun HomeScreen(
                         onClick = onSignOut,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 48.dp)
                             .testTag("home_sign_out_button")
                     ) {
                         Icon(
@@ -548,5 +651,6 @@ fun HomeScreen(
         }
 
         item { Spacer(modifier = Modifier.height(12.dp)) }
+    }
     }
 }
