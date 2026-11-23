@@ -9,6 +9,18 @@
 
 import { CROP_NAME_BN_MAP, QUICK_WEATHER_LOCATIONS } from "./config.js";
 import { escapeHtml, formatInr, safeUrl } from "./calculators.js";
+import { OFFICIAL_MSP_REFERENCE } from "./farmer-finance-data.js";
+import {
+  INDIA_DIRECTORY_META,
+  canonicalizeDistrictName,
+  canonicalizeStateName,
+  getAllStatesList,
+  getDirectoryCoverageStats,
+  getDistrictsForState,
+  getMarketsForSelection,
+  matchesCropFilter,
+  normalizeAdminName
+} from "./india-mandi-directory.js";
 
 // ----------------------------------------------------------------------------
 // WMO WEATHER CODE TRANSLATIONS (English + Bengali)
@@ -487,14 +499,15 @@ function renderWeatherDataCards(w) {
 // ----------------------------------------------------------------------------
 // 2. CROP MARKET PRICE – ফসলের বাজারদর (Official AGMARKNET + Admin Verified)
 // ----------------------------------------------------------------------------
-export async function fetchOfficialMandiPrices({ state = "", district = "", commodity = "", market = "" } = {}) {
+export async function fetchOfficialMandiPrices({ state = "", district = "", commodity = "", market = "", limit = 120, offset = 0 } = {}) {
   try {
     const params = new URLSearchParams();
     if (state) params.set("state", state);
     if (district) params.set("district", district);
     if (commodity) params.set("commodity", commodity);
     if (market) params.set("market", market);
-    params.set("limit", "80");
+    params.set("limit", String(limit));
+    if (offset > 0) params.set("offset", String(offset));
 
     const res = await fetch(`/.netlify/functions/mandi-prices?${params.toString()}`);
     if (!res.ok) {
@@ -510,9 +523,16 @@ export async function fetchOfficialMandiPrices({ state = "", district = "", comm
       ok: false,
       configured: false,
       records: [],
-      error: "Official AGMARKNET serverless proxy is not reachable in this preview. Deploy on Netlify with DATA_GOV_API_KEY or publish verified rates via Admin Studio."
+      error: "Live mandi price data is temporarily unavailable. Please try refreshing later."
     };
   }
+}
+
+function formatMandiPriceCell(val) {
+  if (val === null || val === undefined || val === "" || Number(val) <= 0 || !Number.isFinite(Number(val))) {
+    return "Not Available";
+  }
+  return formatInr(Number(val));
 }
 
 export function renderMarketPriceView(state) {
@@ -520,30 +540,36 @@ export function renderMarketPriceView(state) {
   const adminRecords = (state.firestoreMarketPrices || []).filter((r) => r.published !== false);
   const allRecords = [...apiRecords, ...adminRecords];
 
-  const qCrop = (state.marketSearchCrop || "").trim().toLowerCase();
+  const qCrop = (state.marketSearchCrop || "").trim();
   const fState = state.marketFilterState || "ALL";
   const fDistrict = state.marketFilterDistrict || "ALL";
   const fMarket = state.marketFilterMandi || "ALL";
 
-  const states = [...new Set(allRecords.map((r) => r.state).filter(Boolean))].sort();
-  const districts = [...new Set(allRecords.filter((r) => fState === "ALL" || r.state === fState).map((r) => r.district).filter(Boolean))].sort();
-  const markets = [...new Set(allRecords.filter((r) => (fState === "ALL" || r.state === fState) && (fDistrict === "ALL" || r.district === fDistrict)).map((r) => r.marketName).filter(Boolean))].sort();
+  // 1. Complete All-India Directory (28 States + 8 UTs = 36 immediately, never 0!)
+  const allStates = getAllStatesList();
+  const districts = getDistrictsForState(fState, allRecords);
+  const marketEntries = getMarketsForSelection(fState, fDistrict, allRecords);
+  const dirStats = getDirectoryCoverageStats();
 
+  // Separate verified static directory count vs merged live markets
+  const hasSelectedDistrictWithoutVerifiedMarkets =
+    fState !== "ALL" && fDistrict !== "ALL" && marketEntries.length === 0;
+
+  // 2. Filter price records using canonicalized state/district/market matching & strict Paddy vs Rice crop matching
   const filtered = allRecords.filter((r) => {
-    if (fState !== "ALL" && r.state !== fState) return false;
-    if (fDistrict !== "ALL" && r.district !== fDistrict) return false;
-    if (fMarket !== "ALL" && r.marketName !== fMarket) return false;
-    if (qCrop) {
-      const bn = getCropBengaliName(r.cropName, r.cropNameBn);
-      const hay = `${r.cropName} ${bn} ${r.variety || ""} ${r.marketName} ${r.district} ${r.state}`.toLowerCase();
-      if (!hay.includes(qCrop)) return false;
-    }
+    const recState = canonicalizeStateName(r.state);
+    const recDistrict = canonicalizeDistrictName(r.district, recState);
+    if (fState !== "ALL" && normalizeAdminName(recState) !== normalizeAdminName(fState)) return false;
+    if (fDistrict !== "ALL" && normalizeAdminName(recDistrict) !== normalizeAdminName(fDistrict)) return false;
+    if (fMarket !== "ALL" && normalizeAdminName(r.marketName) !== normalizeAdminName(fMarket)) return false;
+    if (qCrop && !matchesCropFilter(r, qCrop, getCropBengaliName)) return false;
     return true;
   });
 
-  // Same-Crop, Same-Unit Market Price Comparison
+  // 3. Same-Crop, Same-Unit Market Price Comparison (only valid modalPrice rows)
   const compGroups = new Map();
   filtered.forEach((r) => {
+    if (r.modalPrice === null || r.modalPrice === undefined || Number(r.modalPrice) <= 0) return;
     const key = `${String(r.cropName).toLowerCase()}||${String(r.unit || "₹ / Quintal").toLowerCase()}`;
     if (!compGroups.has(key)) compGroups.set(key, []);
     compGroups.get(key).push(r);
@@ -564,65 +590,150 @@ export function renderMarketPriceView(state) {
     }
   }
 
+  const quickCrops = [
+    { key: "", label: "All Crops" },
+    { key: "Paddy", label: "Paddy (ধান)" },
+    { key: "Rice", label: "Rice (চাল)" },
+    { key: "Wheat", label: "Wheat (গম)" },
+    { key: "Potato", label: "Potato (আলু)" },
+    { key: "Onion", label: "Onion (পেঁয়াজ)" },
+    { key: "Tomato", label: "Tomato (টমেটো)" },
+    { key: "Mustard", label: "Mustard (সরিষা)" },
+    { key: "Brinjal", label: "Brinjal (বেগুন)" },
+    { key: "Jute", label: "Jute (পাট)" }
+  ];
+
+  const mandiOptionLabel = state.mandiLoading
+    ? "Loading Mandis / Markets..."
+    : `All Mandis / Markets (${marketEntries.length})`;
+
   return `
-    <div class="space-y-5 animate-fade-up">
+    <div class="mandi-scope space-y-5 animate-fade-up">
       <!-- Header -->
-      <div class="rounded-3xl bg-gradient-to-br from-[#14532D] to-[#1E7E45] text-white p-5 sm:p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-bold text-emerald-100">
-            🌾 Verified Market Transparency • Zero Fabricated Rates
+      <div class="ff-hero-card rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="space-y-1.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="ff-hero-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+              🌾 Verified Market Transparency • Zero Fabricated Rates
+            </span>
+            <span class="ff-hero-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+              ${dirStats.stateCount} States + ${dirStats.utCount} UTs (${dirStats.totalStatesAndUTs}) • ${dirStats.totalDistricts} Districts
+            </span>
           </div>
-          <h2 class="font-display text-xl sm:text-2xl font-bold">Crop Market Price – ফসলের বাজারদর</h2>
-          <p class="text-xs sm:text-sm text-emerald-100">Compare genuine mandi minimum, maximum &amp; modal prices with official source and reporting dates.</p>
+          <h2 class="ff-hero-heading font-display text-xl sm:text-2xl font-bold">Crop Market Price – ফসলের বাজারদর</h2>
+          <p class="ff-hero-desc text-xs sm:text-sm">Browse all Indian States, Districts &amp; verified APMC Mandis, and sync genuine AGMARKNET daily rates with source &amp; arrival date.</p>
         </div>
         <div class="flex flex-wrap gap-2 shrink-0">
-          <button data-action="refresh-mandi" type="button" ${state.mandiLoading ? "disabled" : ""} class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold">
-            ${state.mandiLoading ? "Syncing..." : "🔄 Refresh Live AGMARKNET"}
+          <button data-action="refresh-mandi" type="button" ${state.mandiLoading ? "disabled" : ""} class="gv-btn ff-hero-btn-emerald px-4 py-2.5 rounded-xl text-xs font-extrabold disabled:opacity-70">
+            ${state.mandiLoading ? "Syncing AGMARKNET..." : "🔄 Refresh Live AGMARKNET"}
           </button>
-          <a href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold">
+          <a href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer" class="gv-btn ff-hero-btn-white inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-extrabold">
             Official AGMARKNET ↗
           </a>
         </div>
       </div>
 
-      <!-- Search & Filters -->
-      <div class="gv-card p-4 space-y-3">
+      <!-- Search & Cascading All-India Directory Filters -->
+      <div class="gv-card p-4 sm:p-5 space-y-3.5">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          <input id="marketCropSearch" type="search" value="${escapeHtml(state.marketSearchCrop || "")}" placeholder="Search crop (Rice/ধান, Potato/আলু, Onion, Mustard)..." class="px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
-          <select id="marketStateSelect" class="px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-semibold">
-            <option value="ALL">All States (${states.length})</option>
-            ${states.map((s) => `<option value="${escapeHtml(s)}" ${fState === s ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
-          </select>
-          <select id="marketDistrictSelect" class="px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-semibold">
-            <option value="ALL">All Districts (${districts.length})</option>
-            ${districts.map((d) => `<option value="${escapeHtml(d)}" ${fDistrict === d ? "selected" : ""}>${escapeHtml(d)}</option>`).join("")}
-          </select>
-          <select id="marketMandiSelect" class="px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm font-semibold">
-            <option value="ALL">All Mandis / Markets (${markets.length})</option>
-            ${markets.map((m) => `<option value="${escapeHtml(m)}" ${fMarket === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}
-          </select>
+          <div>
+            <label for="marketCropSearch" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">Crop / Commodity</label>
+            <input id="marketCropSearch" type="search" value="${escapeHtml(qCrop)}" placeholder="Search crop (Paddy/ধান, Rice/চাল, Potato/আলু)..." class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm" />
+          </div>
+          <div>
+            <label for="marketStateSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">State / Union Territory</label>
+            <select id="marketStateSelect" class="w-full px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
+              <option value="ALL">All States (${allStates.length})</option>
+              <optgroup label="28 Indian States">
+                ${allStates.filter((s) => s.type === "STATE").map((s) => `<option value="${escapeHtml(s.name)}" ${fState === s.name ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
+              </optgroup>
+              <optgroup label="8 Union Territories">
+                ${allStates.filter((s) => s.type === "UT").map((s) => `<option value="${escapeHtml(s.name)}" ${fState === s.name ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label for="marketDistrictSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">District ${fState !== "ALL" ? `(${escapeHtml(fState)})` : "(All India)"}</label>
+            <select id="marketDistrictSelect" class="w-full px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
+              <option value="ALL">All Districts (${districts.length})</option>
+              ${districts.map((d) => `<option value="${escapeHtml(d)}" ${fDistrict === d ? "selected" : ""}>${escapeHtml(d)}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label for="marketMandiSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">Mandi / APMC Market</label>
+            <select id="marketMandiSelect" class="w-full px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
+              <option value="ALL">${escapeHtml(mandiOptionLabel)}</option>
+              ${marketEntries.map((m) => {
+                const tag = m.marketType === "APMC_REGULATED" ? " [APMC]" : (m.marketType === "LIVE_AGMARKNET" ? " [Live AGMARKNET]" : " [Agri Market]");
+                return `<option value="${escapeHtml(m.name)}" ${fMarket === m.name ? "selected" : ""}>${escapeHtml(m.name)}${tag}</option>`;
+              }).join("")}
+            </select>
+          </div>
         </div>
 
-        <div class="flex flex-wrap gap-1.5">
-          ${["Paddy", "Rice", "Wheat", "Potato", "Onion", "Tomato", "Mustard", "Brinjal", "Jute"].map((crop) => {
-            const bn = getCropBengaliName(crop);
+        <!-- District Market Directory Notice (Honest Coverage Reporting) -->
+        ${hasSelectedDistrictWithoutVerifiedMarkets ? `
+          <div class="rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-xs text-amber-950 font-semibold">
+            No verified market directory entries available for <strong>${escapeHtml(fDistrict)}, ${escapeHtml(fState)}</strong> yet. Tap <strong>Refresh Live AGMARKNET</strong> to discover live reporting mandis from data.gov.in if active today.
+          </div>
+        ` : (fState !== "ALL" && fDistrict !== "ALL" && marketEntries.length > 0) ? `
+          <div class="rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] px-3.5 py-2.5 text-xs text-[#064E3B] space-y-1.5">
+            <div class="font-extrabold">Verified Markets in ${escapeHtml(fDistrict)}, ${escapeHtml(fState)} (${marketEntries.length}):</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${marketEntries.map((m) => `
+                <button type="button" data-market-quick-mandi="${escapeHtml(m.name)}" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                  fMarket === m.name
+                    ? "bg-[#064E3B] text-white border-[#064E3B]"
+                    : "bg-white text-[#064E3B] border-[#A7F3D0] hover:bg-[#DCFCE7]"
+                }">
+                  ${escapeHtml(m.name)} <span class="opacity-80 text-[10px]">• ${m.marketType === "APMC_REGULATED" ? "APMC" : (m.marketType === "LIVE_AGMARKNET" ? "Live" : "Market")}</span>
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        ` : ""}
+
+        <!-- Instant Crop Quick-Filter Pills (Strict Paddy vs Rice Separation) -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          ${quickCrops.map((c) => {
+            const isActive = normalizeAdminName(qCrop) === normalizeAdminName(c.key);
             return `
-              <button type="button" data-market-quick-crop="${escapeHtml(crop)}" class="px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-bold">
-                ${escapeHtml(crop)}${bn ? ` (${escapeHtml(bn)})` : ""}
+              <button type="button" data-market-quick-crop="${escapeHtml(c.key)}" class="px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-colors ${
+                isActive
+                  ? "bg-[#064E3B] text-white border-[#064E3B] shadow-sm"
+                  : "bg-[#ECFDF5] hover:bg-[#DCFCE7] text-[#064E3B] border-[#BBF7D0]"
+              }">
+                ${escapeHtml(c.label)}
               </button>
             `;
           }).join("")}
-          ${qCrop ? `<button type="button" data-market-quick-crop="" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">Clear</button>` : ""}
+        </div>
+
+        <!-- Separate Metadata: Static Administrative Directory vs Live AGMARKNET Sync -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1 text-[11px]">
+          <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-2 text-[#334155]">
+            <strong class="text-[#064E3B]">Static Directory Source:</strong> ${escapeHtml(INDIA_DIRECTORY_META.sourceName)} • Updated: <strong>${escapeHtml(INDIA_DIRECTORY_META.lastUpdatedDate)}</strong> (${dirStats.verifiedMarketCount} verified markets across ${dirStats.verifiedMarketDistrictCount} districts).
+          </div>
+          <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-2 text-[#334155]">
+            <strong class="text-[#064E3B]">Live AGMARKNET Price Status:</strong>
+            ${state.mandiLastRefreshedAt
+              ? `Last successful sync: <strong>${escapeHtml(state.mandiLastRefreshedAt)}</strong>${state.mandiUsingCached ? ` <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 font-extrabold">Cached / Historical</span>` : ` (${apiRecords.length} live rows)`}`
+              : "Not synced yet (click Refresh Live AGMARKNET above)."}
+          </div>
         </div>
       </div>
 
       ${state.mandiStatusMessage ? `
-        <div class="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-950 space-y-1.5">
-          <div class="font-extrabold">ℹ️ Official Data Source Status</div>
-          <p>${escapeHtml(state.mandiStatusMessage)}</p>
-          <div class="flex flex-wrap gap-2 pt-1">
-            <a href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer" class="underline font-bold text-[#14532D]">Open Govt. AGMARKNET Portal ↗</a>
-            <a href="https://sufalbangla.in/" target="_blank" rel="noopener noreferrer" class="underline font-bold text-[#14532D]">West Bengal Sufal Bangla Daily Rates ↗</a>
+        <div class="rounded-2xl bg-amber-50 border border-amber-300 p-4 text-xs text-amber-950 space-y-1.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="font-extrabold">ℹ️ Live AGMARKNET Data Source Status</span>
+            ${state.mandiUsingCached ? `<span class="px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 text-[10px] font-extrabold">Showing Previously Synced Cached Records</span>` : ""}
+          </div>
+          <p class="font-medium">${escapeHtml(state.mandiStatusMessage)}</p>
+          <div class="flex flex-wrap gap-3 pt-1">
+            <a href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer" class="underline font-extrabold text-[#064E3B]">Open Govt. AGMARKNET Portal ↗</a>
+            <a href="https://enam.gov.in/web/dashboard/trade-data" target="_blank" rel="noopener noreferrer" class="underline font-extrabold text-[#064E3B]">e-NAM Live Trade Data ↗</a>
+            <a href="https://sufalbangla.in/" target="_blank" rel="noopener noreferrer" class="underline font-extrabold text-[#064E3B]">West Bengal Sufal Bangla Daily Rates ↗</a>
           </div>
         </div>
       ` : ""}
@@ -631,29 +742,29 @@ export function renderMarketPriceView(state) {
       ${comparisons.length > 0 ? `
         <div class="gv-card p-4 sm:p-5 space-y-3">
           <div>
-            <h3 class="text-base font-extrabold text-[#14532D]">📊 Market Price Comparison (কোন বাজারে বেশি দাম?)</h3>
-            <p class="text-xs text-[#496052]">Comparing same crop &amp; unit across available markets so farmers can spot better prices.</p>
+            <h3 class="text-base font-extrabold text-[#064E3B]">📊 Market Price Comparison (কোন বাজারে বেশি দাম?)</h3>
+            <p class="text-xs text-[#334155]">Comparing same crop &amp; unit across available markets so farmers can spot better prices.</p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             ${comparisons.slice(0, 6).map((c) => {
               const diff = (Number(c.best.modalPrice) || 0) - (Number(c.lowest.modalPrice) || 0);
               return `
-                <div class="rounded-2xl bg-[#F7F9F5] border border-[#CDE0D3] p-4 space-y-2">
+                <div class="rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] p-4 space-y-2">
                   <div class="flex items-center justify-between gap-2">
-                    <div class="font-extrabold text-sm text-[#14532D]">
-                      ${escapeHtml(c.cropName)} ${c.cropNameBn ? `<span class="text-[#1E7E45]">(${escapeHtml(c.cropNameBn)})</span>` : ""}
+                    <div class="font-extrabold text-sm text-[#064E3B]">
+                      ${escapeHtml(c.cropName)} ${c.cropNameBn ? `<span class="text-[#047857]">(${escapeHtml(c.cropNameBn)})</span>` : ""}
                     </div>
-                    <span class="px-2 py-0.5 rounded-lg bg-emerald-100 text-[#14532D] text-[10px] font-extrabold">${escapeHtml(c.unit)}</span>
+                    <span class="px-2 py-0.5 rounded-lg bg-[#DCFCE7] text-[#064E3B] text-[10px] font-extrabold">${escapeHtml(c.unit)}</span>
                   </div>
                   <div class="space-y-1.5">
                     ${c.rows.map((r, i) => `
-                      <div class="flex items-center justify-between gap-2 text-xs px-2.5 py-1.5 rounded-xl ${i === 0 ? "bg-emerald-100/80 font-extrabold text-[#0C3B20]" : "bg-white border border-emerald-50"}">
-                        <span class="truncate">${i === 0 ? "🏆 " : ""}${escapeHtml(r.marketName)}, ${escapeHtml(r.district)} <span class="text-[10px] opacity-75">(${escapeHtml(r.reportDate)})</span></span>
-                        <span class="shrink-0">${formatInr(r.modalPrice)}</span>
+                      <div class="flex items-center justify-between gap-2 text-xs px-2.5 py-1.5 rounded-xl ${i === 0 ? "bg-[#DCFCE7] font-extrabold text-[#064E3B]" : "bg-white border border-[#E2E8F0] text-[#0F172A]"}">
+                        <span class="truncate">${i === 0 ? "🏆 " : ""}${escapeHtml(r.marketName)}, ${escapeHtml(r.district)} <span class="text-[10px] text-[#475569]">(${escapeHtml(r.reportDate)})</span></span>
+                        <span class="shrink-0">${escapeHtml(formatMandiPriceCell(r.modalPrice))}</span>
                       </div>
                     `).join("")}
                   </div>
-                  ${diff > 0 ? `<div class="text-[11px] font-bold text-[#1E7E45]">Potential difference: +${formatInr(diff)} higher at ${escapeHtml(c.best.marketName)}</div>` : ""}
+                  ${diff > 0 ? `<div class="text-[11px] font-bold text-[#047857]">Potential difference: +${escapeHtml(formatInr(diff))} higher at ${escapeHtml(c.best.marketName)}</div>` : ""}
                 </div>
               `;
             }).join("")}
@@ -665,14 +776,18 @@ export function renderMarketPriceView(state) {
       ${filtered.length === 0 ? `
         <div class="gv-card p-6 sm:p-8 text-center space-y-3">
           <div class="text-3xl">🌾</div>
-          <h3 class="text-base font-extrabold text-[#14532D]">No Verified Mandi Prices Loaded Yet</h3>
-          <p class="text-xs sm:text-sm text-[#496052] max-w-xl mx-auto leading-relaxed">
-            Guru Ji Vision strictly refuses to show invented or fake crop prices.
-            To display live daily rates automatically, add a free Government of India <strong>DATA_GOV_API_KEY</strong> (from data.gov.in) in Netlify Environment Variables, or publish verified local mandi bulletins from the <strong>Admin Studio → Market Prices</strong> tab.
+          <h3 class="text-base font-extrabold text-[#064E3B]">
+            ${allRecords.length === 0 ? "Live Mandi Price Data Is Temporarily Unavailable" : "No Live Mandi Records Match Current Filter"}
+          </h3>
+          <p class="text-xs sm:text-sm text-[#334155] max-w-xl mx-auto leading-relaxed">
+            ${allRecords.length === 0
+              ? "Live mandi price data is temporarily unavailable. Please try refreshing later. Guru Ji Vision never fabricates fake transaction rates — all 36 States/UTs, districts, verified APMC markets, and official Government MSP reference rates remain available below."
+              : "No synced AGMARKNET or Admin-verified records matched your selected State/District/Mandi/Crop filter. Try selecting All Mandis, clearing the crop filter, or tapping Refresh Live AGMARKNET."}
           </p>
           <div class="flex flex-wrap justify-center gap-2 pt-1">
-            <a href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer" class="gv-btn px-4 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Check Official AGMARKNET ↗</a>
-            <a href="https://sufalbangla.in/" target="_blank" rel="noopener noreferrer" class="gv-btn px-4 py-2.5 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">WB Sufal Bangla Rates ↗</a>
+            <button data-action="refresh-mandi" type="button" class="gv-btn px-4 py-2.5 rounded-xl bg-[#064E3B] text-white text-xs font-extrabold">🔄 Refresh Live AGMARKNET</button>
+            <a href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer" class="gv-btn px-4 py-2.5 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] text-[#064E3B] text-xs font-extrabold">Check Official AGMARKNET ↗</a>
+            <a href="https://sufalbangla.in/" target="_blank" rel="noopener noreferrer" class="gv-btn px-4 py-2.5 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] text-[#064E3B] text-xs font-extrabold">WB Sufal Bangla Rates ↗</a>
           </div>
         </div>
       ` : `
@@ -684,34 +799,37 @@ export function renderMarketPriceView(state) {
               <article class="gv-card p-4 sm:p-5 space-y-3">
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <h4 class="text-base font-extrabold text-[#14532D] truncate">${escapeHtml(r.cropName)}</h4>
-                    ${bn ? `<div class="text-xs font-bold text-[#1E7E45]">${escapeHtml(bn)}</div>` : ""}
-                    ${r.variety ? `<div class="text-[11px] text-[#496052]">Variety: ${escapeHtml(r.variety)}</div>` : ""}
+                    <h4 class="text-base font-extrabold text-[#064E3B] truncate">${escapeHtml(r.cropName)}</h4>
+                    ${bn ? `<div class="text-xs font-bold text-[#047857]">${escapeHtml(bn)}</div>` : ""}
+                    ${r.variety ? `<div class="text-[11px] text-[#475569]">Variety: ${escapeHtml(r.variety)}</div>` : ""}
                   </div>
-                  <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 text-[10px] font-extrabold shrink-0">${escapeHtml(r.unit || "₹ / Quintal")}</span>
+                  <div class="flex flex-col items-end gap-1 shrink-0">
+                    <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 text-[10px] font-extrabold">${escapeHtml(r.unit || "₹ / Quintal")}</span>
+                    ${state.mandiUsingCached && r.fromOfficialApi ? `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[9px] font-bold">Cached</span>` : ""}
+                  </div>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 text-center">
-                  <div class="rounded-xl bg-[#F7F9F5] border border-[#CDE0D3] p-2">
-                    <div class="text-[10px] font-bold text-[#496052]">MIN / সর্বনিম্ন</div>
-                    <div class="text-xs sm:text-sm font-extrabold text-[#132219]">${formatInr(r.minPrice)}</div>
+                  <div class="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] p-2">
+                    <div class="text-[10px] font-bold text-[#475569]">MIN / সর্বনিম্ন</div>
+                    <div class="text-xs sm:text-sm font-extrabold text-[#0F172A]">${escapeHtml(formatMandiPriceCell(r.minPrice))}</div>
                   </div>
-                  <div class="rounded-xl bg-[#D8F3DC] border border-[#14532D]/30 p-2">
-                    <div class="text-[10px] font-extrabold text-[#14532D]">MODAL / গড়</div>
-                    <div class="text-sm sm:text-base font-extrabold text-[#0C3B20]">${formatInr(r.modalPrice)}</div>
+                  <div class="rounded-xl bg-[#DCFCE7] border border-[#86EFAC] p-2">
+                    <div class="text-[10px] font-extrabold text-[#064E3B]">MODAL / গড়</div>
+                    <div class="text-sm sm:text-base font-extrabold text-[#064E3B]">${escapeHtml(formatMandiPriceCell(r.modalPrice))}</div>
                   </div>
-                  <div class="rounded-xl bg-[#F7F9F5] border border-[#CDE0D3] p-2">
-                    <div class="text-[10px] font-bold text-[#496052]">MAX / সর্বোচ্চ</div>
-                    <div class="text-xs sm:text-sm font-extrabold text-[#132219]">${formatInr(r.maxPrice)}</div>
+                  <div class="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] p-2">
+                    <div class="text-[10px] font-bold text-[#475569]">MAX / সর্বোচ্চ</div>
+                    <div class="text-xs sm:text-sm font-extrabold text-[#0F172A]">${escapeHtml(formatMandiPriceCell(r.maxPrice))}</div>
                   </div>
                 </div>
 
-                <div class="text-xs text-[#496052] space-y-1 pt-2 border-t border-emerald-50">
+                <div class="text-xs text-[#334155] space-y-1 pt-2 border-t border-[#E2E8F0]">
                   <div><strong>Market / বাজার:</strong> ${escapeHtml(r.marketName)}, ${escapeHtml(r.district)}, ${escapeHtml(r.state)}</div>
-                  <div><strong>Report Date / তারিখ:</strong> <span class="font-bold text-[#132219]">${escapeHtml(r.reportDate)}</span></div>
+                  <div><strong>Arrival / Report Date:</strong> <span class="font-bold text-[#0F172A]">${escapeHtml(r.reportDate || "Not Available")}</span></div>
                   <div class="flex items-center justify-between gap-2 text-[11px]">
                     <span class="truncate"><strong>Source:</strong> ${escapeHtml(r.sourceName)}</span>
-                    ${srcHref ? `<a href="${escapeHtml(srcHref)}" target="_blank" rel="noopener noreferrer" class="text-[#1E7E45] font-bold hover:underline shrink-0">Verify ↗</a>` : ""}
+                    ${srcHref ? `<a href="${escapeHtml(srcHref)}" target="_blank" rel="noopener noreferrer" class="text-[#047857] font-extrabold hover:underline shrink-0">Verify ↗</a>` : ""}
                   </div>
                 </div>
               </article>
@@ -719,6 +837,38 @@ export function renderMarketPriceView(state) {
           }).join("")}
         </div>
       `}
+
+      <!-- SEPARATE VERIFIED REFERENCE MSP SECTION (NEVER PRESENTED AS MANDI TRANSACTION PRICE) -->
+      <section class="gv-card p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#064E3B] text-[10px] font-extrabold mb-1">
+              Separate Government Benchmark — Not a Live Mandi Transaction Price
+            </div>
+            <h3 class="text-sm sm:text-base font-extrabold text-[#064E3B]">
+              Verified Government Minimum Support Price (MSP) Reference
+            </h3>
+            <p class="text-[11px] text-[#334155]">
+              Source: ${escapeHtml(OFFICIAL_MSP_REFERENCE.sourceName)} • Verified: <strong>${escapeHtml(OFFICIAL_MSP_REFERENCE.lastVerifiedDate)}</strong>
+            </p>
+          </div>
+          <a href="${escapeHtml(safeUrl(OFFICIAL_MSP_REFERENCE.sourceUrl))}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] text-xs font-extrabold text-[#064E3B] hover:bg-[#DCFCE7]">
+            Official CACP Portal ↗
+          </a>
+        </div>
+        <div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-950 font-semibold">
+          ${escapeHtml(OFFICIAL_MSP_REFERENCE.procurementNote)}
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 text-xs">
+          ${OFFICIAL_MSP_REFERENCE.crops.map((c) => `
+            <div class="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] p-3 space-y-0.5">
+              <div class="font-extrabold text-[#0F172A]">${escapeHtml(c.crop)}</div>
+              <div class="text-[11px] text-[#047857] font-semibold">${escapeHtml(c.cropBn)} • ${escapeHtml(c.season)}</div>
+              <div class="text-sm font-extrabold text-[#064E3B] pt-1">${escapeHtml(formatInr(c.mspPerQuintal))} <span class="text-[10px] font-normal text-[#475569]">/q</span></div>
+            </div>
+          `).join("")}
+        </div>
+      </section>
     </div>
   `;
 }

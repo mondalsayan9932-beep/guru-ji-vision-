@@ -53,7 +53,8 @@ class FarmerFinanceService {
       ["expenses", "farmer_expenses", 500],
       ["complaints", "farmer_complaints", 150],
       ["documents", "farmer_documents", 250],
-      ["auditLogs", "farmer_finance_audit_logs", 200]
+      ["auditLogs", "farmer_finance_audit_logs", 200],
+      ["interestComparisons", "farmer_interest_comparisons", 100]
     ];
 
     specs.forEach(([stateKey, colName, lim]) => {
@@ -626,6 +627,57 @@ class FarmerFinanceService {
     });
 
     return { id: docRef.id, title: cleanTitle, downloadUrl, inlineDataUrl };
+  }
+
+  // --------------------------------------------------------------------------
+  // 7. PRIVATE BANK VS PRIVATE LENDER INTEREST RATE COMPARISONS
+  // --------------------------------------------------------------------------
+  async saveInterestComparison(uid, data) {
+    if (!this.ready || !uid) throw new Error("Please sign in with Google to save interest rate comparisons privately.");
+    const { collection, addDoc, serverTimestamp } = firebaseService.mods.fsMod;
+
+    const principalAmount = Math.max(1000, Math.min(100000000, Number(data.principalAmount) || 0));
+    const durationMonths = Math.max(1, Math.min(360, parseInt(data.durationMonths, 10) || 12));
+    const privateInterestRate = Math.max(0, Math.min(200, Number(data.privateInterestRate) || 0));
+    const additionalFees = Math.max(0, Math.min(10000000, Number(data.additionalFees) || 0));
+    const amountAlreadyRepaid = Math.max(0, Math.min(100000000, Number(data.amountAlreadyRepaid) || 0));
+
+    const payload = {
+      farmerUid: uid,
+      bankProductId: String(data.bankProductId || "sbi_kcc_crop").slice(0, 60),
+      bankName: String(data.bankName || "Agricultural Bank").trim().slice(0, 120),
+      bankLoanType: String(data.bankLoanType || "KCC").trim().slice(0, 140),
+      applySubvention: Boolean(data.applySubvention),
+      privateLenderName: String(data.privateLenderName || "Private Lender / Landowner").trim().slice(0, 100),
+      principalAmount,
+      durationMonths,
+      privateInterestRate,
+      privateRatePeriod: data.privateRatePeriod === "ANNUAL" ? "ANNUAL" : "MONTHLY",
+      privateInterestMethod: data.privateInterestMethod === "COMPOUND" ? "COMPOUND" : "SIMPLE",
+      privateCompoundingPerYear: [1, 2, 4, 12].includes(Number(data.privateCompoundingPerYear)) ? Number(data.privateCompoundingPerYear) : 12,
+      repaymentSchedule: ["MONTHLY", "QUARTERLY", "YEARLY", "LUMP_SUM"].includes(data.repaymentSchedule) ? data.repaymentSchedule : "LUMP_SUM",
+      additionalFees,
+      amountAlreadyRepaid,
+      bankTotalInterest: Math.max(0, Math.min(500000000, Number(data.bankTotalInterest) || 0)),
+      bankTotalRepayment: Math.max(0, Math.min(600000000, Number(data.bankTotalRepayment) || 0)),
+      bankEffectiveAnnualCostPercent: Math.max(0, Math.min(1000, Number(data.bankEffectiveAnnualCostPercent) || 0)),
+      privateTotalBorrowingCost: Math.max(0, Math.min(500000000, Number(data.privateTotalBorrowingCost) || 0)),
+      privateTotalRepayment: Math.max(0, Math.min(600000000, Number(data.privateTotalRepayment) || 0)),
+      privateEffectiveAnnualCostPercent: Math.max(0, Math.min(10000, Number(data.privateEffectiveAnnualCostPercent) || 0)),
+      interestCostDifference: Math.max(-500000000, Math.min(500000000, Number(data.interestCostDifference) || 0)),
+      bankRateVerifiedDate: String(data.bankRateVerifiedDate || "2026-03-15").slice(0, 20),
+      notes: String(data.notes || "").trim().slice(0, 300),
+      createdAt: serverTimestamp()
+    };
+
+    const ref = await addDoc(collection(firebaseService.db, "farmer_interest_comparisons"), payload);
+    await this.recordAuditLog(uid, {
+      entityType: "INTEREST_COMPARISON",
+      entityId: ref.id,
+      action: "SAVED",
+      summary: `Saved Bank vs Private comparison: ${payload.bankName} (${payload.bankEffectiveAnnualCostPercent}% EABC) vs ${payload.privateLenderName} (${payload.privateEffectiveAnnualCostPercent}% EABC) on ₹${principalAmount}.`
+    });
+    return ref.id;
   }
 }
 

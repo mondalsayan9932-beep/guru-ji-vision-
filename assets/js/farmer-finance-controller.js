@@ -14,6 +14,11 @@ import {
   saveFormDraft,
   triggerCsvDownload
 } from "./farmer-finance-data.js";
+import {
+  BANK_INTEREST_RATE_META,
+  VERIFIED_BANK_AGRI_RATES,
+  computeBankVsPrivateComparison
+} from "./farmer-interest-data.js";
 import { escapeHtml, safeUrl } from "./calculators.js";
 
 export function createInitialFarmerFinanceState() {
@@ -27,6 +32,22 @@ export function createInitialFarmerFinanceState() {
     pnlLand: "ALL",
     pnlIncludeLease: false,
     schemeFilter: "ALL",
+    interestBankCategory: "ALL",
+    interestInput: {
+      bankProductId: VERIFIED_BANK_AGRI_RATES[0].id,
+      applySubvention: true,
+      lenderName: "",
+      principalAmount: 50000,
+      privateInterestRate: 3,
+      privateRatePeriod: "MONTHLY",
+      privateInterestMethod: "SIMPLE",
+      privateCompoundingPerYear: 12,
+      durationMonths: 12,
+      additionalFees: 0,
+      repaymentSchedule: "LUMP_SUM",
+      amountAlreadyRepaid: 0,
+      notes: ""
+    },
     docSearch: "",
     reportDateFrom: "",
     reportDateTo: "",
@@ -38,7 +59,8 @@ export function createInitialFarmerFinanceState() {
     expenses: [],
     complaints: [],
     documents: [],
-    auditLogs: []
+    auditLogs: [],
+    interestComparisons: []
   };
 }
 
@@ -56,6 +78,7 @@ export function clearFarmerFinancePrivateState(state) {
   state.farmerFinance.complaints = [];
   state.farmerFinance.documents = [];
   state.farmerFinance.auditLogs = [];
+  state.farmerFinance.interestComparisons = [];
 }
 
 function filterByDateRange(items, dateField, from, to) {
@@ -162,6 +185,22 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
     if (schemeFilterBtn) {
       state.farmerFinance.schemeFilter = schemeFilterBtn.dataset.ffSchemeFilter || "ALL";
       renderActiveView();
+      return;
+    }
+
+    const bankCatBtn = e.target.closest("[data-ff-bank-cat]");
+    if (bankCatBtn) {
+      state.farmerFinance.interestBankCategory = bankCatBtn.dataset.ffBankCat || "ALL";
+      renderActiveView();
+      return;
+    }
+
+    const selectBankBtn = e.target.closest("[data-ff-select-bank]");
+    if (selectBankBtn) {
+      if (!state.farmerFinance.interestInput) state.farmerFinance.interestInput = {};
+      state.farmerFinance.interestInput.bankProductId = selectBankBtn.dataset.ffSelectBank;
+      renderActiveView();
+      showToast("Selected bank loan updated in the comparison calculator.");
       return;
     }
 
@@ -280,6 +319,31 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
       return;
     }
 
+    if (action === "export-interest-csv") {
+      triggerCsvDownload(
+        "guruji-vision-bank-vs-private-interest-comparisons.csv",
+        ["Date", "Bank Loan", "Private Lender", "Principal", "Duration (m)", "Private Rate", "Rate Basis", "Method", "Bank Total Interest", "Bank EABC %", "Private Borrowing Cost", "Private EABC %", "Cost Diff (Private - Bank)", "Notes"],
+        (ff.interestComparisons || []).map((c) => [
+          c.createdAtMs ? new Date(c.createdAtMs).toISOString().slice(0, 10) : "",
+          c.bankName,
+          c.privateLenderName,
+          c.principalAmount,
+          c.durationMonths,
+          c.privateInterestRate,
+          c.privateRatePeriod,
+          c.privateInterestMethod,
+          c.bankTotalInterest,
+          c.bankEffectiveAnnualCostPercent,
+          c.privateTotalBorrowingCost,
+          c.privateEffectiveAnnualCostPercent,
+          c.interestCostDifference,
+          c.notes
+        ])
+      );
+      showToast("Saved interest comparisons CSV downloaded.");
+      return;
+    }
+
     if (action === "export-all-csv") {
       triggerCsvDownload(
         "guruji-vision-all-farmer-records.csv",
@@ -296,8 +360,37 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
     }
   });
 
+  function syncInterestCompareField(target) {
+    if (!target || !target.classList?.contains("ff-ic-field")) return false;
+    const ff = state.farmerFinance;
+    if (!ff.interestInput) ff.interestInput = {};
+    const name = target.name;
+    if (!name) return false;
+    const focusId = target.id;
+    const selStart = typeof target.selectionStart === "number" ? target.selectionStart : null;
+    if (target.type === "checkbox") {
+      ff.interestInput[name] = target.checked;
+    } else if (target.type === "number") {
+      ff.interestInput[name] = target.value === "" ? "" : Number(target.value);
+    } else {
+      ff.interestInput[name] = target.value;
+    }
+    renderActiveView();
+    if (focusId) {
+      const nextEl = document.getElementById(focusId);
+      if (nextEl) {
+        nextEl.focus();
+        if (selStart !== null && typeof nextEl.setSelectionRange === "function" && nextEl.type !== "number") {
+          try { nextEl.setSelectionRange(selStart, selStart); } catch (_) {}
+        }
+      }
+    }
+    return true;
+  }
+
   // Input / Change delegation for filters & category toggles
   document.addEventListener("change", (e) => {
+    if (syncInterestCompareField(e.target)) return;
     const id = e.target?.id;
     if (!id) return;
     const ff = state.farmerFinance;
@@ -317,6 +410,7 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
   });
 
   document.addEventListener("input", (e) => {
+    if (syncInterestCompareField(e.target)) return;
     if (e.target?.id === "ffDocSearch") {
       state.farmerFinance.docSearch = e.target.value;
       renderActiveView();
@@ -329,7 +423,7 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
     if (!form) return;
 
     const isFarmerFinanceForm =
-      ["ffLeaseForm", "ffLoanForm", "ffCropSaleForm", "ffExpenseForm", "ffComplaintForm", "ffUploadDocForm"].includes(form.id) ||
+      ["ffLeaseForm", "ffLoanForm", "ffCropSaleForm", "ffExpenseForm", "ffComplaintForm", "ffUploadDocForm", "ffInterestCompareForm"].includes(form.id) ||
       form.classList.contains("ff-lease-payment-form") ||
       form.classList.contains("ff-loan-repay-form") ||
       form.classList.contains("ff-loan-compare-form");
@@ -574,6 +668,44 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
           });
           form.reset();
           showToast("Document uploaded to your private owner-only vault!");
+        });
+        return;
+      }
+
+      // 7. Save Private Bank vs Private Lender Interest Comparison
+      if (form.id === "ffInterestCompareForm") {
+        await withBusySubmit(form, async () => {
+          const data = serializeFormData(form);
+          const cmp = computeBankVsPrivateComparison({
+            ...ff.interestInput,
+            ...data
+          });
+          await farmerFinanceService.saveInterestComparison(uid, {
+            bankProductId: cmp.bankProduct.id,
+            bankName: cmp.bankProduct.bankName,
+            bankLoanType: cmp.bankProduct.loanType,
+            applySubvention: cmp.applySubvention,
+            privateLenderName: data.lenderName || "Private Lender / Landowner",
+            principalAmount: cmp.principal,
+            durationMonths: cmp.durationMonths,
+            privateInterestRate: Number(data.privateInterestRate) || 0,
+            privateRatePeriod: data.privateRatePeriod || "MONTHLY",
+            privateInterestMethod: data.privateInterestMethod || "SIMPLE",
+            privateCompoundingPerYear: Number(data.privateCompoundingPerYear) || 12,
+            repaymentSchedule: cmp.repaymentSchedule,
+            additionalFees: Number(data.additionalFees) || 0,
+            amountAlreadyRepaid: Number(data.amountAlreadyRepaid) || 0,
+            bankTotalInterest: cmp.bank.totalInterest,
+            bankTotalRepayment: cmp.bank.totalRepayment,
+            bankEffectiveAnnualCostPercent: cmp.bank.effectiveAnnualCostPercent,
+            privateTotalBorrowingCost: cmp.privateLoan.totalBorrowingCost,
+            privateTotalRepayment: cmp.privateLoan.totalRepayment,
+            privateEffectiveAnnualCostPercent: cmp.privateLoan.effectiveAnnualCostPercent,
+            interestCostDifference: cmp.interestCostDiff,
+            bankRateVerifiedDate: BANK_INTEREST_RATE_META.lastVerifiedIso,
+            notes: data.notes || ""
+          });
+          showToast("Bank vs Private loan comparison saved privately to your account!");
         });
       }
     } catch (err) {

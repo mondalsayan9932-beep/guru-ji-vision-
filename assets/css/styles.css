@@ -73,16 +73,117 @@ html, body {
 
 /* Smart Agriculture Hero Container with Precision-Farming Grid Texture */
 .gv-hero-agritech {
-  background: linear-gradient(135deg, #0D3B20 0%, #14532D 45%, #15803D 100%);
+  background-color: #0D3B20;
+  background-image: linear-gradient(135deg, #0D3B20 0%, #14532D 45%, #15803D 100%);
   box-shadow: 0 14px 36px -12px rgba(20, 83, 45, 0.35), 0 4px 12px -4px rgba(15, 23, 42, 0.12);
 }
 
 .gv-hero-grid {
+  background-color: #0D3B20;
   background-image:
     radial-gradient(rgba(220, 252, 231, 0.14) 1px, transparent 1px),
     linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 24px 24px, 48px 48px, 48px 48px;
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(135deg, #0D3B20 0%, #14532D 45%, #15803D 100%);
+  background-size: 24px 24px, 48px 48px, 48px 48px, 100% 100%;
+}
+
+/* Farmer Financial Support & Rights — Solid High-Contrast Dark Emerald Hero Card */
+.ff-hero-card {
+  background-color: #064e3b;
+  background-image: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+  color: #ffffff;
+  border: 1px solid rgba(167, 243, 208, 0.25);
+  box-shadow: 0 16px 38px -12px rgba(6, 78, 59, 0.45), 0 4px 14px -4px rgba(15, 23, 42, 0.16);
+}
+
+.ff-hero-heading {
+  color: #ffffff;
+}
+
+.ff-hero-desc {
+  color: #ffffff;
+}
+
+.ff-hero-badge {
+  background-color: rgba(2, 44, 34, 0.68);
+  border: 1px solid rgba(167, 243, 208, 0.5);
+  color: #ffffff;
+}
+
+.ff-hero-kpi {
+  background-color: rgba(2, 44, 34, 0.54);
+  border: 1px solid rgba(167, 243, 208, 0.35);
+}
+
+.ff-hero-label {
+  color: #a7f3d0;
+}
+
+.ff-hero-value {
+  color: #ffffff;
+}
+
+.ff-hero-sub {
+  color: #d1fae5;
+}
+
+.ff-hero-btn-white {
+  background-color: #ffffff;
+  color: #064e3b;
+  border: 1px solid #ffffff;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.ff-hero-btn-white:hover {
+  background-color: #ecfdf5;
+  color: #022c22;
+}
+
+.ff-hero-btn-white:focus-visible {
+  outline: 2px solid #a7f3d0;
+  outline-offset: 2px;
+}
+
+.ff-hero-btn-emerald {
+  background-color: #10b981;
+  color: #ffffff;
+  border: 1px solid #34d399;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.ff-hero-btn-emerald:hover {
+  background-color: #059669;
+  color: #ffffff;
+}
+
+.ff-hero-btn-emerald:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Explicit Light/Dark-Safe Form & Table Contrast Inside Farmer & Mandi Sections */
+.ff-scope input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.ff-scope select,
+.ff-scope textarea,
+.mandi-scope input:not([type="checkbox"]):not([type="radio"]),
+.mandi-scope select {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.ff-scope input::placeholder,
+.ff-scope textarea::placeholder,
+.mandi-scope input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.ff-scope select option,
+.mandi-scope select option {
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
 /* Interactive Dashboard Module Cards */
@@ -130,6 +231,29 @@ html, body {
 .gv-role-card:hover {
   border-color: rgba(21, 128, 61, 0.35);
   box-shadow: var(--gv-shadow-md);
+}
+
+/* Dark-mode browser protection: prevent OS/browser dark overrides from creating unreadable cards or inputs */
+@media (prefers-color-scheme: dark) {
+  .ff-hero-card {
+    background-color: #064e3b;
+    background-image: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+    color: #ffffff;
+  }
+  .ff-scope .gv-card,
+  .mandi-scope .gv-card {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+  .ff-scope input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .ff-scope select,
+  .ff-scope textarea,
+  .mandi-scope input:not([type="checkbox"]):not([type="radio"]),
+  .mandi-scope select {
+    background-color: #ffffff;
+    color: #0f172a;
+    color-scheme: light;
+  }
 }
 
 @keyframes gvFadeUp {

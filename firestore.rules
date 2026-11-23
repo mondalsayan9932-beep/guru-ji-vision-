@@ -1289,6 +1289,34 @@ service cloud.firestore {
         isValidTimestamp(data.createdAt);
     }
 
+    function isValidFarmerInterestComparison(data) {
+      return data.farmerUid is string && data.farmerUid.size() >= 1 && data.farmerUid.size() <= 128 &&
+        data.bankProductId is string && data.bankProductId.size() >= 2 && data.bankProductId.size() <= 60 &&
+        data.bankName is string && data.bankName.size() >= 2 && data.bankName.size() <= 120 &&
+        data.bankLoanType is string && data.bankLoanType.size() >= 2 && data.bankLoanType.size() <= 140 &&
+        data.applySubvention is bool &&
+        data.privateLenderName is string && data.privateLenderName.size() >= 1 && data.privateLenderName.size() <= 100 &&
+        data.principalAmount is number && data.principalAmount >= 1000 && data.principalAmount <= 100000000 &&
+        data.durationMonths is int && data.durationMonths >= 1 && data.durationMonths <= 360 &&
+        data.privateInterestRate is number && data.privateInterestRate >= 0 && data.privateInterestRate <= 200 &&
+        data.privateRatePeriod in ['MONTHLY', 'ANNUAL'] &&
+        data.privateInterestMethod in ['SIMPLE', 'COMPOUND'] &&
+        data.privateCompoundingPerYear is int && data.privateCompoundingPerYear in [1, 2, 4, 12] &&
+        data.repaymentSchedule in ['MONTHLY', 'QUARTERLY', 'YEARLY', 'LUMP_SUM'] &&
+        data.additionalFees is number && data.additionalFees >= 0 && data.additionalFees <= 10000000 &&
+        data.amountAlreadyRepaid is number && data.amountAlreadyRepaid >= 0 && data.amountAlreadyRepaid <= 100000000 &&
+        data.bankTotalInterest is number && data.bankTotalInterest >= 0 && data.bankTotalInterest <= 500000000 &&
+        data.bankTotalRepayment is number && data.bankTotalRepayment >= 0 && data.bankTotalRepayment <= 600000000 &&
+        data.bankEffectiveAnnualCostPercent is number && data.bankEffectiveAnnualCostPercent >= 0 && data.bankEffectiveAnnualCostPercent <= 1000 &&
+        data.privateTotalBorrowingCost is number && data.privateTotalBorrowingCost >= 0 && data.privateTotalBorrowingCost <= 500000000 &&
+        data.privateTotalRepayment is number && data.privateTotalRepayment >= 0 && data.privateTotalRepayment <= 600000000 &&
+        data.privateEffectiveAnnualCostPercent is number && data.privateEffectiveAnnualCostPercent >= 0 && data.privateEffectiveAnnualCostPercent <= 10000 &&
+        data.interestCostDifference is number && data.interestCostDifference >= -500000000 && data.interestCostDifference <= 500000000 &&
+        data.bankRateVerifiedDate is string && data.bankRateVerifiedDate.size() >= 6 && data.bankRateVerifiedDate.size() <= 20 &&
+        data.notes is string && data.notes.size() <= 300 &&
+        isValidTimestamp(data.createdAt);
+    }
+
     match /farmer_land_leases/{leaseId} {
       allow get: if isSignedIn() && isValidId(leaseId) && existing().farmerUid == request.auth.uid;
       allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
@@ -1538,6 +1566,38 @@ service cloud.firestore {
         incoming().keys().hasAll(['farmerUid', 'entityType', 'entityId', 'action', 'summary', 'createdAt']) &&
         incoming().keys().hasOnly(['farmerUid', 'entityType', 'entityId', 'action', 'summary', 'createdAt']) &&
         isValidFarmerFinanceAuditLog(incoming());
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Private Farmer Bank vs Private Lender Interest Rate Comparisons (Strictly Owner-Only, Never Public or Admin)
+    match /farmer_interest_comparisons/{compId} {
+      allow get: if isSignedIn() && isValidId(compId) && existing().farmerUid == request.auth.uid;
+      allow list: if isSignedIn() && existing().farmerUid == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(compId) &&
+        incoming().farmerUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'farmerUid', 'bankProductId', 'bankName', 'bankLoanType', 'applySubvention',
+          'privateLenderName', 'principalAmount', 'durationMonths', 'privateInterestRate',
+          'privateRatePeriod', 'privateInterestMethod', 'privateCompoundingPerYear',
+          'repaymentSchedule', 'additionalFees', 'amountAlreadyRepaid',
+          'bankTotalInterest', 'bankTotalRepayment', 'bankEffectiveAnnualCostPercent',
+          'privateTotalBorrowingCost', 'privateTotalRepayment', 'privateEffectiveAnnualCostPercent',
+          'interestCostDifference', 'bankRateVerifiedDate', 'notes', 'createdAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'farmerUid', 'bankProductId', 'bankName', 'bankLoanType', 'applySubvention',
+          'privateLenderName', 'principalAmount', 'durationMonths', 'privateInterestRate',
+          'privateRatePeriod', 'privateInterestMethod', 'privateCompoundingPerYear',
+          'repaymentSchedule', 'additionalFees', 'amountAlreadyRepaid',
+          'bankTotalInterest', 'bankTotalRepayment', 'bankEffectiveAnnualCostPercent',
+          'privateTotalBorrowingCost', 'privateTotalRepayment', 'privateEffectiveAnnualCostPercent',
+          'interestCostDifference', 'bankRateVerifiedDate', 'notes', 'createdAt'
+        ]) &&
+        isValidFarmerInterestComparison(incoming());
 
       allow update: if false;
       allow delete: if false;

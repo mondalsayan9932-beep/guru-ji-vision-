@@ -128,6 +128,8 @@ const state = {
   mandiApiRecords: [],
   mandiLoading: false,
   mandiFetchedOnce: false,
+  mandiUsingCached: false,
+  mandiLastRefreshedAt: "",
   mandiStatusMessage: "",
   marketSearchCrop: "",
   marketFilterState: "ALL",
@@ -317,24 +319,34 @@ async function loadOfficialMandiData(force = false) {
   if (state.mandiFetchedOnce && !force) return;
   state.mandiLoading = true;
   state.mandiFetchedOnce = true;
-  if (state.route === "market") renderActiveView();
+  if (state.route === "market" || state.route === "farmer-finance") renderActiveView();
 
   const res = await fetchOfficialMandiPrices({
     state: state.marketFilterState !== "ALL" ? state.marketFilterState : "",
     district: state.marketFilterDistrict !== "ALL" ? state.marketFilterDistrict : "",
-    commodity: state.marketSearchCrop || ""
+    market: state.marketFilterMandi !== "ALL" ? state.marketFilterMandi : "",
+    commodity: state.marketSearchCrop || "",
+    limit: 120
   });
 
   state.mandiLoading = false;
   if (res.ok && Array.isArray(res.records)) {
     state.mandiApiRecords = res.records;
+    state.mandiUsingCached = false;
+    state.mandiLastRefreshedAt = res.fetchedAt
+      ? new Date(res.fetchedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+      : new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
     state.mandiStatusMessage = res.records.length > 0
-      ? `Synced ${res.records.length} live official records from Government of India AGMARKNET (${res.fetchedAt || "today"}).`
-      : "Connected to official AGMARKNET API, but no records matched the current filter.";
+      ? `Synced ${res.records.length} live official records from Government of India AGMARKNET (${state.mandiLastRefreshedAt}).`
+      : `Connected to official AGMARKNET API (${state.mandiLastRefreshedAt}), but no daily price records matched the current filter.`;
   } else {
-    state.mandiStatusMessage = res.error || "Live AGMARKNET API key not configured yet. Showing Admin-verified market bulletins (if published).";
+    // Preserve any previously fetched valid records as cached/historical on subsequent failure
+    if (Array.isArray(state.mandiApiRecords) && state.mandiApiRecords.length > 0) {
+      state.mandiUsingCached = true;
+    }
+    state.mandiStatusMessage = res.error || "Live mandi price data is temporarily unavailable. Please try refreshing later.";
   }
-  if (state.route === "market" || state.route === "home") renderActiveView();
+  if (state.route === "market" || state.route === "home" || state.route === "farmer-finance") renderActiveView();
 }
 
 // ----------------------------------------------------------------------------
@@ -1054,7 +1066,7 @@ function bindGlobalEvents() {
 
     const selector = [
       "[data-nav]", "[data-action]",
-      "[data-weather-quick]", "[data-weather-pick]", "[data-market-quick-crop]",
+      "[data-weather-quick]", "[data-weather-pick]", "[data-market-quick-crop]", "[data-market-quick-mandi]",
       "[data-student-sub]", "[data-student-sem]", "[data-student-cat]", "[data-student-jump-sem]", "[data-read-material]", "[data-quiz-q]",
       "[data-load-crop-tool]", "[data-apply-crop-preset]", "[data-edit-fq]", "[data-del-fq]",
       "[data-ai-prompt]",
@@ -1284,9 +1296,15 @@ function bindGlobalEvents() {
       return;
     }
 
-    // Market price quick crop chip
+    // Market price quick crop chip & verified mandi chip
     if (target.dataset.marketQuickCrop !== undefined) {
       state.marketSearchCrop = target.dataset.marketQuickCrop;
+      renderActiveView();
+      return;
+    }
+    if (target.dataset.marketQuickMandi !== undefined) {
+      const mVal = target.dataset.marketQuickMandi;
+      state.marketFilterMandi = state.marketFilterMandi === mVal ? "ALL" : mVal;
       renderActiveView();
       return;
     }

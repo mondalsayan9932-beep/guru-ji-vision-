@@ -25,10 +25,12 @@ import {
   renderRightsSection,
   renderReportsDocumentsSection
 } from "./farmer-finance-ui-tools.js";
+import { renderInterestCompareSection } from "./farmer-finance-ui-interest.js";
 
 const FF_ICONS = {
   lease: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>`,
   loan: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`,
+  interest: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
   market: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>`,
   expense: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>`,
   pnl: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="10" y1="11" y2="11"/><line x1="14" x2="16" y1="11" y2="11"/><line x1="8" x2="10" y1="15" y2="15"/><line x1="14" x2="16" y1="15" y2="15"/></svg>`,
@@ -41,6 +43,7 @@ const SUB_TABS = [
   { key: "overview", label: "Dashboard" },
   { key: "leases", label: "Land & Lease" },
   { key: "loans", label: "Loans & Debt" },
+  { key: "interest-compare", label: "Live Interest Comparison" },
   { key: "market-sales", label: "Crop Selling & MSP" },
   { key: "expenses", label: "Expenses" },
   { key: "profit-loss", label: "Profit & Loss" },
@@ -100,6 +103,9 @@ export function renderFarmerFinanceView(state) {
         ? renderLoanDebtSection(state, loans, loanTx, documents)
         : renderAuthGateCard("Sign In to Track Loans & Repayments", "Calculate Simple or Compound interest estimates, log partial or irregular repayments, and compare your calculated balance with lender claims.");
       break;
+    case "interest-compare":
+      bodyHtml = renderInterestCompareSection(state);
+      break;
     case "market-sales":
       bodyHtml = renderCropMarketSalesSection(state, sales, leases);
       break;
@@ -143,33 +149,33 @@ export function renderFarmerFinanceView(state) {
   }
 
   return `
-    <div class="space-y-5 animate-fade-up">
-      <!-- ==================== HERO HEADER ==================== -->
-      <section class="gv-hero-agritech gv-hero-grid rounded-3xl p-5 sm:p-7 text-white shadow-lg">
+    <div class="ff-scope space-y-5 animate-fade-up">
+      <!-- ==================== HERO HEADER (SOLID DARK EMERALD HIGH-CONTRAST) ==================== -->
+      <section class="ff-hero-card rounded-3xl p-5 sm:p-7">
         <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div class="space-y-2 max-w-3xl">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-[11px] font-extrabold tracking-wide">
-                <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
+              <span class="ff-hero-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wide">
+                <span class="w-2 h-2 rounded-full bg-[#34D399]"></span>
                 Farmer Financial Support &amp; Rights • কৃষক আর্থিক সহায়তা ও অধিকার
               </span>
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-[#DCFCE7]/15 border border-[#86EFAC]/30 text-[10px] font-bold text-[#DCFCE7]">
+              <span class="ff-hero-badge inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold">
                 ${isSignedIn ? "Private Owner-Only Cloud Vault Active" : "Public Guide Active • Sign In for Private Records"}
               </span>
             </div>
-            <h1 class="font-display text-2xl sm:text-3xl font-bold tracking-tight">Farmer Financial Support &amp; Rights</h1>
-            <p class="text-xs sm:text-sm text-[#DCFCE7] leading-relaxed">
+            <h1 class="ff-hero-heading font-display text-2xl sm:text-3xl font-bold tracking-tight">Farmer Financial Support &amp; Rights</h1>
+            <p class="ff-hero-desc text-xs sm:text-sm leading-relaxed">
               Financial Transparency, Farmer Awareness &amp; Rights Protection — transparent records for <strong>Land &amp; Lease Agreements</strong>, <strong>Loan &amp; Debt Repayment</strong>, and <strong>Fair Crop Selling</strong>.
             </p>
           </div>
           <div class="flex flex-wrap gap-2 shrink-0">
-            <button data-ff-tab="leases" type="button" class="gv-btn px-3.5 py-2.5 rounded-xl bg-white text-[#14532D] hover:bg-[#ECFDF5] text-xs font-extrabold shadow-sm">
+            <button data-ff-tab="leases" type="button" class="gv-btn ff-hero-btn-white px-3.5 py-2.5 rounded-xl text-xs font-extrabold">
               + Land Lease
             </button>
-            <button data-ff-tab="loans" type="button" class="gv-btn px-3.5 py-2.5 rounded-xl bg-[#22C55E] text-[#052E16] hover:bg-[#4ADE80] text-xs font-extrabold shadow-sm">
+            <button data-ff-tab="loans" type="button" class="gv-btn ff-hero-btn-emerald px-3.5 py-2.5 rounded-xl text-xs font-extrabold">
               + Loan Tracker
             </button>
-            <button data-ff-tab="market-sales" type="button" class="gv-btn px-3.5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-extrabold">
+            <button data-ff-tab="market-sales" type="button" class="gv-btn ff-hero-btn-white px-3.5 py-2.5 rounded-xl text-xs font-extrabold">
               + Crop Sale &amp; MSP
             </button>
           </div>
@@ -177,25 +183,25 @@ export function renderFarmerFinanceView(state) {
 
         <!-- Quick KPI Strip -->
         <div class="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5">
-          <div class="rounded-2xl bg-white/12 border border-white/15 px-3.5 py-2.5 backdrop-blur-sm">
-            <div class="text-[10px] uppercase tracking-wider text-[#BBF7D0] font-bold">Lease Balance Due</div>
-            <div class="text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(totalLeaseDue)) : "Sign in"}</div>
-            <div class="text-[10px] text-[#DCFCE7]">${leases.length} active • ${renewalAlerts} renewal soon</div>
+          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Lease Balance Due</div>
+            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(totalLeaseDue)) : "Sign in"}</div>
+            <div class="ff-hero-sub text-[10px]">${leases.length} active • ${renewalAlerts} renewal soon</div>
           </div>
-          <div class="rounded-2xl bg-white/12 border border-white/15 px-3.5 py-2.5 backdrop-blur-sm">
-            <div class="text-[10px] uppercase tracking-wider text-[#BBF7D0] font-bold">Loan Est. Remaining</div>
-            <div class="text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(totalLoanEstRem)) : "Sign in"}</div>
-            <div class="text-[10px] text-[#DCFCE7]">${loans.length} loans • ${loanTx.length} repayments</div>
+          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Loan Est. Remaining</div>
+            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(totalLoanEstRem)) : "Sign in"}</div>
+            <div class="ff-hero-sub text-[10px]">${loans.length} loans • ${loanTx.length} repayments</div>
           </div>
-          <div class="rounded-2xl bg-white/12 border border-white/15 px-3.5 py-2.5 backdrop-blur-sm">
-            <div class="text-[10px] uppercase tracking-wider text-[#BBF7D0] font-bold">Crop Sale Revenue</div>
-            <div class="text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(pnl.totalRevenue)) : "Sign in"}</div>
-            <div class="text-[10px] text-[#DCFCE7]">${sales.length} logged sales</div>
+          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Crop Sale Revenue</div>
+            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(pnl.totalRevenue)) : "Sign in"}</div>
+            <div class="ff-hero-sub text-[10px]">${sales.length} logged sales</div>
           </div>
-          <div class="rounded-2xl bg-white/12 border border-white/15 px-3.5 py-2.5 backdrop-blur-sm">
-            <div class="text-[10px] uppercase tracking-wider text-[#BBF7D0] font-bold">Est. Net Profit / Loss</div>
-            <div class="text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(pnl.netProfitLoss)) : "Sign in"}</div>
-            <div class="text-[10px] text-[#DCFCE7]">${expenses.length} expenses • ${documents.length} docs</div>
+          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Est. Net Profit / Loss</div>
+            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(pnl.netProfitLoss)) : "Sign in"}</div>
+            <div class="ff-hero-sub text-[10px]">${expenses.length} expenses • ${documents.length} docs</div>
           </div>
         </div>
       </section>
@@ -205,8 +211,8 @@ export function renderFarmerFinanceView(state) {
         ${SUB_TABS.map((t) => `
           <button data-ff-tab="${t.key}" type="button" class="shrink-0 px-3.5 py-2.5 rounded-xl text-xs font-extrabold border transition-all ${
             activeTab === t.key
-              ? "bg-[#14532D] text-white border-[#14532D] shadow-sm"
-              : "bg-white text-[#14532D] border-[#D9EAE0] hover:bg-[#ECFDF5]"
+              ? "bg-[#064E3B] text-white border-[#064E3B] shadow-sm"
+              : "bg-white text-[#064E3B] border-[#CBD5E1] hover:bg-[#ECFDF5]"
           }">
             ${escapeHtml(t.label)}
           </button>
@@ -257,6 +263,16 @@ function renderOverviewSection({
       desc: "Simple & Compound interest estimates, partial/irregular repayments, and side-by-side Farmer vs Lender Claim comparison.",
       stat: isSignedIn ? `${loans.length} loans • Est. ${formatInr(totalLoanEstRem)}` : "Interest & Debt Comparison",
       icon: FF_ICONS.loan,
+      highlight: true
+    },
+    {
+      tab: "interest-compare",
+      pillar: "Bank vs Private",
+      title: "Live Interest Rate Comparison",
+      titleBn: "ব্যাংক বনাম ব্যক্তিগত ঋণ সুদের তুলনা",
+      desc: "Compare verified Indian Bank / KCC / RRB / Cooperative rates against private lender loans using Effective Annual Cost (EABC %).",
+      stat: `${(state.farmerFinance?.interestComparisons || []).length > 0 ? `${state.farmerFinance.interestComparisons.length} saved • ` : ""}7 Verified Bank Options`,
+      icon: FF_ICONS.interest,
       highlight: true
     },
     {

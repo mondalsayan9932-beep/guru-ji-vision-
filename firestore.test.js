@@ -1637,6 +1637,67 @@ test("Farmer Financial Support & Rights: owner CRUD succeeds across all 8 collec
   );
 });
 
+test("Farmer Bank vs Private Interest Comparisons: strictly owner-only create/read, immutable, blocked for other farmers, guests & Super Admin", async () => {
+  const farmerADb = testEnv.authenticatedContext(FARMER_UID, { email: "rahul@farm.in", email_verified: true }).firestore();
+  const farmerBDb = testEnv.authenticatedContext("farmer_b_888", { email: "b@farm.in", email_verified: true }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const superAdminDb = testEnv.authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true }).firestore();
+  const ts = pastTime(3000);
+
+  const validComp = {
+    farmerUid: FARMER_UID,
+    bankProductId: "sbi_kcc_crop",
+    bankName: "State Bank of India (SBI)",
+    bankLoanType: "Kisan Credit Card (KCC) — Short-Term Crop Loan",
+    applySubvention: true,
+    privateLenderName: "Local Mahajan",
+    principalAmount: 50000,
+    durationMonths: 12,
+    privateInterestRate: 3,
+    privateRatePeriod: "MONTHLY",
+    privateInterestMethod: "SIMPLE",
+    privateCompoundingPerYear: 12,
+    repaymentSchedule: "LUMP_SUM",
+    additionalFees: 500,
+    amountAlreadyRepaid: 5000,
+    bankTotalInterest: 2020,
+    bankTotalRepayment: 52020,
+    bankEffectiveAnnualCostPercent: 4.04,
+    privateTotalBorrowingCost: 18500,
+    privateTotalRepayment: 68500,
+    privateEffectiveAnnualCostPercent: 37.0,
+    interestCostDifference: 16480,
+    bankRateVerifiedDate: "2026-03-15",
+    notes: "Kharif season loan comparison",
+    createdAt: ts,
+  };
+
+  // Owner can save and read own private comparison
+  await assertSucceeds(farmerADb.collection("farmer_interest_comparisons").doc("comp_1").set(validComp));
+  await assertSucceeds(farmerADb.collection("farmer_interest_comparisons").doc("comp_1").get());
+  await assertSucceeds(farmerADb.collection("farmer_interest_comparisons").where("farmerUid", "==", FARMER_UID).get());
+
+  // Cross-farmer spoofing create blocked
+  await assertFails(
+    farmerBDb.collection("farmer_interest_comparisons").doc("comp_spoof").set({
+      ...validComp,
+      farmerUid: FARMER_UID,
+    })
+  );
+
+  // Other Farmer B, Guests, and even Super Admin are strictly DENIED reading or listing
+  await assertFails(farmerBDb.collection("farmer_interest_comparisons").doc("comp_1").get());
+  await assertFails(farmerBDb.collection("farmer_interest_comparisons").where("farmerUid", "==", FARMER_UID).get());
+  await assertFails(guestDb.collection("farmer_interest_comparisons").doc("comp_1").get());
+  await assertFails(superAdminDb.collection("farmer_interest_comparisons").doc("comp_1").get());
+  await assertFails(superAdminDb.collection("farmer_interest_comparisons").get());
+
+  // Saved comparison records are immutable (no update/delete)
+  await assertFails(farmerADb.collection("farmer_interest_comparisons").doc("comp_1").update({ privateInterestRate: 1 }));
+  await assertFails(farmerADb.collection("farmer_interest_comparisons").doc("comp_1").delete());
+});
+
+
 
 
 
