@@ -1602,5 +1602,176 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
+
+    // =========================================================================
+    // PHASE 5: AGRICULTURE GOVERNMENT SCHEMES & FARMER BENEFITS DIRECTORY
+    // Public read ONLY for published == true; Admin read/write strictly via isAdmin().
+    // Append-only update history with source URLs restricted to Admins only.
+    // =========================================================================
+
+    function isValidSchemeUrlOrEmpty(url) {
+      return url is string && (url == '' || (url.size() >= 8 && url.size() <= 400 && url.matches('^https?://.*')));
+    }
+
+    function isValidAgricultureScheme(data) {
+      return data.schemeSlug is string && data.schemeSlug.size() >= 2 && data.schemeSlug.size() <= 80 &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 200 &&
+        data.nameBn is string && data.nameBn.size() <= 220 &&
+        data.category in [
+          'FINANCIAL_ASSISTANCE', 'CROP_INSURANCE', 'AGRI_LOANS_CREDIT', 'KCC',
+          'IRRIGATION_WATER', 'SOIL_HEALTH', 'SEEDS_FERTILIZERS', 'AGRI_MACHINERY',
+          'ORGANIC_NATURAL', 'HORTICULTURE', 'FLORICULTURE', 'DAIRY_FARMING',
+          'POULTRY_FARMING', 'FISHERIES_AQUACULTURE', 'LIVESTOCK_DEV', 'WOMEN_FARMER',
+          'FPO', 'AGRI_MARKETING', 'STORAGE_COLD_CHAIN', 'TRAINING_SKILL',
+          'AGRI_ENTREPRENEURSHIP', 'RURAL_LIVELIHOOD', 'OTHER_AGRI'
+        ] &&
+        data.secondaryCategories is list && data.secondaryCategories.size() <= 5 &&
+        data.womenFarmerEligible is bool &&
+        data.govtLevel in ['CENTRAL', 'STATE', 'DISTRICT'] &&
+        data.applicableState is string && data.applicableState.size() >= 2 && data.applicableState.size() <= 80 &&
+        data.applicableRegion is string && data.applicableRegion.size() <= 220 &&
+        data.applicableRegionBn is string && data.applicableRegionBn.size() <= 240 &&
+        data.applicableDistricts is list && data.applicableDistricts.size() <= 60 &&
+        data.purpose is string && data.purpose.size() >= 2 && data.purpose.size() <= 1200 &&
+        data.purposeBn is string && data.purposeBn.size() <= 1400 &&
+        data.benefits is string && data.benefits.size() >= 2 && data.benefits.size() <= 1500 &&
+        data.benefitsBn is string && data.benefitsBn.size() <= 1700 &&
+        data.eligibleCategories is string && data.eligibleCategories.size() <= 600 &&
+        data.eligibleCategoriesBn is string && data.eligibleCategoriesBn.size() <= 700 &&
+        data.landholding is string && data.landholding.size() <= 500 &&
+        data.landholdingBn is string && data.landholdingBn.size() <= 600 &&
+        data.tenantFarmers is string && data.tenantFarmers.size() <= 500 &&
+        data.tenantFarmersBn is string && data.tenantFarmersBn.size() <= 600 &&
+        data.womenFarmers is string && data.womenFarmers.size() <= 500 &&
+        data.womenFarmersBn is string && data.womenFarmersBn.size() <= 600 &&
+        data.ageLimit is string && data.ageLimit.size() <= 240 &&
+        data.ageLimitBn is string && data.ageLimitBn.size() <= 260 &&
+        data.incomeLimit is string && data.incomeLimit.size() <= 400 &&
+        data.incomeLimitBn is string && data.incomeLimitBn.size() <= 450 &&
+        data.residency is string && data.residency.size() <= 400 &&
+        data.residencyBn is string && data.residencyBn.size() <= 450 &&
+        data.whoCanApply is list && data.whoCanApply.size() <= 20 &&
+        data.whoCanApplyBn is list && data.whoCanApplyBn.size() <= 20 &&
+        data.whoCannotApply is list && data.whoCannotApply.size() <= 20 &&
+        data.whoCannotApplyBn is list && data.whoCannotApplyBn.size() <= 20 &&
+        data.requiredDocuments is list && data.requiredDocuments.size() <= 20 &&
+        data.applicationProcess is string && data.applicationProcess.size() <= 1500 &&
+        data.applicationProcessBn is string && data.applicationProcessBn.size() <= 1700 &&
+        isValidSchemeUrlOrEmpty(data.officialPortalUrl) &&
+        data.offlineProcess is string && data.offlineProcess.size() <= 1200 &&
+        data.offlineProcessBn is string && data.offlineProcessBn.size() <= 1400 &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 200 &&
+        data.departmentBn is string && data.departmentBn.size() <= 220 &&
+        data.helpline is string && data.helpline.size() <= 180 &&
+        data.helplineBn is string && data.helplineBn.size() <= 200 &&
+        data.helplineTel is string && data.helplineTel.size() <= 30 &&
+        data.deadline is string && data.deadline.size() <= 240 &&
+        data.deadlineBn is string && data.deadlineBn.size() <= 260 &&
+        data.status in ['ACTIVE', 'SEASONAL', 'UNVERIFIED', 'OUTDATED', 'CLOSED'] &&
+        data.lastVerifiedDate is string && data.lastVerifiedDate.size() <= 30 &&
+        data.officialSourceUrl is string && data.officialSourceUrl.size() >= 8 && data.officialSourceUrl.size() <= 400 &&
+        data.officialSourceUrl.matches('^https?://.*') &&
+        data.officialSourceName is string && data.officialSourceName.size() >= 2 && data.officialSourceName.size() <= 180 &&
+        data.lastUpdateNote is string && data.lastUpdateNote.size() <= 400 &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAgricultureSchemeHistory(data) {
+      return data.schemeId is string && data.schemeId.size() >= 1 && data.schemeId.size() <= 128 &&
+        data.schemeName is string && data.schemeName.size() >= 2 && data.schemeName.size() <= 200 &&
+        data.action in ['CREATE', 'UPDATE', 'PUBLISH', 'UNPUBLISH', 'MARK_OUTDATED', 'STATUS_CHANGE', 'DELETE'] &&
+        data.statusAfter in ['ACTIVE', 'SEASONAL', 'UNVERIFIED', 'OUTDATED', 'CLOSED', 'DELETED'] &&
+        data.lastVerifiedDate is string && data.lastVerifiedDate.size() <= 30 &&
+        isValidSchemeUrlOrEmpty(data.officialSourceUrl) &&
+        data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 400 &&
+        data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+        data.actorEmail is string && data.actorEmail.size() <= 120 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    match /agricultureSchemes/{schemeId} {
+      allow get: if isValidId(schemeId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(schemeId) &&
+        isAdmin() &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'schemeSlug', 'name', 'nameBn', 'category', 'secondaryCategories', 'womenFarmerEligible',
+          'govtLevel', 'applicableState', 'applicableRegion', 'applicableRegionBn', 'applicableDistricts',
+          'purpose', 'purposeBn', 'benefits', 'benefitsBn',
+          'eligibleCategories', 'eligibleCategoriesBn', 'landholding', 'landholdingBn',
+          'tenantFarmers', 'tenantFarmersBn', 'womenFarmers', 'womenFarmersBn',
+          'ageLimit', 'ageLimitBn', 'incomeLimit', 'incomeLimitBn', 'residency', 'residencyBn',
+          'whoCanApply', 'whoCanApplyBn', 'whoCannotApply', 'whoCannotApplyBn', 'requiredDocuments',
+          'applicationProcess', 'applicationProcessBn', 'officialPortalUrl', 'offlineProcess', 'offlineProcessBn',
+          'department', 'departmentBn', 'helpline', 'helplineBn', 'helplineTel', 'deadline', 'deadlineBn',
+          'status', 'lastVerifiedDate', 'officialSourceUrl', 'officialSourceName', 'lastUpdateNote',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'schemeSlug', 'name', 'nameBn', 'category', 'secondaryCategories', 'womenFarmerEligible',
+          'govtLevel', 'applicableState', 'applicableRegion', 'applicableRegionBn', 'applicableDistricts',
+          'purpose', 'purposeBn', 'benefits', 'benefitsBn',
+          'eligibleCategories', 'eligibleCategoriesBn', 'landholding', 'landholdingBn',
+          'tenantFarmers', 'tenantFarmersBn', 'womenFarmers', 'womenFarmersBn',
+          'ageLimit', 'ageLimitBn', 'incomeLimit', 'incomeLimitBn', 'residency', 'residencyBn',
+          'whoCanApply', 'whoCanApplyBn', 'whoCannotApply', 'whoCannotApplyBn', 'requiredDocuments',
+          'applicationProcess', 'applicationProcessBn', 'officialPortalUrl', 'offlineProcess', 'offlineProcessBn',
+          'department', 'departmentBn', 'helpline', 'helplineBn', 'helplineTel', 'deadline', 'deadlineBn',
+          'status', 'lastVerifiedDate', 'officialSourceUrl', 'officialSourceName', 'lastUpdateNote',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidAgricultureScheme(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(schemeId) &&
+        isAdmin() &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidAgricultureScheme(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'schemeSlug', 'name', 'nameBn', 'category', 'secondaryCategories', 'womenFarmerEligible',
+          'govtLevel', 'applicableState', 'applicableRegion', 'applicableRegionBn', 'applicableDistricts',
+          'purpose', 'purposeBn', 'benefits', 'benefitsBn',
+          'eligibleCategories', 'eligibleCategoriesBn', 'landholding', 'landholdingBn',
+          'tenantFarmers', 'tenantFarmersBn', 'womenFarmers', 'womenFarmersBn',
+          'ageLimit', 'ageLimitBn', 'incomeLimit', 'incomeLimitBn', 'residency', 'residencyBn',
+          'whoCanApply', 'whoCanApplyBn', 'whoCannotApply', 'whoCannotApplyBn', 'requiredDocuments',
+          'applicationProcess', 'applicationProcessBn', 'officialPortalUrl', 'offlineProcess', 'offlineProcessBn',
+          'department', 'departmentBn', 'helpline', 'helplineBn', 'helplineTel', 'deadline', 'deadlineBn',
+          'status', 'lastVerifiedDate', 'officialSourceUrl', 'officialSourceName', 'lastUpdateNote',
+          'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(schemeId) && isAdmin();
+    }
+
+    // Admin-Only Append-Only Scheme Update History & Source Audit Trail
+    match /agricultureSchemeHistory/{historyId} {
+      allow get: if isValidId(historyId) && isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(historyId) &&
+        isAdmin() &&
+        incoming().actorUid == request.auth.uid &&
+        incoming().keys().hasAll([
+          'schemeId', 'schemeName', 'action', 'statusAfter',
+          'lastVerifiedDate', 'officialSourceUrl', 'summary', 'actorUid', 'actorEmail', 'createdAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'schemeId', 'schemeName', 'action', 'statusAfter',
+          'lastVerifiedDate', 'officialSourceUrl', 'summary', 'actorUid', 'actorEmail', 'createdAt'
+        ]) &&
+        isValidAgricultureSchemeHistory(incoming());
+
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

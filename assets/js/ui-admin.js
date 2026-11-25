@@ -4,7 +4,14 @@
 // NEVER reads or exposes private student Money Manager or private Doubt Chats
 // ============================================================================
 
-import { escapeHtml, formatDateShort } from "./calculators.js";
+import { escapeHtml, formatDateShort, safeUrl } from "./calculators.js";
+import { INDIA_STATES_AND_UTS } from "./india-mandi-directory.js";
+import {
+  SCHEME_CATEGORIES,
+  SCHEME_STATUSES,
+  evaluateSchemeVerification,
+  mergeAgricultureSchemes
+} from "./govt-schemes-data.js";
 
 // ----------------------------------------------------------------------------
 // 1. ADMIN DASHBOARD
@@ -35,6 +42,7 @@ export function renderAdminView(state) {
     ["quizzes", "MCQs"],
     ["notices", "Notices"],
     ["market", "Market Prices"],
+    ["schemes", "Govt Schemes"],
     ["careers", "Jobs/Careers"],
     ["farmer", "Farmer Queries"],
     ["professors", "9 Advisors"],
@@ -73,6 +81,7 @@ export function renderAdminView(state) {
       ${sub === "quizzes" ? renderAdminQuizzes(state) : ""}
       ${sub === "notices" ? renderAdminNotices(state) : ""}
       ${sub === "market" ? renderAdminMarketPrices(state) : ""}
+      ${sub === "schemes" ? renderAdminSchemes(state) : ""}
       ${sub === "careers" ? renderAdminCareers(state) : ""}
       ${sub === "farmer" ? renderAdminFarmerQueries(state) : ""}
       ${sub === "professors" ? renderAdminProfessors(state) : ""}
@@ -290,6 +299,202 @@ function renderAdminMarketPrices(state) {
             `).join("")}
           </div>
         `}
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminSchemes(state) {
+  const allSchemes = mergeAgricultureSchemes(state.agricultureSchemes || [], true);
+  const history = state.agricultureSchemeHistory || [];
+  const today = new Date().toISOString().slice(0, 10);
+
+  return `
+    <div class="space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- Add / Edit Government Scheme Form -->
+        <form id="adminSchemeForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
+          <div class="flex items-center justify-between gap-2">
+            <h3 id="asFormTitle" class="text-base font-extrabold text-[#14532D]">Add / Update Agriculture Govt Scheme</h3>
+            <button id="asCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
+          </div>
+          <p class="text-[11px] text-[#496052]">
+            Publish only verified official Central, State, or District agriculture schemes with official source URLs and verification dates. Never invent benefits or deadlines.
+          </p>
+          <input id="asEditCloudId" type="hidden" value="" />
+          <input id="asSlug" type="hidden" value="" />
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input id="asName" type="text" required minlength="2" maxlength="200" placeholder="Scheme Name (English) *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asNameBn" type="text" maxlength="220" placeholder="প্রকল্পের নাম (বাংলা)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select id="asCategory" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+              ${SCHEME_CATEGORIES.map((c) => `<option value="${escapeHtml(c.key)}">${escapeHtml(c.en)}</option>`).join("")}
+            </select>
+            <select id="asLevel" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+              <option value="CENTRAL">Central Government</option>
+              <option value="STATE">State Government</option>
+              <option value="DISTRICT">District Level Programme</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select id="asState" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+              <option value="All India">All India</option>
+              <option value="Participating States">Participating States</option>
+              ${INDIA_STATES_AND_UTS.map((s) => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("")}
+            </select>
+            <select id="asStatus" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+              ${SCHEME_STATUSES.map((st) => `<option value="${escapeHtml(st.key)}">${escapeHtml(st.en)}</option>`).join("")}
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input id="asRegion" type="text" maxlength="220" placeholder="Applicable Region (English)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asRegionBn" type="text" maxlength="240" placeholder="প্রযোজ্য অঞ্চল (বাংলা)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          </div>
+          <input id="asDistricts" type="text" maxlength="400" placeholder="Focused Districts (comma-separated, leave blank for all districts)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+
+          <textarea id="asPurpose" rows="2" required minlength="2" maxlength="1200" placeholder="Scheme Purpose (English) *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+          <textarea id="asPurposeBn" rows="2" maxlength="1400" placeholder="প্রকল্পের উদ্দেশ্য (বাংলা)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+
+          <textarea id="asBenefits" rows="2" required minlength="2" maxlength="1500" placeholder="Verified Benefits (English) *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+          <textarea id="asBenefitsBn" rows="2" maxlength="1700" placeholder="যাচাইকৃত সুবিধাসমূহ (বাংলা)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+
+          <details class="rounded-xl bg-[#F7F9F5] border border-[#CDE0D3] p-3 space-y-2">
+            <summary class="text-xs font-extrabold text-[#14532D] cursor-pointer">Eligibility Criteria &amp; Exclusions (EN + বাংলা)</summary>
+            <div class="space-y-2 pt-2">
+              <input id="asEligCat" type="text" maxlength="600" placeholder="Eligible Farmer Categories (EN)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligCatBn" type="text" maxlength="700" placeholder="কোন কৃষকরা যোগ্য (বাংলা)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligLand" type="text" maxlength="500" placeholder="Landholding Requirement (EN)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligLandBn" type="text" maxlength="600" placeholder="জমির শর্ত (বাংলা)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligTenant" type="text" maxlength="500" placeholder="Tenant / Sharecropper Eligibility (EN)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligTenantBn" type="text" maxlength="600" placeholder="ভাগচাষী / ভূমিহীন যোগ্যতা (বাংলা)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligWomen" type="text" maxlength="500" placeholder="Women Farmer Eligibility (EN)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <input id="asEligWomenBn" type="text" maxlength="600" placeholder="মহিলা কৃষক যোগ্যতা (বাংলা)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              <div class="grid grid-cols-2 gap-1.5">
+                <input id="asEligAge" type="text" maxlength="240" placeholder="Age Limit (EN)" class="px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+                <input id="asEligAgeBn" type="text" maxlength="260" placeholder="বয়সসীমা (বাংলা)" class="px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+                <input id="asEligIncome" type="text" maxlength="400" placeholder="Income Limit (EN)" class="px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+                <input id="asEligIncomeBn" type="text" maxlength="450" placeholder="আয়সীমা (বাংলা)" class="px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+                <input id="asEligRes" type="text" maxlength="400" placeholder="Residency (EN)" class="px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+                <input id="asEligResBn" type="text" maxlength="450" placeholder="বাসিন্দা শর্ত (বাংলা)" class="px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white" />
+              </div>
+              <textarea id="asWhoCan" rows="2" placeholder="Who Can Apply (EN — one bullet per line)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white"></textarea>
+              <textarea id="asWhoCanBn" rows="2" placeholder="কারা আবেদন করতে পারবেন (বাংলা — প্রতি লাইনে একটি)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white"></textarea>
+              <textarea id="asWhoCannot" rows="2" placeholder="Who Cannot Apply (EN — one bullet per line)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white"></textarea>
+              <textarea id="asWhoCannotBn" rows="2" placeholder="কারা আবেদন করতে পারবেন না (বাংলা — প্রতি লাইনে একটি)" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs bg-white"></textarea>
+            </div>
+          </details>
+
+          <div>
+            <label for="asDocs" class="block text-[11px] font-bold text-[#14532D] mb-1">Required Documents (1 per line: English | বাংলা | mandatory or optional)</label>
+            <textarea id="asDocs" rows="3" placeholder="Aadhaar Card | আধার কার্ড | mandatory&#10;Land Parcha (RoR) | জমির পর্চা | mandatory&#10;Caste Certificate | জাতিগত শংসাপত্র | optional" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+          </div>
+
+          <textarea id="asOnline" rows="2" maxlength="1500" placeholder="Online Application Process (English)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+          <textarea id="asOnlineBn" rows="2" maxlength="1700" placeholder="অনলাইন আবেদন পদ্ধতি (বাংলা)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+          <input id="asPortalUrl" type="url" maxlength="400" placeholder="Official Application Portal URL (https://...)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+
+          <textarea id="asOffline" rows="2" maxlength="1200" placeholder="Offline Application Process (CSC / Block Office / Bank)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+          <textarea id="asOfflineBn" rows="2" maxlength="1400" placeholder="অফলাইন আবেদন পদ্ধতি (বাংলা)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input id="asDept" type="text" required minlength="2" maxlength="200" placeholder="Government Department (EN) *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asDeptBn" type="text" maxlength="220" placeholder="সরকারি দপ্তর (বাংলা)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asHelpline" type="text" maxlength="180" placeholder="Verified Helpline (EN)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asHelplineBn" type="text" maxlength="200" placeholder="অফিশিয়াল হেল্পলাইন (বাংলা)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asHelplineTel" type="text" maxlength="30" placeholder="Dialable Tel (digits only, e.g. 18001801551)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asVerifiedDate" type="date" value="${today}" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asDeadline" type="text" maxlength="240" placeholder="Application Deadline (EN)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+            <input id="asDeadlineBn" type="text" maxlength="260" placeholder="আবেদনের সময়সীমা (বাংলা)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          </div>
+
+          <input id="asSourceUrl" type="url" required maxlength="400" placeholder="Official Verification Source URL (https://...) *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="asSourceName" type="text" maxlength="180" placeholder="Official Source Name (e.g. Ministry of Agriculture)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="asUpdateNote" type="text" maxlength="400" placeholder="Update History Note (what changed in this review?)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+
+          <div class="flex flex-wrap gap-4 text-xs font-bold pt-1">
+            <label class="flex items-center gap-1.5"><input id="asPublished" type="checkbox" checked class="accent-[#14532D]" /> Published Publicly</label>
+            <label class="flex items-center gap-1.5"><input id="asWomenEligible" type="checkbox" checked class="accent-[#14532D]" /> Women Farmer Eligible</label>
+          </div>
+          <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Save Government Scheme</button>
+        </form>
+
+        <!-- Managed Schemes Directory & Quick Moderation -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="gv-card p-5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-base font-extrabold text-[#14532D]">Managed Schemes Directory (${allSchemes.length})</h3>
+              <span class="text-[11px] font-bold text-[#496052]">
+                ${(state.agricultureSchemes || []).length} Cloud Overrides/Additions • ${allSchemes.filter((s) => s.published !== false).length} Public
+              </span>
+            </div>
+            <div class="space-y-2 max-h-[520px] overflow-y-auto">
+              ${allSchemes.map((s) => {
+                const verif = evaluateSchemeVerification(s);
+                const srcHref = safeUrl(s.officialSourceUrl || s.officialPortalUrl);
+                return `
+                  <div class="rounded-2xl border border-[#CDE0D3] p-3.5 bg-[#F7F9F5] space-y-2">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
+                          <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[#14532D]">${escapeHtml(s.govtLevel)} • ${escapeHtml(s.applicableState)}</span>
+                          <span class="px-2 py-0.5 rounded-full border ${verif.badgeClass}">${escapeHtml(verif.en)}</span>
+                          <span class="px-2 py-0.5 rounded-full ${s.published !== false ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"}">${s.published !== false ? "Published" : "Unpublished"}</span>
+                          <span class="px-2 py-0.5 rounded-full ${s.fromCloud ? "bg-indigo-100 text-indigo-900" : "bg-slate-100 text-slate-600"}">${s.fromCloud ? "Firestore Cloud" : "Verified Baseline"}</span>
+                        </div>
+                        <div class="text-sm font-extrabold text-[#132219] mt-1">${escapeHtml(s.name)}</div>
+                        ${s.nameBn ? `<div class="text-xs font-semibold text-[#1E7E45]">${escapeHtml(s.nameBn)}</div>` : ""}
+                        <div class="text-[11px] text-[#496052] mt-0.5">
+                          Status: <strong>${escapeHtml(s.status)}</strong> • Verified: ${escapeHtml(s.lastVerifiedDate || "—")}
+                          ${srcHref ? ` • <a href="${escapeHtml(srcHref)}" target="_blank" rel="noopener noreferrer" class="underline text-[#14532D]">Official Source ↗</a>` : ""}
+                        </div>
+                      </div>
+                      <div class="flex flex-wrap gap-1.5 shrink-0">
+                        <button type="button" data-edit-scheme="${escapeHtml(s.id)}" class="px-2.5 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
+                        <button type="button" data-toggle-scheme-pub="${escapeHtml(s.id)}" class="px-2.5 py-1.5 rounded-lg bg-sky-50 text-sky-800 text-xs font-bold">
+                          ${s.published !== false ? "Unpublish" : "Publish"}
+                        </button>
+                        <button type="button" data-mark-scheme-outdated="${escapeHtml(s.id)}" class="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-950 text-xs font-bold">Mark Outdated</button>
+                        ${s.cloudId ? `<button type="button" data-del-scheme="${escapeHtml(s.cloudId)}" data-del-scheme-name="${escapeHtml(s.name)}" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>` : ""}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+
+          <!-- Append-Only Update History & Official Sources Log -->
+          <div class="gv-card p-5 space-y-2.5">
+            <h3 class="text-base font-extrabold text-[#14532D]">Scheme Update History &amp; Official Source Log (${history.length})</h3>
+            ${history.length === 0 ? `
+              <p class="text-xs text-[#496052]">No cloud edits logged yet. Every Add, Edit, Publish/Unpublish, Outdated Flag, or Delete automatically records the source URL and timestamp here.</p>
+            ` : `
+              <div class="space-y-2 max-h-[260px] overflow-y-auto">
+                ${history.map((h) => {
+                  const hUrl = safeUrl(h.officialSourceUrl);
+                  return `
+                    <div class="rounded-xl border border-[#CDE0D3] p-3 bg-[#F7F9F5] text-xs space-y-1">
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="font-extrabold text-[#14532D]">${escapeHtml(h.action)} — ${escapeHtml(h.schemeName)}</span>
+                        <span class="text-[11px] text-[#496052]">${h.createdAtMs ? escapeHtml(formatDateShort(h.createdAtMs)) : ""} • ${escapeHtml(h.statusAfter)}</span>
+                      </div>
+                      <div class="text-[#132219]">${escapeHtml(h.summary)}</div>
+                      <div class="text-[11px] text-[#496052]">
+                        By: ${escapeHtml(h.actorEmail || h.actorUid)} • Verified Date: ${escapeHtml(h.lastVerifiedDate || "—")}
+                        ${hUrl ? ` • <a href="${escapeHtml(hUrl)}" target="_blank" rel="noopener noreferrer" class="underline text-[#14532D]">Source ↗</a>` : ""}
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            `}
+          </div>
+        </div>
       </div>
     </div>
   `;

@@ -21,9 +21,14 @@ import {
   loadFormDraft
 } from "./farmer-finance-data.js";
 import {
-  renderSchemesSection,
   renderSimplifiedHelplinesSection
 } from "./farmer-finance-ui-tools.js";
+import {
+  SCHEMES_DIRECTORY_META,
+  SCHEME_CATEGORIES,
+  mergeAgricultureSchemes
+} from "./govt-schemes-data.js";
+import { renderAgricultureSchemesCentre } from "./govt-schemes-ui.js";
 
 const FF_ICONS = {
   lease: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>`,
@@ -66,44 +71,45 @@ export function renderFarmerFinanceView(state) {
   const ff = state.farmerFinance || {};
   const rawTab = ff.subTab || "schemes";
   const activeTab = (rawTab === "helplines" || rawTab === "rights") ? "helplines" : "schemes";
+  const mergedSchemes = mergeAgricultureSchemes(state.agricultureSchemes || [], false);
 
   const bodyHtml = activeTab === "helplines"
     ? renderSimplifiedHelplinesSection(state)
-    : renderSchemesSection(state);
+    : renderAgricultureSchemesCentre(state);
 
   return `
     <div data-farmer-finance-simplified="true" class="ff-scope space-y-5">
-      <!-- ==================== SIMPLIFIED FARMER-FRIENDLY HERO HEADER ==================== -->
+      <!-- ==================== AGRICULTURE GOVERNMENT SCHEMES HERO HEADER ==================== -->
       <section class="ff-hero-card rounded-3xl p-5 sm:p-7">
         <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div class="space-y-2 max-w-3xl">
             <div class="flex flex-wrap items-center gap-2">
               <span class="ff-hero-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wide">
                 <span class="w-2 h-2 rounded-full bg-[#34D399]"></span>
-                Farmer Financial Support • কৃষক আর্থিক সহায়তা
+                Bilingual Farmer Support • বাংলা ও English
               </span>
               <span class="ff-hero-badge inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold">
                 Free Public Guide • কোনো লগইন ছাড়াই দেখুন
               </span>
             </div>
             <h1 class="ff-hero-heading font-display text-2xl sm:text-3xl font-bold tracking-tight">
-              Government Schemes &amp; Financial Assistance
+              ${escapeHtml(SCHEMES_DIRECTORY_META.moduleNameEn)}
             </h1>
             <p class="text-sm sm:text-base font-bold text-[#DCFCE7]">
-              সরকারি কৃষি প্রকল্প, ফসল বীমা ও কৃষক সহায়তা কেন্দ্র
+              ${escapeHtml(SCHEMES_DIRECTORY_META.moduleNameBn)}
             </p>
             <p class="ff-hero-desc text-xs sm:text-sm leading-relaxed">
-              Simple, verified guides for Central &amp; West Bengal agricultural schemes, required documents, step-by-step application help, and toll-free farmer helplines.
+              Verified Central, West Bengal, State &amp; District agriculture schemes across all ${SCHEME_CATEGORIES.length} categories — with simple eligibility rules, scheme-specific document checklists, online/offline steps, and official government portals.
             </p>
           </div>
           <div class="grid grid-cols-3 lg:grid-cols-1 gap-2 shrink-0">
             <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
               <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Verified Schemes</div>
-              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">${GOVERNMENT_SCHEMES.length} Govt Portals</div>
+              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">${mergedSchemes.length} Schemes</div>
             </div>
             <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
-              <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Helplines</div>
-              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">${OFFICIAL_GRIEVANCE_CONTACTS.length} Official Desks</div>
+              <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Coverage Scope</div>
+              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">${SCHEME_CATEGORIES.length} Categories</div>
             </div>
             <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
               <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Toll-Free Call</div>

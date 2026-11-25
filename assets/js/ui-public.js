@@ -22,6 +22,10 @@ import {
   isUpcomingMeeting,
   safeUrl
 } from "./calculators.js";
+import {
+  SCHEME_CATEGORIES,
+  mergeAgricultureSchemes
+} from "./govt-schemes-data.js";
 
 const GREEN_HEAVEN_LOGO_SVG = `
   <span class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-[#DCFCE7] shadow-sm shrink-0" aria-hidden="true">
@@ -690,10 +694,10 @@ export function renderFarmerZoneView(state) {
     },
     {
       route: "farmer-finance",
-      title: "Government Schemes & Financial Assistance (সরকারি কৃষি প্রকল্প)",
-      subtitle: "Verified Central & West Bengal schemes — PM-KISAN, Krishak Bandhu, Kisan Credit Card (KCC), Bangla Shasya Bima, PMFBY, Soil Health Card & Women Farmer support",
+      title: "Agriculture Government Schemes & Farmer Benefits (কৃষি সরকারি প্রকল্প ও কৃষক সহায়তা কেন্দ্র)",
+      subtitle: `Bilingual (বাংলা & English) verified Central, West Bengal, State & District schemes across all ${SCHEME_CATEGORIES.length} categories — eligibility, document checklists & official portals`,
       icon: AGRI_ICONS.scheme,
-      badge: "9 Official Schemes",
+      badge: `${mergeAgricultureSchemes(state.agricultureSchemes || [], false).length} Schemes • ${SCHEME_CATEGORIES.length} Categories`,
       featured: true,
       attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "schemes" }
     },

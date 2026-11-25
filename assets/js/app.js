@@ -63,6 +63,7 @@ import {
   clearFarmerFinancePrivateState,
   createInitialFarmerFinanceState
 } from "./farmer-finance-controller.js";
+import { mergeAgricultureSchemes } from "./govt-schemes-data.js";
 
 const VALID_ROUTES = new Set([
   "home",
@@ -121,6 +122,8 @@ const state = {
   meetings: [],
   professors: OFFICIAL_FACULTY.map((p) => ({ ...p })),
   firestoreMarketPrices: [],
+  agricultureSchemes: [],
+  agricultureSchemeHistory: [],
 
   // Live Weather State (Real Open-Meteo API — ZERO fake data)
   weatherQuery: "",
@@ -292,6 +295,7 @@ function clearPrivateStateOnLogout() {
   state.ownerErrorLogs = [];
   state.ownerContentReports = [];
   state.ownerAuditLogs = [];
+  state.agricultureSchemeHistory = [];
   clearFarmerFinancePrivateState(state);
 
   // Purge stale private snapshot signatures so signing back in always hydrates cleanly
@@ -393,14 +397,14 @@ const ROUTE_DATA_DEPS = {
     "communityPosts", "professors", "studentDoubtThreads", "professorDoubtThreads"
   ]),
   "farmer-zone": new Set([
-    "firestoreMarketPrices", "meetings", "communityPosts", "professors"
+    "firestoreMarketPrices", "agricultureSchemes", "meetings", "communityPosts", "professors"
   ]),
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
   marketplace: new Set([]),
   student: new Set(["studyMaterials", "quizzes", "quizAttempts"]),
   farmer: new Set(["appSettings", "farmerQueries"]),
-  "farmer-finance": new Set(["firestoreMarketPrices"]),
+  "farmer-finance": new Set(["firestoreMarketPrices", "agricultureSchemes"]),
   tools: new Set([]),
   ai: new Set(["appSettings", "studyMaterials"]),
   community: new Set(["communityPosts", "careerOpportunities"]),
@@ -412,7 +416,8 @@ const ROUTE_DATA_DEPS = {
   doubt: new Set(["studentDoubtThreads", "professorDoubtThreads", "activeDoubtMessages"]),
   admin: new Set([
     "appSettings", "studyMaterials", "quizzes", "announcements",
-    "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices", "communityPosts"
+    "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
+    "agricultureSchemes", "agricultureSchemeHistory", "communityPosts"
   ]),
   owner: new Set([
     "appSettings", "ownerUsers", "ownerAdmins", "ownerActivities",
@@ -1303,6 +1308,14 @@ function bindGlobalEvents() {
       e.target.classList.add("hidden");
       return;
     }
+    if (e.target.id === "asCancelEdit") {
+      document.getElementById("adminSchemeForm")?.reset();
+      document.getElementById("asEditCloudId").value = "";
+      document.getElementById("asSlug").value = "";
+      document.getElementById("asFormTitle").textContent = "Add / Update Agriculture Govt Scheme";
+      e.target.classList.add("hidden");
+      return;
+    }
     if (e.target.id === "acCancelEdit") {
       document.getElementById("adminCareerForm")?.reset();
       document.getElementById("acEditId").value = "";
@@ -1352,6 +1365,7 @@ function bindGlobalEvents() {
       }
       if (target.dataset.openFfSub && state.farmerFinance) {
         state.farmerFinance.subTab = target.dataset.openFfSub;
+        state.farmerFinance.selectedSchemeId = "";
       }
       if (target.dataset.openMoneyScope) {
         state.moneyLedgerScope = target.dataset.openMoneyScope;
@@ -1969,6 +1983,116 @@ function bindGlobalEvents() {
         await firebaseService.deleteMarketPriceAsAdmin(target.dataset.delMp);
         showToast("Market price deleted.");
       } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    if (target.dataset.editScheme) {
+      const merged = mergeAgricultureSchemes(state.agricultureSchemes || [], true);
+      const s = merged.find((x) => x.id === target.dataset.editScheme);
+      if (s) {
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ""; };
+        setVal("asEditCloudId", s.cloudId || "");
+        setVal("asSlug", s.id || "");
+        setVal("asName", s.name || "");
+        setVal("asNameBn", s.nameBn || "");
+        setVal("asCategory", s.category || "OTHER_AGRI");
+        setVal("asLevel", s.govtLevel || "CENTRAL");
+        setVal("asState", s.applicableState || "All India");
+        setVal("asStatus", s.status || "ACTIVE");
+        setVal("asRegion", s.applicableRegion || "");
+        setVal("asRegionBn", s.applicableRegionBn || "");
+        setVal("asDistricts", Array.isArray(s.applicableDistricts) ? s.applicableDistricts.join(", ") : "");
+        setVal("asPurpose", s.purpose || "");
+        setVal("asPurposeBn", s.purposeBn || "");
+        setVal("asBenefits", s.benefits || "");
+        setVal("asBenefitsBn", s.benefitsBn || "");
+        setVal("asEligCat", s.eligibility?.eligibleCategories || "");
+        setVal("asEligCatBn", s.eligibility?.eligibleCategoriesBn || "");
+        setVal("asEligLand", s.eligibility?.landholding || "");
+        setVal("asEligLandBn", s.eligibility?.landholdingBn || "");
+        setVal("asEligTenant", s.eligibility?.tenantFarmers || "");
+        setVal("asEligTenantBn", s.eligibility?.tenantFarmersBn || "");
+        setVal("asEligWomen", s.eligibility?.womenFarmers || "");
+        setVal("asEligWomenBn", s.eligibility?.womenFarmersBn || "");
+        setVal("asEligAge", s.eligibility?.ageLimit || "");
+        setVal("asEligAgeBn", s.eligibility?.ageLimitBn || "");
+        setVal("asEligIncome", s.eligibility?.incomeLimit || "");
+        setVal("asEligIncomeBn", s.eligibility?.incomeLimitBn || "");
+        setVal("asEligRes", s.eligibility?.residency || "");
+        setVal("asEligResBn", s.eligibility?.residencyBn || "");
+        setVal("asWhoCan", Array.isArray(s.whoCanApply) ? s.whoCanApply.join("\n") : "");
+        setVal("asWhoCanBn", Array.isArray(s.whoCanApplyBn) ? s.whoCanApplyBn.join("\n") : "");
+        setVal("asWhoCannot", Array.isArray(s.whoCannotApply) ? s.whoCannotApply.join("\n") : "");
+        setVal("asWhoCannotBn", Array.isArray(s.whoCannotApplyBn) ? s.whoCannotApplyBn.join("\n") : "");
+        setVal(
+          "asDocs",
+          Array.isArray(s.requiredDocuments)
+            ? s.requiredDocuments.map((d) => `${d.en || ""} | ${d.bn || ""} | ${d.mandatory === false ? "optional" : "mandatory"}`).join("\n")
+            : ""
+        );
+        setVal("asOnline", s.applicationProcess || "");
+        setVal("asOnlineBn", s.applicationProcessBn || "");
+        setVal("asPortalUrl", s.officialPortalUrl || "");
+        setVal("asOffline", s.offlineProcess || "");
+        setVal("asOfflineBn", s.offlineProcessBn || "");
+        setVal("asDept", s.department || "");
+        setVal("asDeptBn", s.departmentBn || "");
+        setVal("asHelpline", s.helpline || "");
+        setVal("asHelplineBn", s.helplineBn || "");
+        setVal("asHelplineTel", s.helplineTel || "");
+        setVal("asVerifiedDate", s.lastVerifiedDate || new Date().toISOString().slice(0, 10));
+        setVal("asDeadline", s.deadline || "");
+        setVal("asDeadlineBn", s.deadlineBn || "");
+        setVal("asSourceUrl", s.officialSourceUrl || s.officialPortalUrl || "");
+        setVal("asSourceName", s.officialSourceName || "");
+        setVal("asUpdateNote", s.lastUpdateNote || "");
+        const pubEl = document.getElementById("asPublished");
+        if (pubEl) pubEl.checked = s.published !== false;
+        const womEl = document.getElementById("asWomenEligible");
+        if (womEl) womEl.checked = s.womenFarmerEligible !== false;
+        const titleEl = document.getElementById("asFormTitle");
+        if (titleEl) titleEl.textContent = `Edit Scheme: ${s.name}`;
+        document.getElementById("asCancelEdit")?.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    if (target.dataset.toggleSchemePub && state.user && state.isAdmin) {
+      const merged = mergeAgricultureSchemes(state.agricultureSchemes || [], true);
+      const s = merged.find((x) => x.id === target.dataset.toggleSchemePub);
+      if (s) {
+        const nextPub = s.published === false;
+        try {
+          await firebaseService.toggleAgricultureSchemePublishAsAdmin(state.user.uid, state.user.email || "", s, nextPub);
+          showToast(nextPub ? "Scheme published to farmers!" : "Scheme unpublished from public view.");
+        } catch (err) { showToast(err.message || "Publish toggle failed.", true); }
+      }
+      return;
+    }
+    if (target.dataset.markSchemeOutdated && state.user && state.isAdmin) {
+      const merged = mergeAgricultureSchemes(state.agricultureSchemes || [], true);
+      const s = merged.find((x) => x.id === target.dataset.markSchemeOutdated);
+      if (s) {
+        if (!confirm(`Mark "${s.name}" as OUTDATED so farmers see an unverified warning until re-verified?`)) return;
+        try {
+          await firebaseService.markAgricultureSchemeStatusAsAdmin(
+            state.user.uid,
+            state.user.email || "",
+            s,
+            "OUTDATED",
+            "Marked outdated by Admin pending official re-verification."
+          );
+          showToast("Scheme marked as OUTDATED (unverified warning now shown to farmers).");
+        } catch (err) { showToast(err.message || "Status update failed.", true); }
+      }
+      return;
+    }
+    if (target.dataset.delScheme && state.user && state.isAdmin) {
+      const sName = target.dataset.delSchemeName || "this scheme";
+      if (!confirm(`Delete cloud record for "${sName}"?`)) return;
+      try {
+        await firebaseService.deleteAgricultureSchemeAsAdmin(state.user.uid, state.user.email || "", target.dataset.delScheme, sName);
+        showToast("Cloud scheme record removed.");
+      } catch (err) { showToast(err.message || "Delete failed.", true); }
       return;
     }
     if (target.dataset.editCareer) {
@@ -2619,6 +2743,89 @@ function bindGlobalEvents() {
           form.reset();
           document.getElementById("ampEditId").value = "";
           showToast(editId ? "Market price updated live!" : "Verified market price published live!");
+        });
+        return;
+      }
+
+      // Admin Agriculture Government Scheme (Create & Edit + History Audit Log)
+      if (form.id === "adminSchemeForm" && state.user && state.isAdmin) {
+        await withBusySubmit(form, async () => {
+          const val = (id) => document.getElementById(id)?.value || "";
+          const splitLines = (raw) => String(raw || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+          const parseDocs = (raw) => splitLines(raw).map((line) => {
+            const parts = line.split("|").map((p) => p.trim());
+            const en = parts[0] || "";
+            const bn = parts[1] || en;
+            const mandRaw = (parts[2] || "mandatory").toLowerCase();
+            return { en, bn, mandatory: !["optional", "false", "no", "if applicable"].includes(mandRaw) };
+          }).filter((d) => d.en || d.bn);
+
+          const editCloudId = val("asEditCloudId");
+          const districts = val("asDistricts").split(",").map((d) => d.trim()).filter(Boolean);
+          await firebaseService.saveAgricultureSchemeAsAdmin(
+            state.user.uid,
+            state.user.email || "",
+            {
+              schemeSlug: val("asSlug") || val("asName"),
+              name: val("asName"),
+              nameBn: val("asNameBn"),
+              category: val("asCategory"),
+              govtLevel: val("asLevel"),
+              applicableState: val("asState"),
+              applicableRegion: val("asRegion") || val("asState"),
+              applicableRegionBn: val("asRegionBn"),
+              applicableDistricts: districts,
+              purpose: val("asPurpose"),
+              purposeBn: val("asPurposeBn"),
+              benefits: val("asBenefits"),
+              benefitsBn: val("asBenefitsBn"),
+              eligibleCategories: val("asEligCat"),
+              eligibleCategoriesBn: val("asEligCatBn"),
+              landholding: val("asEligLand"),
+              landholdingBn: val("asEligLandBn"),
+              tenantFarmers: val("asEligTenant"),
+              tenantFarmersBn: val("asEligTenantBn"),
+              womenFarmers: val("asEligWomen"),
+              womenFarmersBn: val("asEligWomenBn"),
+              ageLimit: val("asEligAge"),
+              ageLimitBn: val("asEligAgeBn"),
+              incomeLimit: val("asEligIncome"),
+              incomeLimitBn: val("asEligIncomeBn"),
+              residency: val("asEligRes"),
+              residencyBn: val("asEligResBn"),
+              whoCanApply: splitLines(val("asWhoCan")),
+              whoCanApplyBn: splitLines(val("asWhoCanBn")),
+              whoCannotApply: splitLines(val("asWhoCannot")),
+              whoCannotApplyBn: splitLines(val("asWhoCannotBn")),
+              requiredDocuments: parseDocs(val("asDocs")),
+              applicationProcess: val("asOnline"),
+              applicationProcessBn: val("asOnlineBn"),
+              officialPortalUrl: val("asPortalUrl"),
+              offlineProcess: val("asOffline"),
+              offlineProcessBn: val("asOfflineBn"),
+              department: val("asDept"),
+              departmentBn: val("asDeptBn"),
+              helpline: val("asHelpline"),
+              helplineBn: val("asHelplineBn"),
+              helplineTel: val("asHelplineTel"),
+              deadline: val("asDeadline"),
+              deadlineBn: val("asDeadlineBn"),
+              status: val("asStatus"),
+              lastVerifiedDate: val("asVerifiedDate"),
+              officialSourceUrl: val("asSourceUrl"),
+              officialSourceName: val("asSourceName"),
+              lastUpdateNote: val("asUpdateNote"),
+              womenFarmerEligible: document.getElementById("asWomenEligible")?.checked !== false,
+              published: document.getElementById("asPublished")?.checked !== false
+            },
+            editCloudId
+          );
+          form.reset();
+          document.getElementById("asEditCloudId").value = "";
+          document.getElementById("asSlug").value = "";
+          document.getElementById("asFormTitle").textContent = "Add / Update Agriculture Govt Scheme";
+          document.getElementById("asCancelEdit")?.classList.add("hidden");
+          showToast(editCloudId ? "Government scheme updated live & logged to history!" : "Government scheme saved live & logged to history!");
         });
         return;
       }

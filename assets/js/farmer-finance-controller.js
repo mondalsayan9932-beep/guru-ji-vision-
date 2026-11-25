@@ -33,6 +33,13 @@ export function createInitialFarmerFinanceState() {
     pnlIncludeLease: false,
     schemeFilter: "ALL",
     schemeSearch: "",
+    schemeLang: "",
+    schemeState: "ALL",
+    schemeDistrict: "ALL",
+    schemeCategory: "ALL",
+    schemeQuickFilter: "ALL",
+    selectedSchemeId: "",
+    checkedDocs: {},
     interestBankCategory: "ALL",
     interestInput: {
       bankProductId: VERIFIED_BANK_AGRI_RATES[0].id,
@@ -165,6 +172,7 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
     if (tabBtn) {
       const nextTab = tabBtn.dataset.ffTab;
       state.farmerFinance.subTab = nextTab;
+      state.farmerFinance.selectedSchemeId = "";
       if (state.route !== "farmer-finance") {
         state.route = "farmer-finance";
       }
@@ -179,6 +187,46 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
     if (leaseTypeBtn) {
       state.farmerFinance.leaseFormType = leaseTypeBtn.dataset.ffLeaseType === "CROP_SHARING" ? "CROP_SHARING" : "FIXED_RENT";
       renderActiveView();
+      return;
+    }
+
+    const schemeLangBtn = e.target.closest("[data-ff-scheme-lang]");
+    if (schemeLangBtn) {
+      state.farmerFinance.schemeLang = schemeLangBtn.dataset.ffSchemeLang === "BN" ? "BN" : "EN";
+      renderActiveView();
+      return;
+    }
+
+    const quickFilterBtn = e.target.closest("[data-ff-quick-filter]");
+    if (quickFilterBtn) {
+      state.farmerFinance.schemeQuickFilter = quickFilterBtn.dataset.ffQuickFilter || "ALL";
+      renderActiveView();
+      return;
+    }
+
+    const openSchemeBtn = e.target.closest("[data-ff-open-scheme]");
+    if (openSchemeBtn) {
+      state.farmerFinance.selectedSchemeId = openSchemeBtn.dataset.ffOpenScheme || "";
+      renderActiveView();
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (_) {}
+      return;
+    }
+
+    const backSchemeBtn = e.target.closest("[data-ff-scheme-back]");
+    if (backSchemeBtn) {
+      state.farmerFinance.selectedSchemeId = "";
+      renderActiveView();
+      return;
+    }
+
+    const toggleDocBtn = e.target.closest("[data-ff-toggle-doc]");
+    if (toggleDocBtn) {
+      const docKey = toggleDocBtn.dataset.ffToggleDoc;
+      if (docKey) {
+        if (!state.farmerFinance.checkedDocs) state.farmerFinance.checkedDocs = {};
+        state.farmerFinance.checkedDocs[docKey] = !state.farmerFinance.checkedDocs[docKey];
+        renderActiveView();
+      }
       return;
     }
 
@@ -238,6 +286,11 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
     if (action === "clear-scheme-search") {
       ff.schemeSearch = "";
       ff.schemeFilter = "ALL";
+      ff.schemeState = "ALL";
+      ff.schemeDistrict = "ALL";
+      ff.schemeCategory = "ALL";
+      ff.schemeQuickFilter = "ALL";
+      ff.selectedSchemeId = "";
       renderActiveView();
       return;
     }
@@ -409,6 +462,14 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
       if (wrap) wrap.classList.toggle("hidden", e.target.value !== "CUSTOM");
       return;
     }
+    if (id === "ffSchemeState") {
+      ff.schemeState = e.target.value || "ALL";
+      ff.schemeDistrict = "ALL";
+      renderActiveView();
+      return;
+    }
+    if (id === "ffSchemeDistrict") { ff.schemeDistrict = e.target.value || "ALL"; renderActiveView(); return; }
+    if (id === "ffSchemeCategory") { ff.schemeCategory = e.target.value || "ALL"; renderActiveView(); return; }
     if (id === "ffExpenseFilterCat") { ff.expenseFilterCategory = e.target.value; renderActiveView(); return; }
     if (id === "ffPnlCrop") { ff.pnlCrop = e.target.value; renderActiveView(); return; }
     if (id === "ffPnlSeason") { ff.pnlSeason = e.target.value; renderActiveView(); return; }

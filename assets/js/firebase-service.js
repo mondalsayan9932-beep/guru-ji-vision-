@@ -616,7 +616,7 @@ class FirebaseService {
     const scopeKey = `${Boolean(isAdmin)}|${Boolean(isSuperAdmin)}|${Boolean(isAuthorizedMeetingHost)}`;
     const requiredPublicKeys = [
       "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
-      "announcements", "meetings", "professors", "firestoreMarketPrices", "appSettings"
+      "announcements", "meetings", "professors", "firestoreMarketPrices", "agricultureSchemes", "appSettings"
     ];
     // Prevent duplicate tear-down and re-subscription when the public query scope has not changed
     if (this.publicSubScopeKey === scopeKey && requiredPublicKeys.every((k) => this.activeUnsubs.has(k))) {
@@ -707,6 +707,39 @@ class FirebaseService {
         .sort((a, b) => String(b.reportDate || "").localeCompare(String(a.reportDate || "")) || b.updatedAtMs - a.updatedAtMs);
       onUpdate("firestoreMarketPrices", list, true);
     }, () => {}));
+
+    // Agriculture Government Schemes (Admin-managed overrides & additions; public reads published == true only)
+    const schemeQ = isAdmin
+      ? query(collection(this.db, "agricultureSchemes"), limit(200))
+      : query(collection(this.db, "agricultureSchemes"), where("published", "==", true), limit(200));
+    this.setSub("agricultureSchemes", onSnapshot(schemeQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("agricultureSchemes", list, true);
+    }, () => {}));
+
+    // Agriculture Scheme Update History (Admin-only append-only audit log)
+    if (isAdmin) {
+      const histQ = query(collection(this.db, "agricultureSchemeHistory"), limit(100));
+      this.setSub("agricultureSchemeHistory", onSnapshot(histQ, (snap) => {
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          createdAtMs: getTimestampMs(d.data().createdAt)
+        })).sort((a, b) => b.createdAtMs - a.createdAtMs);
+        onUpdate("agricultureSchemeHistory", list, true);
+      }, () => {}));
+    } else {
+      const prevHistUnsub = this.activeUnsubs.get("agricultureSchemeHistory");
+      if (prevHistUnsub) {
+        try { prevHistUnsub(); } catch (_) {}
+        this.activeUnsubs.delete("agricultureSchemeHistory");
+      }
+      onUpdate("agricultureSchemeHistory", [], true);
+    }
 
     // App Settings (/appSettings/global — public read for WhatsApp Helpline & Notices)
     this.setSub("appSettings", onSnapshot(doc(this.db, "appSettings", "global"), (snap) => {
@@ -1563,6 +1596,259 @@ class FirebaseService {
 
   async deleteMarketPriceAsAdmin(id) {
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "marketPrices", id));
+  }
+
+  // --------------------------------------------------------------------------
+  // PHASE 5: AGRICULTURE GOVERNMENT SCHEMES ADMIN MANAGEMENT + UPDATE HISTORY
+  // --------------------------------------------------------------------------
+  _validateSchemeHttpUrl(rawUrl, required = false, label = "URL") {
+    const cleaned = String(rawUrl || "").trim().slice(0, 400);
+    if (!cleaned) {
+      if (required) throw new Error(`${label} is required and must start with https:// or http://.`);
+      return "";
+    }
+    if (!/^https?:\/\//i.test(cleaned)) {
+      throw new Error(`${label} must start with https:// or http://.`);
+    }
+    return cleaned;
+  }
+
+  _buildAgricultureSchemePayload(data) {
+    const cleanList = (arr, maxItems = 20, maxLen = 220) =>
+      (Array.isArray(arr) ? arr : [])
+        .map((x) => String(x || "").trim().slice(0, maxLen))
+        .filter(Boolean)
+        .slice(0, maxItems);
+
+    const cleanDocs = (docs) =>
+      (Array.isArray(docs) ? docs : [])
+        .map((d) => {
+          if (typeof d === "string") {
+            const s = d.trim().slice(0, 200);
+            return s ? { en: s, bn: s, mandatory: true } : null;
+          }
+          const en = String(d?.en || "").trim().slice(0, 200);
+          const bn = String(d?.bn || en).trim().slice(0, 220);
+          if (!en && !bn) return null;
+          return { en: en || bn, bn: bn || en, mandatory: d?.mandatory !== false };
+        })
+        .filter(Boolean)
+        .slice(0, 20);
+
+    const name = String(data.name || "").trim().slice(0, 200);
+    if (name.length < 2) throw new Error("Scheme Name (English) must be at least 2 characters.");
+
+    const rawSlug = String(data.schemeSlug || data.id || name)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    const schemeSlug = rawSlug.length >= 2 ? rawSlug : `scheme-${Date.now()}`;
+
+    const officialSourceUrl = this._validateSchemeHttpUrl(
+      data.officialSourceUrl || data.officialPortalUrl,
+      true,
+      "Official Source URL"
+    );
+    const officialPortalUrl = this._validateSchemeHttpUrl(data.officialPortalUrl, false, "Official Application Portal URL");
+
+    const purpose = String(data.purpose || "").trim().slice(0, 1200);
+    const benefits = String(data.benefits || "").trim().slice(0, 1500);
+    const department = String(data.department || "").trim().slice(0, 200);
+    if (purpose.length < 2) throw new Error("Scheme Purpose is required.");
+    if (benefits.length < 2) throw new Error("Scheme Benefits are required.");
+    if (department.length < 2) throw new Error("Relevant Government Department is required.");
+
+    const validLevels = ["CENTRAL", "STATE", "DISTRICT"];
+    const validStatuses = ["ACTIVE", "SEASONAL", "UNVERIFIED", "OUTDATED", "CLOSED"];
+    const elig = data.eligibility || {};
+
+    return {
+      schemeSlug,
+      name,
+      nameBn: String(data.nameBn || "").trim().slice(0, 220),
+      category: String(data.category || "OTHER_AGRI").trim(),
+      secondaryCategories: cleanList(data.secondaryCategories, 5, 40),
+      womenFarmerEligible: data.womenFarmerEligible !== false,
+      govtLevel: validLevels.includes(data.govtLevel) ? data.govtLevel : "CENTRAL",
+      applicableState: String(data.applicableState || "All India").trim().slice(0, 80) || "All India",
+      applicableRegion: String(data.applicableRegion || data.applicableState || "All India").trim().slice(0, 220),
+      applicableRegionBn: String(data.applicableRegionBn || "").trim().slice(0, 240),
+      applicableDistricts: cleanList(data.applicableDistricts, 60, 80),
+      purpose,
+      purposeBn: String(data.purposeBn || "").trim().slice(0, 1400),
+      benefits,
+      benefitsBn: String(data.benefitsBn || "").trim().slice(0, 1700),
+      eligibleCategories: String(data.eligibleCategories ?? elig.eligibleCategories ?? "").trim().slice(0, 600),
+      eligibleCategoriesBn: String(data.eligibleCategoriesBn ?? elig.eligibleCategoriesBn ?? "").trim().slice(0, 700),
+      landholding: String(data.landholding ?? elig.landholding ?? "").trim().slice(0, 500),
+      landholdingBn: String(data.landholdingBn ?? elig.landholdingBn ?? "").trim().slice(0, 600),
+      tenantFarmers: String(data.tenantFarmers ?? elig.tenantFarmers ?? "").trim().slice(0, 500),
+      tenantFarmersBn: String(data.tenantFarmersBn ?? elig.tenantFarmersBn ?? "").trim().slice(0, 600),
+      womenFarmers: String(data.womenFarmers ?? elig.womenFarmers ?? "").trim().slice(0, 500),
+      womenFarmersBn: String(data.womenFarmersBn ?? elig.womenFarmersBn ?? "").trim().slice(0, 600),
+      ageLimit: String(data.ageLimit ?? elig.ageLimit ?? "").trim().slice(0, 240),
+      ageLimitBn: String(data.ageLimitBn ?? elig.ageLimitBn ?? "").trim().slice(0, 260),
+      incomeLimit: String(data.incomeLimit ?? elig.incomeLimit ?? "").trim().slice(0, 400),
+      incomeLimitBn: String(data.incomeLimitBn ?? elig.incomeLimitBn ?? "").trim().slice(0, 450),
+      residency: String(data.residency ?? elig.residency ?? "").trim().slice(0, 400),
+      residencyBn: String(data.residencyBn ?? elig.residencyBn ?? "").trim().slice(0, 450),
+      whoCanApply: cleanList(data.whoCanApply, 20, 240),
+      whoCanApplyBn: cleanList(data.whoCanApplyBn, 20, 260),
+      whoCannotApply: cleanList(data.whoCannotApply, 20, 240),
+      whoCannotApplyBn: cleanList(data.whoCannotApplyBn, 20, 260),
+      requiredDocuments: cleanDocs(data.requiredDocuments),
+      applicationProcess: String(data.applicationProcess || "").trim().slice(0, 1500),
+      applicationProcessBn: String(data.applicationProcessBn || "").trim().slice(0, 1700),
+      officialPortalUrl,
+      offlineProcess: String(data.offlineProcess || "").trim().slice(0, 1200),
+      offlineProcessBn: String(data.offlineProcessBn || "").trim().slice(0, 1400),
+      department,
+      departmentBn: String(data.departmentBn || "").trim().slice(0, 220),
+      helpline: String(data.helpline || "").trim().slice(0, 180),
+      helplineBn: String(data.helplineBn || "").trim().slice(0, 200),
+      helplineTel: String(data.helplineTel || "").replace(/[^0-9+]/g, "").slice(0, 30),
+      deadline: String(data.deadline || "").trim().slice(0, 240),
+      deadlineBn: String(data.deadlineBn || "").trim().slice(0, 260),
+      status: validStatuses.includes(data.status) ? data.status : "UNVERIFIED",
+      lastVerifiedDate: String(data.lastVerifiedDate || "").trim().slice(0, 30),
+      officialSourceUrl,
+      officialSourceName: String(data.officialSourceName || department).trim().slice(0, 180) || "Official Government Source",
+      lastUpdateNote: String(data.lastUpdateNote || "").trim().slice(0, 400),
+      published: data.published !== false
+    };
+  }
+
+  async _logAgricultureSchemeHistory(uid, actorEmail, {
+    schemeId,
+    schemeName,
+    action,
+    statusAfter,
+    lastVerifiedDate = "",
+    officialSourceUrl = "",
+    summary = ""
+  }) {
+    const { collection, addDoc, serverTimestamp } = this.mods.fsMod;
+    try {
+      await addDoc(collection(this.db, "agricultureSchemeHistory"), {
+        schemeId: String(schemeId || "unknown").slice(0, 128),
+        schemeName: String(schemeName || "Scheme").slice(0, 200),
+        action,
+        statusAfter,
+        lastVerifiedDate: String(lastVerifiedDate || "").slice(0, 30),
+        officialSourceUrl: /^https?:\/\//i.test(String(officialSourceUrl || "")) ? String(officialSourceUrl).slice(0, 400) : "",
+        summary: String(summary || `${action} on ${schemeName}`).slice(0, 400),
+        actorUid: uid,
+        actorEmail: String(actorEmail || "").trim().toLowerCase().slice(0, 120),
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.warn("Scheme history log failed:", err);
+    }
+  }
+
+  async saveAgricultureSchemeAsAdmin(uid, actorEmail, data, editCloudId = "") {
+    if (!this.ready || !uid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const base = this._buildAgricultureSchemePayload(data);
+    let targetId = editCloudId;
+    if (editCloudId) {
+      await updateDoc(doc(this.db, "agricultureSchemes", editCloudId), {
+        ...base,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      const ref = await addDoc(collection(this.db, "agricultureSchemes"), {
+        ...base,
+        createdBy: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      targetId = ref.id;
+    }
+
+    await this._logAgricultureSchemeHistory(uid, actorEmail, {
+      schemeId: targetId,
+      schemeName: base.name,
+      action: editCloudId ? "UPDATE" : "CREATE",
+      statusAfter: base.status,
+      lastVerifiedDate: base.lastVerifiedDate,
+      officialSourceUrl: base.officialSourceUrl,
+      summary: base.lastUpdateNote || (editCloudId ? `Updated scheme details (${base.status})` : `Created scheme (${base.status})`)
+    });
+    return targetId;
+  }
+
+  async toggleAgricultureSchemePublishAsAdmin(uid, actorEmail, scheme, nextPublished) {
+    if (!this.ready || !uid || !scheme) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    if (scheme.cloudId) {
+      await updateDoc(doc(this.db, "agricultureSchemes", scheme.cloudId), {
+        published: Boolean(nextPublished),
+        updatedAt: serverTimestamp()
+      });
+      await this._logAgricultureSchemeHistory(uid, actorEmail, {
+        schemeId: scheme.cloudId,
+        schemeName: scheme.name,
+        action: nextPublished ? "PUBLISH" : "UNPUBLISH",
+        statusAfter: scheme.status || "ACTIVE",
+        lastVerifiedDate: scheme.lastVerifiedDate || "",
+        officialSourceUrl: scheme.officialSourceUrl || "",
+        summary: nextPublished ? "Published scheme to farmers" : "Unpublished scheme from public view"
+      });
+      return scheme.cloudId;
+    }
+    // Baseline scheme not yet in Firestore: create a cloud override document with the requested publish state
+    return this.saveAgricultureSchemeAsAdmin(uid, actorEmail, {
+      ...scheme,
+      schemeSlug: scheme.id,
+      published: Boolean(nextPublished),
+      lastUpdateNote: nextPublished ? "Published via Admin Control Studio" : "Unpublished via Admin Control Studio"
+    }, "");
+  }
+
+  async markAgricultureSchemeStatusAsAdmin(uid, actorEmail, scheme, nextStatus, note = "") {
+    if (!this.ready || !uid || !scheme) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const action = nextStatus === "OUTDATED" ? "MARK_OUTDATED" : "STATUS_CHANGE";
+    const summary = note || `Changed scheme status to ${nextStatus}`;
+    if (scheme.cloudId) {
+      await updateDoc(doc(this.db, "agricultureSchemes", scheme.cloudId), {
+        status: nextStatus,
+        lastUpdateNote: summary.slice(0, 400),
+        updatedAt: serverTimestamp()
+      });
+      await this._logAgricultureSchemeHistory(uid, actorEmail, {
+        schemeId: scheme.cloudId,
+        schemeName: scheme.name,
+        action,
+        statusAfter: nextStatus,
+        lastVerifiedDate: scheme.lastVerifiedDate || "",
+        officialSourceUrl: scheme.officialSourceUrl || "",
+        summary
+      });
+      return scheme.cloudId;
+    }
+    return this.saveAgricultureSchemeAsAdmin(uid, actorEmail, {
+      ...scheme,
+      schemeSlug: scheme.id,
+      status: nextStatus,
+      lastUpdateNote: summary
+    }, "");
+  }
+
+  async deleteAgricultureSchemeAsAdmin(uid, actorEmail, cloudId, schemeName = "Scheme") {
+    if (!this.ready || !uid || !cloudId) throw new Error("Admin sign-in and Cloud Scheme ID required.");
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "agricultureSchemes", cloudId));
+    await this._logAgricultureSchemeHistory(uid, actorEmail, {
+      schemeId: cloudId,
+      schemeName,
+      action: "DELETE",
+      statusAfter: "DELETED",
+      lastVerifiedDate: "",
+      officialSourceUrl: "",
+      summary: `Removed cloud scheme entry (${schemeName})`
+    });
   }
 
   async deleteProfessorAsAdmin(id) {
