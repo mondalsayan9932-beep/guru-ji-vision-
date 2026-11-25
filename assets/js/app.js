@@ -30,9 +30,11 @@ import {
   renderAiGuruView,
   renderCommunityView,
   renderFarmerView,
+  renderFarmerZoneView,
   renderHomeView,
   renderMarketplaceView,
   renderStudentView,
+  renderStudentZoneView,
   renderToolsView
 } from "./ui-public.js";
 import {
@@ -64,6 +66,8 @@ import {
 
 const VALID_ROUTES = new Set([
   "home",
+  "student-zone",
+  "farmer-zone",
   "weather",
   "market",
   "marketplace",
@@ -88,6 +92,7 @@ const VALID_ROUTES = new Set([
 // ----------------------------------------------------------------------------
 const state = {
   route: "home",
+  lastZone: "",
   lang: localStorage.getItem("gjv_lang") || "en",
   cloudConnected: false,
 
@@ -183,6 +188,7 @@ const state = {
   quizSubmitted: false,
   communitySubTab: "forum",
   communityTopic: "ALL",
+  communityCircle: "ALL",
   careerCategory: "ALL",
   professorSearch: "",
   adminSubTab: "materials",
@@ -380,8 +386,14 @@ async function loadOfficialMandiData(force = false) {
 const ROUTE_DATA_DEPS = {
   home: new Set([
     "appSettings", "studyMaterials", "announcements", "meetings",
-    "professors", "careerOpportunities", "firestoreMarketPrices",
-    "studentDoubtThreads", "professorDoubtThreads", "userProfile"
+    "professors", "studentDoubtThreads", "professorDoubtThreads", "userProfile"
+  ]),
+  "student-zone": new Set([
+    "studyMaterials", "quizzes", "careerOpportunities", "meetings",
+    "communityPosts", "professors", "studentDoubtThreads", "professorDoubtThreads"
+  ]),
+  "farmer-zone": new Set([
+    "firestoreMarketPrices", "meetings", "communityPosts", "professors"
   ]),
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
@@ -503,7 +515,10 @@ function renderShellChrome() {
     const isBottom = btn.classList.contains("bottom-nav-item");
     const isRail = btn.classList.contains("rail-nav-item");
     const isDrawer = btn.classList.contains("drawer-nav-item");
-    const active = btn.dataset.nav === state.route;
+    const navTarget = btn.dataset.nav;
+    const active = navTarget === state.route ||
+      (isBottom && state.route === "student-zone" && navTarget === "student") ||
+      (isBottom && state.route === "farmer-zone" && navTarget === "farmer");
 
     let nextClass = "";
     if (isBottom) {
@@ -545,6 +560,30 @@ function renderShellChrome() {
   }
 }
 
+function renderSubpageBackBar(route, lastZone) {
+  if (route === "home" || route === "student-zone" || route === "farmer-zone") return "";
+  const backIcon = `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`;
+  const zoneLabel = lastZone === "farmer-zone"
+    ? "Back to Farmer Zone"
+    : (lastZone === "student-zone" ? "Back to Student Zone" : "");
+  return `
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        ${lastZone ? `
+          <button data-nav="${lastZone}" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold shadow-sm transition-colors">
+            ${backIcon}
+            <span>${zoneLabel}</span>
+          </button>
+        ` : ""}
+        <button data-nav="home" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl ${lastZone ? "bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0]" : "bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] shadow-sm"} text-[#14532D] text-xs font-extrabold transition-colors">
+          ${lastZone ? "" : backIcon}
+          <span>${lastZone ? "Home" : "Back to Home"}</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function renderActiveView({ fromLiveUpdate = false } = {}) {
   const root = document.getElementById("appMainContent");
   if (!root) return;
@@ -570,6 +609,8 @@ function renderActiveView({ fromLiveUpdate = false } = {}) {
   let html = "";
   switch (state.route) {
     case "home": html = renderHomeView(state); break;
+    case "student-zone": html = renderStudentZoneView(state); break;
+    case "farmer-zone": html = renderFarmerZoneView(state); break;
     case "weather": html = renderWeatherView(state); break;
     case "market": html = renderMarketPriceView(state); break;
     case "marketplace": html = renderMarketplaceView(state); break;
@@ -590,7 +631,9 @@ function renderActiveView({ fromLiveUpdate = false } = {}) {
     default: html = renderHomeView(state); break;
   }
 
-  // On same-route live updates, strip entrance fade-from-zero animation so DOM updates never flash white
+  html = renderSubpageBackBar(state.route, state.lastZone) + html;
+
+  // Strip entrance fade-from-zero animation on same-route or live updates so DOM updates never flash white
   if (sameRoute || fromLiveUpdate) {
     html = html.replace(/\banimate-fade-up\b/g, "");
   }
@@ -621,11 +664,16 @@ function navigateTo(route, updateHash = true) {
     state.activeDoubtChat = null;
     firebaseService.setSub("activeDoubtMessages", null);
   }
+  if (cleanRoute === "home") {
+    state.lastZone = "";
+  } else if (cleanRoute === "student-zone" || cleanRoute === "farmer-zone") {
+    state.lastZone = cleanRoute;
+  }
   state.route = cleanRoute;
   if (updateHash && typeof window !== "undefined") {
     const nextHash = cleanRoute === "home" ? "" : `#${cleanRoute}`;
     if (window.location.hash !== nextHash) {
-      history.replaceState(null, "", nextHash || window.location.pathname);
+      history.pushState({ route: cleanRoute, lastZone: state.lastZone }, "", nextHash || window.location.pathname);
     }
   }
   closeDrawer();
@@ -816,9 +864,9 @@ function redirectAfterSignIn(profile) {
   if (state.facultyIdentity?.isAuthorizedProfessor) {
     navigateTo("professor");
   } else if (profile?.role === "FARMER") {
-    navigateTo("farmer");
+    navigateTo("farmer-zone");
   } else if (profile?.role === "STUDENT") {
-    navigateTo("student");
+    navigateTo("student-zone");
   }
 }
 
@@ -1276,7 +1324,7 @@ function bindGlobalEvents() {
       "[data-student-sub]", "[data-student-sem]", "[data-student-cat]", "[data-student-jump-sem]", "[data-read-material]", "[data-quiz-q]",
       "[data-load-crop-tool]", "[data-apply-crop-preset]", "[data-edit-fq]", "[data-del-fq]",
       "[data-ai-prompt]",
-      "[data-comm-sub]", "[data-comm-topic]", "[data-career-cat]", "[data-upvote-post]", "[data-report-post]", "[data-edit-post]", "[data-del-post]",
+      "[data-comm-sub]", "[data-comm-topic]", "[data-comm-circle]", "[data-career-cat]", "[data-upvote-post]", "[data-report-post]", "[data-edit-post]", "[data-del-post]",
       "[data-money-scope]", "[data-money-type]", "[data-money-filter]", "[data-edit-tx]", "[data-del-tx]", "[data-edit-goal]", "[data-del-goal]",
       "[data-edit-meeting]", "[data-del-meeting]",
       "[data-start-career-prof]", "[data-open-student-thread]", "[data-open-prof-thread]", "[data-prof-filter]", "[data-pick-fa-topic]", "[data-del-doubt-msg]", "[data-retry-email]",
@@ -1289,8 +1337,28 @@ function bindGlobalEvents() {
     const target = e.target.closest(selector);
     if (!target) return;
 
-    // Navigation
+    // Navigation (supports deep-link entry from Student Zone & Farmer Zone into shared/existing modules)
     if (target.dataset.nav) {
+      if (target.dataset.fromZone) {
+        state.lastZone = target.dataset.fromZone;
+      } else if (target.dataset.nav !== "student-zone" && target.dataset.nav !== "farmer-zone") {
+        state.lastZone = "";
+      }
+      if (target.dataset.openStudentSub) {
+        state.studentSubTab = target.dataset.openStudentSub;
+      }
+      if (target.dataset.openStudentCat) {
+        state.studentCategory = target.dataset.openStudentCat;
+      }
+      if (target.dataset.openFfSub && state.farmerFinance) {
+        state.farmerFinance.subTab = target.dataset.openFfSub;
+      }
+      if (target.dataset.openMoneyScope) {
+        state.moneyLedgerScope = target.dataset.openMoneyScope;
+      }
+      if (target.dataset.openCommSub) {
+        state.communitySubTab = target.dataset.openCommSub;
+      }
       navigateTo(target.dataset.nav);
       return;
     }
@@ -1570,6 +1638,7 @@ function bindGlobalEvents() {
     // Community & Careers
     if (target.dataset.commSub) { state.communitySubTab = target.dataset.commSub; renderActiveView(); return; }
     if (target.dataset.commTopic) { state.communityTopic = target.dataset.commTopic; renderActiveView(); return; }
+    if (target.dataset.commCircle) { state.communityCircle = target.dataset.commCircle; renderActiveView(); return; }
     if (target.dataset.careerCat) { state.careerCategory = target.dataset.careerCat; renderActiveView(); return; }
     if (target.dataset.upvotePost) {
       if (!state.user) { openAuthModal(); return; }
@@ -2682,13 +2751,19 @@ function bindGlobalEvents() {
     }
   });
 
-  // Hash deep link listener (supports PWA shortcuts & email reply links)
-  window.addEventListener("hashchange", () => {
+  // Browser Back/Forward (popstate) & Hash deep link listeners
+  const syncRouteFromLocation = (popState) => {
     const h = (window.location.hash || "").replace(/^#/, "");
-    if (h && VALID_ROUTES.has(h) && h !== state.route) {
-      navigateTo(h, false);
+    const targetRoute = (h && VALID_ROUTES.has(h)) ? h : (popState?.route && VALID_ROUTES.has(popState.route) ? popState.route : "home");
+    if (popState && typeof popState.lastZone === "string") {
+      state.lastZone = popState.lastZone;
     }
-  });
+    if (targetRoute !== state.route) {
+      navigateTo(targetRoute, false);
+    }
+  };
+  window.addEventListener("popstate", (e) => syncRouteFromLocation(e.state));
+  window.addEventListener("hashchange", () => syncRouteFromLocation(null));
 
   // PWA Install Prompt
   window.addEventListener("beforeinstallprompt", (e) => {

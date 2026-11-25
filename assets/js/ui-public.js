@@ -49,7 +49,16 @@ const AGRI_ICONS = {
   professor: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>`,
   bell: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`,
   message: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>`,
-  chevron: `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`
+  chevron: `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`,
+  back: `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
+  notes: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>`,
+  quiz: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  syllabus: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>`,
+  pyq: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  resources: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+  scheme: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>`,
+  rights: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  briefcase: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
 };
 
 // Lightweight Precision Agriculture Landscape Background Illustration (Inline SVG — 0 network requests)
@@ -117,7 +126,7 @@ function renderGreenHeavenCompactCard() {
 }
 
 // ----------------------------------------------------------------------------
-// 1. HOME DASHBOARD — SMART AGRICULTURE TECHNOLOGY & DIGITAL FARMING UI
+// 1. HOME DASHBOARD — TWO-ZONE SMART AGRICULTURE ENTRY (STUDENT & FARMER ZONES)
 // ----------------------------------------------------------------------------
 export function renderHomeView(state) {
   const settings = state.appSettings;
@@ -128,7 +137,6 @@ export function renderHomeView(state) {
   const waGroup = safeUrl(settings.whatsappGroupInviteUrl);
   const isProf = state.facultyIdentity?.isAuthorizedProfessor;
   const unreadDoubts = state.totalUnreadDoubts || 0;
-  const marketCount = (state.mandiApiRecords?.length || 0) + (state.firestoreMarketPrices?.filter((r) => r.published !== false).length || 0);
 
   const userDisplayName = state.userProfile?.displayName || state.user?.displayName || state.user?.email?.split("@")[0] || "Scholar";
   const userPhoto = safeUrl(state.userProfile?.photoUrl || state.user?.photoURL || "");
@@ -136,33 +144,6 @@ export function renderHomeView(state) {
     ? "Verified Professor"
     : (state.userProfile?.role === "FARMER" ? "Farmer" : (state.isAdmin ? "Admin" : "Student"));
   const userSubMeta = state.userProfile?.institutionOrVillage || state.userProfile?.district || state.user?.email || "";
-
-  const moduleCards = [
-    { tab: "weather", tag: "Smart Farming", title: "Weather Report & Forecast", sub: "আবহাওয়া পূর্বাভাস • Hourly, 7-Day & Agri Alerts", icon: AGRI_ICONS.weather },
-    { tab: "market", tag: "Market Intel", title: "Crop Market Price (বাজারদর)", sub: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates", icon: AGRI_ICONS.market },
-    { tab: "marketplace", tag: "Agri Store", title: "Green Heaven Marketplace", sub: "Official Plant Store • Indoor, Flowering, Bulbs & Vermi Compost", icon: AGRI_ICONS.marketplace },
-    { tab: "student", tag: "Agri Education", title: "Student Academic Portal", sub: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`, icon: AGRI_ICONS.student },
-    { tab: "career-guidance", tag: "Mentorship", title: "Student Career Guidance", sub: unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors", icon: AGRI_ICONS.career, badge: unreadDoubts > 0 ? `${unreadDoubts} new` : "" },
-    { tab: "farmer-advisor", tag: "Crop Care", title: "Farmer Advisor Expert", sub: "কৃষক পরামর্শ বিশেষজ্ঞ • Crop Photos & Q&A", icon: AGRI_ICONS.advisor },
-    { tab: "farmer-finance", tag: "Farmer Rights", title: "Farmer Financial Support & Rights", sub: "Land & Lease • Loans & Debt • Crop Selling, MSP & Govt Schemes", icon: AGRI_ICONS.money, featured: true },
-    { tab: "money", tag: "Private Ledger", title: "Money & Farm Manager (₹)", sub: "100% Private Student & Farmer Ledger • No Approval", icon: AGRI_ICONS.money },
-    { tab: "farmer", tag: "Field Guide", title: "Farmer Help & Crop Guide", sub: "ICAR Diseases, IPM & Direct WhatsApp Help", icon: AGRI_ICONS.farmer },
-    { tab: "tools", tag: "Precision Tech", title: "Agri Calculators", sub: "NPK Fertilizer (DAP/SSP) & Seed Rate", icon: AGRI_ICONS.tools },
-    { tab: "ai", tag: "Digital AI", title: "AI Guru Knowledge Base", sub: "Verified Notes + Free Encyclopedia Search", icon: AGRI_ICONS.ai },
-    { tab: "community", tag: "Network", title: "Community & Agri Jobs", sub: `${state.careerOpportunities.length} Jobs & Student Forum`, icon: AGRI_ICONS.community },
-    { tab: "meeting", tag: "Live Classes", title: "Meeting Zone", sub: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`, icon: AGRI_ICONS.meeting }
-  ];
-
-  if (isProf) {
-    moduleCards.unshift({
-      tab: "professor",
-      tag: "Faculty Portal",
-      title: "Professor Dashboard",
-      sub: `${state.professorDoubtThreads.length} Assigned Student & Farmer Consultations`,
-      icon: AGRI_ICONS.professor,
-      featured: true
-    });
-  }
 
   return `
     <div data-home-dashboard="true" class="space-y-6">
@@ -175,26 +156,24 @@ export function renderHomeView(state) {
         ` : ""}
       </div>
 
-      <!-- ==================== SMART AGRICULTURE HERO SECTION ==================== -->
+      <!-- ==================== SMART AGRICULTURE HERO HEADER ==================== -->
       <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white">
         <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
         ${SMART_FARMING_HERO_ART}
 
         <div class="relative z-10 p-5 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div class="space-y-4 max-w-2xl">
-            <!-- Status & User Identity Row -->
             <div class="flex flex-wrap items-center gap-2">
               <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/12 border border-white/20 backdrop-blur-sm text-[11px] font-bold text-[#DCFCE7]">
                 <span class="w-2 h-2 rounded-full bg-[#22C55E] shadow-[0_0_8px_#22C55E]"></span>
                 <span data-home-slot="cloud-status">${state.cloudConnected ? "Live Smart Agri Cloud Connected" : "Smart Agriculture • Open Public Access"}</span>
               </span>
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22C55E]/15 border border-[#22C55E]/30 text-[11px] font-bold text-[#DCFCE7]">
-                Digital Farming &amp; Agri Education
+                Smart Agriculture Technology Platform
               </span>
             </div>
 
             ${state.user ? `
-              <!-- Personalized Welcome Identity Bar for Signed-In User -->
               <div class="inline-flex items-center gap-3 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-sm px-3.5 py-2.5 max-w-full">
                 ${userPhoto
                   ? `<img src="${escapeHtml(userPhoto)}" alt="${escapeHtml(userDisplayName)}" class="w-9 h-9 rounded-xl object-cover ring-2 ring-[#22C55E]/70 shrink-0" />`
@@ -222,20 +201,7 @@ export function renderHomeView(state) {
               </p>
             </div>
 
-            <!-- Hero Primary & Quick Action Buttons -->
             <div class="flex flex-wrap gap-2.5 pt-1">
-              <button data-nav="weather" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-md transition-colors">
-                ${AGRI_ICONS.weather}
-                <span>Weather Forecast</span>
-              </button>
-              <button data-nav="market" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/14 hover:bg-white/24 border border-white/25 text-white text-xs sm:text-sm font-bold backdrop-blur-sm transition-colors">
-                ${AGRI_ICONS.market}
-                <span>বাজারদর / Market Price</span>
-              </button>
-              <button data-nav="student" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/14 hover:bg-white/24 border border-white/25 text-white text-xs sm:text-sm font-bold backdrop-blur-sm transition-colors">
-                ${AGRI_ICONS.student}
-                <span>Study Notes</span>
-              </button>
               ${!state.user ? `
                 <button data-action="open-auth" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-[#052E16] text-xs sm:text-sm font-extrabold shadow-md transition-colors">
                   <span>Continue with Google</span>
@@ -245,10 +211,26 @@ export function renderHomeView(state) {
                   <span>My Account &amp; Role</span>
                 </button>
               `}
+              ${isProf ? `
+                <button data-nav="professor" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-md transition-colors">
+                  ${AGRI_ICONS.professor}
+                  <span>Professor Dashboard</span>
+                </button>
+              ` : ""}
+              ${state.isAdmin ? `
+                <button data-nav="admin" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/14 hover:bg-white/24 border border-white/25 text-white text-xs sm:text-sm font-bold backdrop-blur-sm transition-colors">
+                  <span>Admin Panel</span>
+                </button>
+              ` : ""}
+              ${state.isSuperAdmin ? `
+                <button data-nav="owner" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#052E16] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+                  <span>Owner Control</span>
+                </button>
+              ` : ""}
             </div>
           </div>
 
-          <!-- Right-Side Smart Platform Telemetry Stats -->
+          <!-- Compact Live Platform Counters -->
           <div class="grid grid-cols-3 lg:grid-cols-2 gap-2.5 sm:gap-3 shrink-0 lg:w-72">
             <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
               <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Resources</div>
@@ -274,129 +256,101 @@ export function renderHomeView(state) {
         </div>
       </section>
 
-      <!-- ==================== 3 COMMUNITY ROLE PATHWAYS ==================== -->
-      <section class="space-y-3">
-        <div class="flex items-end justify-between gap-2 px-1">
-          <div>
-            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Built for Every Member of Agriculture</h3>
-            <p class="text-xs text-[#475569]">Direct pathways for Students, Farmers, and Agricultural Professors</p>
-          </div>
+      <!-- ==================== PRIMARY TWO-ZONE DASHBOARD CARDS ==================== -->
+      <section class="space-y-4">
+        <div class="px-1">
+          <h3 class="text-lg sm:text-xl font-extrabold text-[#14532D] tracking-tight">Choose Your Zone</h3>
+          <p class="text-xs sm:text-sm text-[#475569]">Select Student Zone or Farmer Zone to access organized tools, learning resources, and shared community services.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Students Card -->
-          <div class="gv-role-card overflow-hidden flex flex-col">
-            <div class="h-1.5 bg-gradient-to-r from-[#14532D] to-[#22C55E]"></div>
-            <div class="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2.5">
-                    <span class="w-10 h-10 rounded-xl gv-icon-box flex items-center justify-center shrink-0">${AGRI_ICONS.student}</span>
-                    <div>
-                      <h4 class="text-sm font-extrabold text-[#14532D]">For Students</h4>
-                      <div class="text-[11px] font-semibold text-[#15803D]">ছাত্র-ছাত্রী • B.Sc Agri</div>
-                    </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- CARD 1: STUDENT ZONE -->
+          <button data-nav="student-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-[#15803D] shadow-[0_8px_28px_-12px_rgba(20,83,45,0.18)] hover:shadow-[0_14px_34px_-12px_rgba(20,83,45,0.28)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
+            <div class="h-2 w-full bg-gradient-to-r from-[#14532D] via-[#15803D] to-[#22C55E]"></div>
+            <div class="p-6 sm:p-7 space-y-5 flex-1 flex flex-col justify-between w-full">
+              <div class="space-y-4">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                      <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                    </svg>
                   </div>
-                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#14532D]">Education</span>
-                </div>
-                <p class="text-xs text-[#475569] leading-relaxed">Notes, ICAR syllabus, MCQ practice, Career Guidance with Professors &amp; Private Money Manager.</p>
-              </div>
-              <div class="flex flex-wrap gap-1.5 pt-1">
-                <button data-nav="student" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Notes</button>
-                <button data-nav="career-guidance" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Career Guidance</button>
-                <button data-nav="money" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Money Manager</button>
-                <button data-nav="farmer-finance" type="button" class="px-3 py-1.5 rounded-xl bg-[#14532D] hover:bg-[#15803D] text-white text-xs font-extrabold transition-colors">Finance &amp; Rights</button>
-                <button data-nav="marketplace" type="button" class="px-3 py-1.5 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">Green Heaven</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Farmers Card -->
-          <div class="gv-role-card overflow-hidden flex flex-col">
-            <div class="h-1.5 bg-gradient-to-r from-[#15803D] to-[#22C55E]"></div>
-            <div class="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2.5">
-                    <span class="w-10 h-10 rounded-xl gv-icon-box flex items-center justify-center shrink-0">${AGRI_ICONS.farmer}</span>
-                    <div>
-                      <h4 class="text-sm font-extrabold text-[#14532D]">For Farmers</h4>
-                      <div class="text-[11px] font-semibold text-[#15803D]">কৃষক বন্ধু • বাংলা সহায়ক</div>
-                    </div>
+                  <div class="flex flex-wrap items-center justify-end gap-1.5">
+                    <span data-home-slot="student-unread-badge" class="${unreadDoubts > 0 ? "" : "hidden "}px-2.5 py-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">${unreadDoubts > 0 ? `${unreadDoubts} unread` : ""}</span>
+                    <span class="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#14532D] text-[11px] font-extrabold">B.Sc Agriculture</span>
                   </div>
-                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#14532D]">Smart Farm</span>
                 </div>
-                <p class="text-xs text-[#475569] leading-relaxed">Live Weather &amp; Rain alerts, Crop Market Prices (বাজারদর), Expert Crop Advice, Green Heaven Store &amp; Private Farm Accounts.</p>
+
+                <div class="space-y-1.5">
+                  <h4 class="font-display text-xl sm:text-2xl font-bold text-[#14532D] group-hover:text-[#15803D] transition-colors">
+                    Student Zone | শিক্ষার্থী জোন
+                  </h4>
+                  <p class="text-sm text-[#475569] leading-relaxed">
+                    Everything an Agriculture Student Needs in One Place.
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Study Notes</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">MCQs &amp; PYQs</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">ICAR Syllabus</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Career Guidance</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569] text-[11px] font-bold">+ 5 Shared Modules</span>
+                </div>
               </div>
-              <div class="flex flex-wrap gap-1.5 pt-1">
-                <button data-nav="weather" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">আবহাওয়া</button>
-                <button data-nav="market" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">বাজারদর</button>
-                <button data-nav="farmer-advisor" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">বিশেষজ্ঞ পরামর্শ</button>
-                <button data-nav="marketplace" type="button" class="px-3 py-1.5 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">Green Heaven</button>
+
+              <div class="pt-4 border-t border-[#E2E8F0] flex items-center justify-between gap-2 w-full">
+                <span data-home-slot="student-zone-meta" class="text-xs font-bold text-[#15803D]">${publicMaterials.length} Notes &amp; Study Resources Ready</span>
+                <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
+                  <span>Open Student Zone</span>
+                  <span>→</span>
+                </span>
               </div>
             </div>
-          </div>
+          </button>
 
-          <!-- Professors Card -->
-          <div class="gv-role-card overflow-hidden flex flex-col">
-            <div class="h-1.5 bg-gradient-to-r from-[#0F3D22] to-[#15803D]"></div>
-            <div class="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2.5">
-                    <span class="w-10 h-10 rounded-xl gv-icon-box flex items-center justify-center shrink-0">${AGRI_ICONS.professor}</span>
-                    <div>
-                      <h4 class="text-sm font-extrabold text-[#14532D]">For Professors &amp; Experts</h4>
-                      <div class="text-[11px] font-semibold text-[#15803D]">Verified Faculty Desk</div>
-                    </div>
+          <!-- CARD 2: FARMER ZONE -->
+          <button data-nav="farmer-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-[#15803D] shadow-[0_8px_28px_-12px_rgba(20,83,45,0.18)] hover:shadow-[0_14px_34px_-12px_rgba(20,83,45,0.28)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
+            <div class="h-2 w-full bg-gradient-to-r from-[#15803D] via-[#16A34A] to-[#22C55E]"></div>
+            <div class="p-6 sm:p-7 space-y-5 flex-1 flex flex-col justify-between w-full">
+              <div class="space-y-4">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#15803D] to-[#22C55E] text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/>
+                    </svg>
                   </div>
-                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#14532D]">Faculty</span>
+                  <span class="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#14532D] text-[11px] font-extrabold">Smart Farming</span>
                 </div>
-                <p class="text-xs text-[#475569] leading-relaxed">Answer Student Career Guidance &amp; Farmer Advisor questions, host live Google Meet sessions &amp; track replies.</p>
-              </div>
-              <div class="flex flex-wrap gap-1.5 pt-1">
-                <button data-nav="${isProf ? "professor" : "career-guidance"}" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">${isProf ? "Open Professor Dashboard" : "Faculty Directory"}</button>
-                <button data-nav="meeting" type="button" class="px-3 py-1.5 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">Meeting Zone</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- ==================== FEATURED OFFICIAL STORE: GREEN HEAVEN ==================== -->
-      <section class="relative overflow-hidden rounded-3xl border border-[#BBF7D0] bg-gradient-to-br from-[#ECFDF5] via-white to-[#F0FDF4] p-5 sm:p-6 shadow-[0_6px_22px_-10px_rgba(20,83,45,0.14)]">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div class="space-y-3 max-w-2xl">
-            <div class="flex flex-wrap items-center gap-3">
-              ${GREEN_HEAVEN_LOGO_SVG}
-              <div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#15803D]">Green Heaven • Official Partner Store</span>
-                  <span class="px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold">No Login Required</span>
+                <div class="space-y-1.5">
+                  <h4 class="font-display text-xl sm:text-2xl font-bold text-[#14532D] group-hover:text-[#15803D] transition-colors">
+                    Farmer Zone | কৃষক জোন
+                  </h4>
+                  <p class="text-sm text-[#475569] leading-relaxed">
+                    Smart Agriculture, Farming Resources and Farmer Support.
+                  </p>
                 </div>
-                <h3 class="font-display text-lg sm:text-xl font-bold text-[#14532D] mt-0.5">${escapeHtml(GREEN_HEAVEN_CONFIG.sectionTitle)}</h3>
+
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Mandi Price (বাজারদর)</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Weather Forecast</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Crop Disease &amp; Advisory</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Schemes &amp; Rights</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569] text-[11px] font-bold">+ 5 Shared Modules</span>
+                </div>
+              </div>
+
+              <div class="pt-4 border-t border-[#E2E8F0] flex items-center justify-between gap-2 w-full">
+                <span data-home-slot="farmer-zone-meta" class="text-xs font-bold text-[#15803D]">28 States &amp; 8 UTs Mandi Directory + Expert Support</span>
+                <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
+                  <span>Open Farmer Zone</span>
+                  <span>→</span>
+                </span>
               </div>
             </div>
-            <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">
-              Bring nature home with our official plant &amp; gardening marketplace. Explore live Indoor, Flowering, Succulent &amp; Outdoor plants, Gladiolus planting bulbs, organic Vermi Compost, and plant care guides—with independent cart &amp; checkout.
-            </p>
-            <div class="flex flex-wrap gap-1.5 pt-0.5">
-              ${GREEN_HEAVEN_CONFIG.verifiedCategories.slice(0, 5).map((cat) => `
-                <a href="${escapeHtml(cat.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold transition-colors">
-                  <span>${cat.icon}</span><span>${escapeHtml(cat.name)}</span>
-                </a>
-              `).join("")}
-            </div>
-          </div>
-
-          <div class="flex flex-wrap sm:flex-nowrap lg:flex-col gap-2.5 shrink-0">
-            <a href="${escapeHtml(GREEN_HEAVEN_CONFIG.baseUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs sm:text-sm font-extrabold shadow-md transition-opacity">
-              <span>Shop Now at Green Heaven ↗</span>
-            </a>
-            <button data-nav="marketplace" type="button" class="px-4 py-2.5 rounded-2xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold transition-colors">
-              Explore Marketplace Section →
-            </button>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -405,41 +359,7 @@ export function renderHomeView(state) {
         ${renderHomeNoticesMarkup(activeNotices)}
       </div>
 
-      <!-- ==================== COMPLETE SMART AGRICULTURE ECOSYSTEM GRID ==================== -->
-      <section class="space-y-3.5">
-        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
-          <div>
-            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Explore Smart Agriculture Services</h3>
-            <p class="text-xs text-[#475569]">Digital farming tools, academic resources, precision calculators &amp; expert consultations</p>
-          </div>
-          <span class="text-[11px] font-bold text-[#15803D] bg-[#ECFDF5] border border-[#D9EAE0] px-3 py-1 rounded-full">${moduleCards.length} Integrated Modules</span>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-          ${moduleCards.map((c) => `
-            <button data-nav="${c.tab}" type="button" class="gv-module-card group text-left p-4 sm:p-5 flex flex-col justify-between gap-3 ${c.featured ? "ring-2 ring-[#22C55E]/60 bg-gradient-to-br from-[#ECFDF5] to-white" : ""}">
-              <div class="flex items-start justify-between gap-3">
-                <span class="w-11 h-11 rounded-2xl gv-icon-box flex items-center justify-center shrink-0">
-                  ${c.icon}
-                </span>
-                <div class="flex items-center gap-1.5">
-                  <span data-home-mod-badge="${c.tab}" class="${c.badge ? "" : "hidden "}px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">${escapeHtml(c.badge || "")}</span>
-                  <span class="px-2 py-0.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[10px] font-bold text-[#15803D]">${escapeHtml(c.tag)}</span>
-                </div>
-              </div>
-              <div class="space-y-1">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="text-sm font-extrabold text-[#0F172A] group-hover:text-[#14532D] transition-colors">${escapeHtml(c.title)}</div>
-                  <span class="text-[#94A3B8] group-hover:text-[#15803D] group-hover:translate-x-0.5 transition-all">${AGRI_ICONS.chevron}</span>
-                </div>
-                <div data-home-mod-sub="${c.tab}" class="text-xs text-[#475569] leading-relaxed">${escapeHtml(c.sub)}</div>
-              </div>
-            </button>
-          `).join("")}
-        </div>
-      </section>
-
-      <!-- ==================== DIRECT WHATSAPP SUPPORT & OFFICIAL COMMUNITY ==================== -->
+      <!-- ==================== DIRECT WHATSAPP HELPLINE ==================== -->
       <section class="gv-card-tinted p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-start gap-3.5 min-w-0">
           <span class="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#15803D] to-[#22C55E] text-white flex items-center justify-center shadow-sm shrink-0">
@@ -454,6 +374,400 @@ export function renderHomeView(state) {
           ${renderHomeWhatsAppMarkup(waDirect, waGroup, settings.whatsappNumber)}
         </div>
       </section>
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// SHARED ZONE LIST ROW & COMMON MODULES HELPER (ZERO DUPLICATE MODULES)
+// ----------------------------------------------------------------------------
+function renderZoneListRow(item) {
+  const extraAttrs = Object.entries(item.attrs || {})
+    .map(([k, v]) => ` ${k}="${escapeHtml(String(v))}"`)
+    .join("");
+  return `
+    <button data-nav="${escapeHtml(item.route)}"${extraAttrs} type="button" class="w-full group text-left rounded-2xl bg-white hover:bg-[#ECFDF5]/60 border border-[#D9EAE0] hover:border-[#15803D] p-4 sm:p-4.5 shadow-[0_2px_10px_-6px_rgba(20,83,45,0.12)] transition-colors flex items-center justify-between gap-3.5 min-h-[72px]">
+      <div class="flex items-center gap-3.5 min-w-0">
+        <span class="w-11 h-11 rounded-2xl ${item.featured ? "bg-gradient-to-br from-[#14532D] to-[#15803D] text-white shadow-sm" : "gv-icon-box"} flex items-center justify-center shrink-0">
+          ${item.icon}
+        </span>
+        <div class="min-w-0 space-y-0.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm sm:text-base font-extrabold text-[#0F172A] group-hover:text-[#14532D] transition-colors">${escapeHtml(item.title)}</span>
+            ${item.badge ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${item.badgeClass || "bg-[#DCFCE7] text-[#14532D]"}">${escapeHtml(item.badge)}</span>` : ""}
+          </div>
+          <p class="text-xs sm:text-[13px] text-[#475569] leading-relaxed">${escapeHtml(item.subtitle)}</p>
+        </div>
+      </div>
+      <span class="w-8 h-8 rounded-xl bg-[#F8FAFC] group-hover:bg-[#DCFCE7] border border-[#E2E8F0] group-hover:border-[#BBF7D0] text-[#475569] group-hover:text-[#14532D] flex items-center justify-center shrink-0 transition-colors">
+        ${AGRI_ICONS.chevron}
+      </span>
+    </button>
+  `;
+}
+
+function renderSharedCommonModulesSection(state, zoneKey) {
+  const upcomingMeetings = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m)).length;
+  const activePosts = state.communityPosts.filter((p) => p.status === "ACTIVE").length;
+  const isFarmerZone = zoneKey === "farmer-zone";
+
+  const commonItems = [
+    {
+      route: "meeting",
+      title: "Meeting (Meeting Zone)",
+      subtitle: upcomingMeetings > 0
+        ? `${upcomingMeetings} upcoming Google Meet live sessions & workshops`
+        : "Join live Google Meet classes, agricultural webinars & recorded sessions",
+      icon: AGRI_ICONS.meeting,
+      badge: upcomingMeetings > 0 ? `${upcomingMeetings} Upcoming` : "Live Meet",
+      attrs: { "data-from-zone": zoneKey }
+    },
+    {
+      route: "money",
+      title: "Money Management (₹)",
+      subtitle: isFarmerZone
+        ? "100% private Farmer & Student income, expense & budget ledger synced to your Google account"
+        : "100% private Student & Farmer income, expense, hostel & budget ledger synced to your Google account",
+      icon: AGRI_ICONS.money,
+      badge: "Private Vault",
+      attrs: { "data-from-zone": zoneKey, "data-open-money-scope": isFarmerZone ? "FARMER" : "STUDENT" }
+    },
+    {
+      route: "community",
+      title: "Community",
+      subtitle: activePosts > 0
+        ? `Junior Student • Senior Student • International • Farmer Community (${activePosts} active discussions)`
+        : "Junior Student Community • Senior Student Community • International Community • Farmer Talk",
+      icon: AGRI_ICONS.community,
+      badge: "4 Circles",
+      attrs: { "data-from-zone": zoneKey, "data-open-comm-sub": "forum" }
+    },
+    {
+      route: "ai",
+      title: "AI Guru Knowledge Base",
+      subtitle: "Instant search across verified B.Sc Agriculture notes, ICAR crop disease guides & free references",
+      icon: AGRI_ICONS.ai,
+      badge: "Source Cited",
+      attrs: { "data-from-zone": zoneKey }
+    },
+    {
+      route: "marketplace",
+      title: "Green Heaven Store",
+      subtitle: "Official Agricultural Marketplace — Indoor, Flowering, Outdoor plants, Gladiolus bulbs & Vermi Compost",
+      icon: AGRI_ICONS.marketplace,
+      badge: "Official Store",
+      featured: true,
+      attrs: { "data-from-zone": zoneKey }
+    }
+  ];
+
+  return `
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+        <div>
+          <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Shared Platform Modules</h3>
+          <p class="text-xs text-[#475569]">Unified services shared seamlessly across Student Zone and Farmer Zone with the same live Firebase data.</p>
+        </div>
+        <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">5 Shared Services</span>
+      </div>
+      <div class="space-y-2.5">
+        ${commonItems.map(renderZoneListRow).join("")}
+      </div>
+    </section>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// 1B. DEDICATED STUDENT ZONE DASHBOARD (route: "student-zone")
+// ----------------------------------------------------------------------------
+export function renderStudentZoneView(state) {
+  const publicMaterials = state.studyMaterials.filter((m) => m.published !== false);
+  const notesCount = publicMaterials.filter((m) => m.category === "NOTES_PDF").length;
+  const pyqCount = publicMaterials.filter((m) => m.category === "PYQ").length;
+  const practicalCount = publicMaterials.filter((m) => m.category === "PRACTICAL" || m.category === "VIDEO_LECTURE").length;
+  const quizCount = state.quizzes.filter((q) => q.published !== false).length;
+  const careerCount = state.careerOpportunities.filter((c) => c.published !== false).length;
+  const unreadDoubts = state.totalUnreadDoubts || 0;
+  const isProf = state.facultyIdentity?.isAuthorizedProfessor;
+
+  const studentItems = [
+    {
+      route: "student",
+      title: "Student Academic Dashboard",
+      subtitle: `Complete B.Sc (Hons.) Agriculture portal — all ${publicMaterials.length} published notes, syllabus, practicals & MCQs (Semesters 1–8)`,
+      icon: AGRI_ICONS.student,
+      badge: `${publicMaterials.length} Resources`,
+      featured: true,
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "ALL" }
+    },
+    {
+      route: "student",
+      title: "Agriculture Study Notes",
+      subtitle: `Semester-wise B.Sc Agriculture notes, PDFs, formulas & verified chapter summaries (${notesCount} notes)`,
+      icon: AGRI_ICONS.notes,
+      badge: "Notes & PDFs",
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "NOTES_PDF" }
+    },
+    {
+      route: "student",
+      title: "Agriculture MCQ and Question Bank",
+      subtitle: `Interactive online B.Sc Agriculture MCQ practice with instant scoring, explanations & attempt history (${quizCount} questions)`,
+      icon: AGRI_ICONS.quiz,
+      badge: `${quizCount} MCQs`,
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "quiz" }
+    },
+    {
+      route: "student",
+      title: "Agriculture Syllabus",
+      subtitle: "Complete ICAR 5th Deans' Committee B.Sc (Hons.) Agriculture course structure from Semester 1 to Semester 8",
+      icon: AGRI_ICONS.syllabus,
+      badge: "Sem 1–8",
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "syllabus" }
+    },
+    {
+      route: "student",
+      title: "Previous Year Questions",
+      subtitle: `Solved university PYQ papers and exam question banks across agriculture subjects (${pyqCount} papers)`,
+      icon: AGRI_ICONS.pyq,
+      badge: "PYQ Bank",
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "PYQ" }
+    },
+    {
+      route: "student",
+      title: "Study Resources (Practicals & Lectures)",
+      subtitle: `Laboratory practical manuals, field identification guides & video lecture links (${practicalCount} resources)`,
+      icon: AGRI_ICONS.resources,
+      badge: "Practicals",
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "PRACTICAL" }
+    },
+    {
+      route: "career-guidance",
+      title: "Student Career Guidance & Faculty Advisors",
+      subtitle: "1-on-1 mentorship for M.Sc, ICAR JRF/SRF, IBPS AFO, NABARD & academic doubts with 9 verified faculty advisors",
+      icon: AGRI_ICONS.career,
+      badge: unreadDoubts > 0 ? `${unreadDoubts} New` : "9 Advisors",
+      badgeClass: unreadDoubts > 0 ? "bg-rose-600 text-white" : "bg-[#DCFCE7] text-[#14532D]",
+      attrs: { "data-from-zone": "student-zone" }
+    },
+    {
+      route: "community",
+      title: "Agri Jobs, Internships & Scholarships",
+      subtitle: `Track Government Agriculture Jobs, ICAR scholarships, RAWE internships & competitive exams (${careerCount} active listings)`,
+      icon: AGRI_ICONS.briefcase,
+      badge: `${careerCount} Active`,
+      attrs: { "data-from-zone": "student-zone", "data-open-comm-sub": "careers" }
+    },
+    {
+      route: "tools",
+      title: "Student Agri Learning Calculators",
+      subtitle: "Practice ICAR NPK fertilizer dosing (DAP/SSP/Urea/MOP), seed rate & plant population calculations",
+      icon: AGRI_ICONS.tools,
+      badge: "ICAR Tools",
+      attrs: { "data-from-zone": "student-zone" }
+    }
+  ];
+
+  if (isProf) {
+    studentItems.unshift({
+      route: "professor",
+      title: "Professor Dashboard (Faculty Desk)",
+      subtitle: `Respond to assigned student & farmer consultations (${state.professorDoubtThreads.length} threads) and host meetings`,
+      icon: AGRI_ICONS.professor,
+      badge: "Verified Faculty",
+      featured: true,
+      attrs: { "data-from-zone": "student-zone" }
+    });
+  }
+
+  return `
+    <div data-zone-dashboard="student-zone" class="space-y-6">
+      <!-- Top Back Navigation -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button data-nav="home" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+          ${AGRI_ICONS.back}
+          <span>Back to Home</span>
+        </button>
+        <button data-nav="farmer-zone" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">
+          <span>Switch to Farmer Zone</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      <!-- Student Zone Header Card -->
+      <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
+        <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 backdrop-blur-sm flex items-center justify-center shrink-0">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+            </div>
+            <div class="space-y-1">
+              <span class="inline-block px-2.5 py-0.5 rounded-full bg-[#22C55E]/25 border border-[#22C55E]/40 text-[#DCFCE7] text-[10px] font-extrabold uppercase tracking-wider">Agricultural Education Hub</span>
+              <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">Student Zone | শিক্ষার্থী জোন</h2>
+              <p class="text-xs sm:text-sm text-[#DCFCE7]/90">Everything an Agriculture Student Needs in One Place.</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">${publicMaterials.length} Notes</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">${quizCount} MCQs</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">${state.professors.length} Advisors</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Student-Specific Modules Vertical List -->
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Student Academic &amp; Career Modules</h3>
+            <p class="text-xs text-[#475569]">Notes, MCQs, ICAR Syllabus, PYQs, Practicals, Career Mentorship &amp; Agri Calculators</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">${studentItems.length} Modules</span>
+        </div>
+        <div class="space-y-2.5">
+          ${studentItems.map(renderZoneListRow).join("")}
+        </div>
+      </section>
+
+      <!-- 5 Shared Common Features -->
+      ${renderSharedCommonModulesSection(state, "student-zone")}
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// 1C. DEDICATED FARMER ZONE DASHBOARD (route: "farmer-zone")
+// ----------------------------------------------------------------------------
+export function renderFarmerZoneView(state) {
+  const marketCount = (state.mandiApiRecords?.length || 0) + (state.firestoreMarketPrices?.filter((r) => r.published !== false).length || 0);
+
+  const farmerItems = [
+    {
+      route: "market",
+      title: "Mandi Price – ফসলের বাজারদর",
+      subtitle: marketCount > 0
+        ? `${marketCount} live & verified mandi rates loaded • All 28 Indian States & 8 UTs APMC Directory`
+        : "Live official AGMARKNET crop rates & cascading State → District → APMC Mandi directory across India",
+      icon: AGRI_ICONS.market,
+      badge: "28 States + 8 UTs",
+      featured: true,
+      attrs: { "data-from-zone": "farmer-zone" }
+    },
+    {
+      route: "weather",
+      title: "Weather Report & Forecasting (আবহাওয়া পূর্বাভাস)",
+      subtitle: "Real-time hourly & 7-day village/PIN-code weather forecasts with rain, spray & irrigation alerts",
+      icon: AGRI_ICONS.weather,
+      badge: "Live Forecast",
+      attrs: { "data-from-zone": "farmer-zone" }
+    },
+    {
+      route: "farmer",
+      title: "Crop Information, Disease & Pest Management",
+      subtitle: "ICAR crop production guides (Paddy, Wheat, Potato, Mustard, Tomato, Jute), disease/pest IPM & crop photo query desk",
+      icon: AGRI_ICONS.farmer,
+      badge: "ICAR IPM Guide",
+      attrs: { "data-from-zone": "farmer-zone" }
+    },
+    {
+      route: "farmer-advisor",
+      title: "Agriculture Advisory (Farmer Advisor Expert)",
+      subtitle: "কৃষক পরামর্শ বিশেষজ্ঞ • Private 1-on-1 crop consultation with 9 verified agricultural experts & photo upload",
+      icon: AGRI_ICONS.advisor,
+      badge: `${state.professors.length} Experts`,
+      attrs: { "data-from-zone": "farmer-zone" }
+    },
+    {
+      route: "tools",
+      title: "Farming Resources & Precision Calculators",
+      subtitle: "Calculate exact DAP/SSP/Urea/MOP fertilizer doses, seed rates & plant population for Hectare, Acre & Bigha",
+      icon: AGRI_ICONS.tools,
+      badge: "NPK & Seed",
+      attrs: { "data-from-zone": "farmer-zone" }
+    },
+    {
+      route: "farmer-finance",
+      title: "Farmer Financial Support & Rights",
+      subtitle: "Land & Lease Transparency, Loan & Debt Tracker, Live Bank vs Private Interest Comparison, Crop Sales & Profit/Loss",
+      icon: AGRI_ICONS.money,
+      badge: "3 Main Pillars",
+      attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "overview" }
+    },
+    {
+      route: "farmer-finance",
+      title: "Government Schemes and Financial Assistance",
+      subtitle: "Verified official Central & West Bengal portals — PM-KISAN, Kisan Credit Card (KCC), PMFBY Crop Insurance & Krishak Bandhu",
+      icon: AGRI_ICONS.scheme,
+      badge: "Official Portals",
+      attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "schemes" }
+    },
+    {
+      route: "farmer-finance",
+      title: "Farmer Rights, Legal Awareness & Women Farmer Support",
+      subtitle: "Know your land lease & fair market rights, log private support records, and access official farmer & women farmer helplines",
+      icon: AGRI_ICONS.rights,
+      badge: "Rights & Support",
+      attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "rights" }
+    }
+  ];
+
+  return `
+    <div data-zone-dashboard="farmer-zone" class="space-y-6">
+      <!-- Top Back Navigation -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button data-nav="home" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+          ${AGRI_ICONS.back}
+          <span>Back to Home</span>
+        </button>
+        <button data-nav="student-zone" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">
+          <span>Switch to Student Zone</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      <!-- Farmer Zone Header Card -->
+      <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
+        <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 backdrop-blur-sm flex items-center justify-center shrink-0">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/>
+              </svg>
+            </div>
+            <div class="space-y-1">
+              <span class="inline-block px-2.5 py-0.5 rounded-full bg-[#22C55E]/25 border border-[#22C55E]/40 text-[#DCFCE7] text-[10px] font-extrabold uppercase tracking-wider">Smart Farming &amp; Kisan Support</span>
+              <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">Farmer Zone | কৃষক জোন</h2>
+              <p class="text-xs sm:text-sm text-[#DCFCE7]/90">Smart Agriculture, Farming Resources and Farmer Support.</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Live Mandi Rates</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">7-Day Weather</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Rights &amp; Schemes</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Farmer-Specific Modules Vertical List -->
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Smart Farming, Advisory &amp; Farmer Support</h3>
+            <p class="text-xs text-[#475569]">Mandi Prices, Weather Alerts, Crop Disease IPM, Expert Advisory, Govt Schemes &amp; Financial Rights</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">${farmerItems.length} Services</span>
+        </div>
+        <div class="space-y-2.5">
+          ${farmerItems.map(renderZoneListRow).join("")}
+        </div>
+      </section>
+
+      <!-- 5 Shared Common Features -->
+      ${renderSharedCommonModulesSection(state, "farmer-zone")}
     </div>
   `;
 }
@@ -515,7 +829,6 @@ export function patchHomeDashboardInPlace(root, state) {
   const upcomingMeetings = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m));
   const isProf = state.facultyIdentity?.isAuthorizedProfessor;
   const unreadDoubts = state.totalUnreadDoubts || 0;
-  const marketCount = (state.mandiApiRecords?.length || 0) + (state.firestoreMarketPrices?.filter((r) => r.published !== false).length || 0);
 
   // Maintenance banner
   const maintWrap = dash.querySelector("[data-home-slot='maintenance-banner']");
@@ -558,30 +871,18 @@ export function patchHomeDashboardInPlace(root, state) {
     }
   }
 
-  // Hero stat counters
+  // Hero stat counters & Zone card metadata
   setText("stat-materials", String(publicMaterials.length));
   setText("stat-professors", String(state.professors.length));
   setText("stat-notices", String(activeNotices.length));
   setText("stat-meetings", String(upcomingMeetings.length));
+  setText("student-zone-meta", `${publicMaterials.length} Notes & Study Resources Ready`);
 
-  // Module card dynamic sub-labels & unread badge
-  const dynamicSubs = {
-    market: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates",
-    student: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`,
-    "career-guidance": unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors",
-    community: `${state.careerOpportunities.length} Jobs & Student Forum`,
-    meeting: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`,
-    professor: `${state.professorDoubtThreads.length} Assigned Student & Farmer Consultations`
-  };
-  Object.entries(dynamicSubs).forEach(([tab, text]) => {
-    const el = dash.querySelector(`[data-home-mod-sub='${tab}']`);
-    if (el && el.textContent !== text) el.textContent = text;
-  });
-  const careerBadge = dash.querySelector("[data-home-mod-badge='career-guidance']");
-  if (careerBadge) {
-    const nextBadge = unreadDoubts > 0 ? `${unreadDoubts} new` : "";
-    if (careerBadge.textContent !== nextBadge) careerBadge.textContent = nextBadge;
-    careerBadge.classList.toggle("hidden", !nextBadge);
+  const unreadBadge = dash.querySelector("[data-home-slot='student-unread-badge']");
+  if (unreadBadge) {
+    const nextBadge = unreadDoubts > 0 ? `${unreadDoubts} unread` : "";
+    if (unreadBadge.textContent !== nextBadge) unreadBadge.textContent = nextBadge;
+    unreadBadge.classList.toggle("hidden", !nextBadge);
   }
 
   // Notices block — replace ONLY if its content actually changed
@@ -1316,23 +1617,48 @@ export function renderAiGuruView(state) {
 }
 
 // ----------------------------------------------------------------------------
-// 6. CAREER OPPORTUNITIES & STUDENT COMMUNITY
+// 6. CAREER OPPORTUNITIES & SHARED COMMUNITY (Junior / Senior / Intl / Farmer)
 // ----------------------------------------------------------------------------
+const COMMUNITY_CIRCLES = [
+  { key: "ALL", label: "All Communities", groupValue: "" },
+  { key: "JUNIOR", label: "Junior Student Community", groupValue: "Junior Student Community" },
+  { key: "SENIOR", label: "Senior Student Community", groupValue: "Senior Student Community" },
+  { key: "INTERNATIONAL", label: "International Community", groupValue: "International Community" },
+  { key: "FARMER", label: "Farmer Community", groupValue: "Farmer Community" }
+];
+
+function matchesCommunityCircle(post, circleKey) {
+  if (!circleKey || circleKey === "ALL") return true;
+  const grp = String(post.collegeGroup || "").toLowerCase();
+  if (circleKey === "JUNIOR") return grp.includes("junior");
+  if (circleKey === "SENIOR") return grp.includes("senior");
+  if (circleKey === "INTERNATIONAL") return grp.includes("international") || grp.includes("global");
+  if (circleKey === "FARMER") return post.topic === "FARM_TALK" || grp.includes("farmer") || grp.includes("krishak") || grp.includes("kisan");
+  return true;
+}
+
 export function renderCommunityView(state) {
   const sub = state.communitySubTab || "forum";
+  const activeCircle = state.communityCircle || "ALL";
   const posts = state.communityPosts.filter((p) =>
-    p.status === "ACTIVE" && (state.communityTopic === "ALL" || p.topic === state.communityTopic)
+    p.status === "ACTIVE" &&
+    (state.communityTopic === "ALL" || p.topic === state.communityTopic) &&
+    matchesCommunityCircle(p, activeCircle)
   );
   const careers = state.careerOpportunities.filter((c) =>
     c.published !== false && (state.careerCategory === "ALL" || c.category === state.careerCategory)
   );
+  const defaultGroupValue =
+    COMMUNITY_CIRCLES.find((c) => c.key === activeCircle && c.groupValue)?.groupValue ||
+    state.userProfile?.institutionOrVillage ||
+    "Junior Student Community";
 
   return `
-    <div class="space-y-4 animate-fade-up">
+    <div class="space-y-4">
       <div class="gv-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 class="font-display text-xl sm:text-2xl font-bold text-[#14532D]">Student Community &amp; Agri Careers</h2>
-          <p class="text-xs sm:text-sm text-[#496052]">Ask doubts, share study notes across college groups, and track AFO/ICAR jobs &amp; scholarships.</p>
+          <h2 class="font-display text-xl sm:text-2xl font-bold text-[#14532D]">Community &amp; Agri Careers</h2>
+          <p class="text-xs sm:text-sm text-[#496052]">Junior Student, Senior Student, International &amp; Farmer discussion circles plus AFO/ICAR jobs &amp; scholarships.</p>
         </div>
         <div class="flex gap-1.5 bg-[#EDF4EE] p-1 rounded-xl">
           <button data-comm-sub="forum" class="px-4 py-2 rounded-lg text-xs font-extrabold ${sub === "forum" ? "bg-[#14532D] text-white" : "text-[#14532D]"}">Discussion Forum (${posts.length})</button>
@@ -1341,6 +1667,20 @@ export function renderCommunityView(state) {
       </div>
 
       ${sub === "forum" ? `
+        <!-- Community Circles Bar (Shared across Student Zone & Farmer Zone) -->
+        <div class="gv-card p-3.5 space-y-2">
+          <div class="text-[11px] font-extrabold uppercase tracking-wider text-[#15803D] px-1">Community Circles</div>
+          <div class="flex flex-wrap gap-1.5">
+            ${COMMUNITY_CIRCLES.map((c) => `
+              <button data-comm-circle="${c.key}" type="button" class="px-3.5 py-2 rounded-xl text-xs font-extrabold transition-colors ${
+                activeCircle === c.key
+                  ? "bg-gradient-to-r from-[#14532D] to-[#15803D] text-white shadow-sm"
+                  : "bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#D9EAE0] text-[#14532D]"
+              }">${escapeHtml(c.label)}</button>
+            `).join("")}
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div class="lg:col-span-4 gv-card p-5 space-y-3 h-fit">
             <div class="flex items-center justify-between gap-2">
@@ -1356,15 +1696,21 @@ export function renderCommunityView(state) {
                 <label class="block">
                   <span class="text-xs font-bold">Topic</span>
                   <select id="cpTopic" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm">
-                    <option value="DOUBT">Ask a Doubt</option>
+                    <option value="DOUBT" ${activeCircle !== "FARMER" ? "selected" : ""}>Ask a Doubt</option>
                     <option value="NOTES_SHARE">Notes &amp; Resource Share</option>
                     <option value="EXAM_PREP">Exam Prep</option>
-                    <option value="FARM_TALK">Farm Talk</option>
+                    <option value="FARM_TALK" ${activeCircle === "FARMER" ? "selected" : ""}>Farm Talk (Farmer Community)</option>
                   </select>
                 </label>
                 <label class="block">
-                  <span class="text-xs font-bold">College Group *</span>
-                  <input id="cpGroup" type="text" required maxlength="100" value="${escapeHtml(state.userProfile?.institutionOrVillage || "B.Sc Agriculture India")}" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+                  <span class="text-xs font-bold">Community Circle / College Group *</span>
+                  <input id="cpGroup" type="text" required maxlength="100" list="communityCircleSuggestions" value="${escapeHtml(defaultGroupValue)}" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+                  <datalist id="communityCircleSuggestions">
+                    <option value="Junior Student Community"></option>
+                    <option value="Senior Student Community"></option>
+                    <option value="International Community"></option>
+                    <option value="Farmer Community"></option>
+                  </datalist>
                 </label>
                 <label class="block">
                   <span class="text-xs font-bold">Title *</span>
@@ -1389,7 +1735,7 @@ export function renderCommunityView(state) {
             </div>
 
             ${posts.length === 0 ? `
-              <div class="gv-card p-8 text-center text-sm text-[#496052]">No community posts in this topic yet. Start the first conversation!</div>
+              <div class="gv-card p-8 text-center text-sm text-[#496052]">No community posts in this circle/topic yet. Start the first conversation!</div>
             ` : posts.map((p) => `
               <article class="gv-card p-4 sm:p-5 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
