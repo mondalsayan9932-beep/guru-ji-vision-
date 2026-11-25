@@ -702,6 +702,15 @@ export function renderFarmerZoneView(state) {
       attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "schemes" }
     },
     {
+      route: "women-farmer",
+      title: "Women Farmer Zone | নারী কৃষক সহায়তা কেন্দ্র",
+      subtitle: "Women farmer schemes, training, SHG & women-led FPOs, horticulture, dairy, fisheries, rights, helplines & bilingual discussion board",
+      icon: AGRI_ICONS.community,
+      badge: "15 Areas • Discussion Board",
+      featured: true,
+      attrs: { "data-from-zone": "farmer-zone" }
+    },
+    {
       route: "farmer-finance",
       title: "Farmer Helplines & Application Help (কৃষক হেল্পলাইন ও সহায়তা)",
       subtitle: "Toll-free Kisan Call Centre (1800-180-1551 in Bengali), Crop Insurance 14447, Block ADA / Duare Sarkar guidance & free legal aid",
@@ -1639,6 +1648,7 @@ export function renderCommunityView(state) {
   const activeCircle = state.communityCircle || "ALL";
   const posts = state.communityPosts.filter((p) =>
     p.status === "ACTIVE" &&
+    p.board !== "WOMEN_FARMER" &&
     (state.communityTopic === "ALL" || p.topic === state.communityTopic) &&
     matchesCommunityCircle(p, activeCircle)
   );

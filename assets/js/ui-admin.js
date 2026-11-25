@@ -665,13 +665,24 @@ function renderAdminProfessors(state) {
 function renderAdminModeration(state) {
   return `
     <div class="gv-card p-5 space-y-3">
-      <h3 class="text-base font-extrabold text-[#14532D]">Community Post Moderation (${state.communityPosts.length})</h3>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-base font-extrabold text-[#14532D]">Community &amp; Women Farmer Moderation (${state.communityPosts.length})</h3>
+        <span class="text-xs font-bold text-[#496052]">
+          ${state.communityPosts.filter((p) => p.board === "WOMEN_FARMER").length} Women Farmer Board • ${state.communityPosts.filter((p) => p.board !== "WOMEN_FARMER").length} Community Forum
+        </span>
+      </div>
       <div class="space-y-2.5">
         ${state.communityPosts.map((p) => `
           <div class="rounded-2xl border border-[#CDE0D3] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#F7F9F5]">
             <div class="min-w-0">
-              <div class="text-xs font-bold text-[#1E7E45]">${escapeHtml(p.authorName)} • ${escapeHtml(p.collegeGroup)} • ${escapeHtml(p.status)}</div>
-              <div class="text-sm font-bold text-[#132219] truncate">${escapeHtml(p.title)}</div>
+              <div class="flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#1E7E45]">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${p.board === "WOMEN_FARMER" ? "bg-fuchsia-100 text-fuchsia-900" : "bg-emerald-100 text-emerald-900"}">
+                  ${p.board === "WOMEN_FARMER" ? "Women Farmer Board" : "Community"}
+                </span>
+                ${p.category ? `<span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[10px] text-[#14532D]">${escapeHtml(p.category)}</span>` : ""}
+                <span>${escapeHtml(p.authorName)} • ${escapeHtml(p.collegeGroup)} • ${escapeHtml(p.status)}</span>
+              </div>
+              <div class="text-sm font-bold text-[#132219] truncate mt-0.5">${escapeHtml(p.title)}</div>
             </div>
             <div class="flex gap-1.5 shrink-0">
               <button data-mod-post="${escapeHtml(p.id)}" data-mod-status="${p.status === "ACTIVE" ? "HIDDEN" : "ACTIVE"}" class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 text-xs font-bold">

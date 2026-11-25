@@ -64,11 +64,18 @@ import {
   createInitialFarmerFinanceState
 } from "./farmer-finance-controller.js";
 import { mergeAgricultureSchemes } from "./govt-schemes-data.js";
+import { renderWomenFarmerZoneView } from "./women-farmer-ui.js";
+import {
+  bindWomenFarmerEvents,
+  clearWomenFarmerTransientState,
+  createInitialWomenFarmerState
+} from "./women-farmer-controller.js";
 
 const VALID_ROUTES = new Set([
   "home",
   "student-zone",
   "farmer-zone",
+  "women-farmer",
   "weather",
   "market",
   "marketplace",
@@ -156,6 +163,9 @@ const state = {
 
   // Farmer Financial Support & Rights Module State (Private records cleared on logout!)
   farmerFinance: createInitialFarmerFinanceState(),
+
+  // Women Farmer Zone & Discussion Board State (Phase 6)
+  womenFarmer: createInitialWomenFarmerState(),
 
   // Student Career Guidance / Farmer Advisor / Professor Dashboard Threads
   studentDoubtThreads: [],
@@ -297,6 +307,7 @@ function clearPrivateStateOnLogout() {
   state.ownerAuditLogs = [];
   state.agricultureSchemeHistory = [];
   clearFarmerFinancePrivateState(state);
+  clearWomenFarmerTransientState(state);
 
   // Purge stale private snapshot signatures so signing back in always hydrates cleanly
   if (wasAdmin) {
@@ -398,6 +409,9 @@ const ROUTE_DATA_DEPS = {
   ]),
   "farmer-zone": new Set([
     "firestoreMarketPrices", "agricultureSchemes", "meetings", "communityPosts", "professors"
+  ]),
+  "women-farmer": new Set([
+    "agricultureSchemes", "communityPosts"
   ]),
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
@@ -616,6 +630,7 @@ function renderActiveView({ fromLiveUpdate = false } = {}) {
     case "home": html = renderHomeView(state); break;
     case "student-zone": html = renderStudentZoneView(state); break;
     case "farmer-zone": html = renderFarmerZoneView(state); break;
+    case "women-farmer": html = renderWomenFarmerZoneView(state); break;
     case "weather": html = renderWeatherView(state); break;
     case "market": html = renderMarketPriceView(state); break;
     case "marketplace": html = renderMarketplaceView(state); break;
@@ -673,6 +688,8 @@ function navigateTo(route, updateHash = true) {
     state.lastZone = "";
   } else if (cleanRoute === "student-zone" || cleanRoute === "farmer-zone") {
     state.lastZone = cleanRoute;
+  } else if (cleanRoute === "women-farmer" && !state.lastZone) {
+    state.lastZone = "farmer-zone";
   }
   state.route = cleanRoute;
   if (updateHash && typeof window !== "undefined") {
@@ -2995,6 +3012,14 @@ bindFarmerFinanceEvents({
   withBusySubmit,
   openAuthModal,
   loadOfficialMandiData
+});
+bindWomenFarmerEvents({
+  state,
+  renderActiveView,
+  showToast,
+  withBusySubmit,
+  openAuthModal,
+  navigateTo
 });
 const initialHash = (window.location.hash || "").replace(/^#/, "");
 if (initialHash && VALID_ROUTES.has(initialHash)) {

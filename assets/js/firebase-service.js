@@ -659,8 +659,12 @@ class FirebaseService {
       ? query(collection(this.db, "communityPosts"), limit(150))
       : query(collection(this.db, "communityPosts"), where("status", "==", "ACTIVE"), limit(150));
     this.setSub("communityPosts", onSnapshot(postQ, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
-        .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt || d.data().updatedAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       onUpdate("communityPosts", list, true);
     }, () => {}));
 
@@ -964,6 +968,11 @@ class FirebaseService {
   async saveCommunityPost(uid, authorName, data, editId = "") {
     if (!this.ready || !uid) throw new Error("Sign in required.");
     const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validCategories = [
+      "GENERAL", "CROP_CULTIVATION", "DISEASE_PEST", "GOVT_SCHEMES",
+      "WOMEN_RIGHTS", "AGRI_TRAINING", "AGRI_BUSINESS", "HORTICULTURE",
+      "DAIRY_LIVESTOCK", "FISHERIES", "SUCCESS_STORIES"
+    ];
     const base = {
       collegeGroup: String(data.collegeGroup || "General Agriculture").trim().slice(0, 100),
       topic: ["DOUBT", "NOTES_SHARE", "EXAM_PREP", "FARM_TALK"].includes(data.topic) ? data.topic : "DOUBT",
@@ -971,17 +980,32 @@ class FirebaseService {
       body: String(data.body || "").trim().slice(0, 1500),
       updatedAt: serverTimestamp()
     };
+    if (data.category && validCategories.includes(data.category)) {
+      base.category = data.category;
+    }
+    if (typeof data.district === "string") {
+      base.district = data.district.trim().slice(0, 80);
+    }
+
     if (editId) {
       await updateDoc(doc(this.db, "communityPosts", editId), base);
     } else {
-      await addDoc(collection(this.db, "communityPosts"), {
+      const createPayload = {
         ...base,
         authorId: uid,
-        authorName: String(authorName || "Student").trim().slice(0, 80),
+        authorName: String(authorName || "Member").trim().slice(0, 80),
         helpfulCount: 0,
         status: "ACTIVE",
         createdAt: serverTimestamp()
-      });
+      };
+      if (data.board === "WOMEN_FARMER" || data.board === "GENERAL") {
+        createPayload.board = data.board;
+      }
+      if (data.board === "WOMEN_FARMER") {
+        createPayload.commentCount = 0;
+        if (!createPayload.category) createPayload.category = "GENERAL";
+      }
+      await addDoc(collection(this.db, "communityPosts"), createPayload);
     }
   }
 
@@ -1010,6 +1034,118 @@ class FirebaseService {
     await deleteDoc(doc(this.db, "communityPosts", postId));
   }
 
+  // Threaded Comments & Replies (/communityPosts/{postId}/comments)
+  subscribePostComments(postId, isAdmin, onData) {
+    if (!this.ready || !postId || !onData) return;
+    const subKey = `postComments:${postId}`;
+    const { collection, query, where, limit, onSnapshot } = this.mods.fsMod;
+    const colRef = collection(this.db, "communityPosts", postId, "comments");
+    const q = isAdmin
+      ? query(colRef, limit(200))
+      : query(colRef, where("status", "==", "ACTIVE"), limit(200));
+    this.setSub(subKey, onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt || d.data().updatedAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => a.createdAtMs - b.createdAtMs);
+      onData(list);
+    }, () => {}));
+  }
+
+  unsubscribePostComments(postId) {
+    const subKey = `postComments:${postId}`;
+    const unsub = this.activeUnsubs.get(subKey);
+    if (typeof unsub === "function") {
+      try { unsub(); } catch (_) {}
+      this.activeUnsubs.delete(subKey);
+    }
+  }
+
+  async savePostComment(postId, uid, authorName, data, editCommentId = "") {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    if (!postId) throw new Error("Invalid discussion post.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const cleanBody = String(data.body || "").trim().slice(0, 1000);
+    if (!cleanBody) throw new Error("Comment cannot be empty.");
+
+    if (editCommentId) {
+      await updateDoc(doc(this.db, "communityPosts", postId, "comments", editCommentId), {
+        body: cleanBody,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      const payload = {
+        postId: String(postId).trim().slice(0, 128),
+        authorId: uid,
+        authorName: String(authorName || "Member").trim().slice(0, 80),
+        body: cleanBody,
+        status: "ACTIVE",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      const parentId = String(data.parentCommentId || "").trim().slice(0, 128);
+      if (parentId) {
+        payload.parentCommentId = parentId;
+      }
+      await addDoc(collection(this.db, "communityPosts", postId, "comments"), payload);
+    }
+  }
+
+  async deletePostComment(postId, commentId) {
+    if (!this.ready || !postId || !commentId) throw new Error("Invalid comment.");
+    const { doc, deleteDoc } = this.mods.fsMod;
+    await deleteDoc(doc(this.db, "communityPosts", postId, "comments", commentId));
+  }
+
+  async moderatePostComment(postId, commentId, status) {
+    if (!this.ready || !postId || !commentId) throw new Error("Invalid comment.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "communityPosts", postId, "comments", commentId), {
+      status: status === "HIDDEN" ? "HIDDEN" : "ACTIVE",
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  // Per-User Likes / Reactions (/communityPosts/{postId}/likes/{uid})
+  subscribePostLikes(postId, onData) {
+    if (!this.ready || !postId || !onData) return;
+    const subKey = `postLikes:${postId}`;
+    if (this.activeUnsubs.has(subKey)) return;
+    const { collection, query, limit, onSnapshot } = this.mods.fsMod;
+    const q = query(collection(this.db, "communityPosts", postId, "likes"), limit(500));
+    this.setSub(subKey, onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      onData(list);
+    }, () => {}));
+  }
+
+  unsubscribePostLikes(postId) {
+    const subKey = `postLikes:${postId}`;
+    const unsub = this.activeUnsubs.get(subKey);
+    if (typeof unsub === "function") {
+      try { unsub(); } catch (_) {}
+      this.activeUnsubs.delete(subKey);
+    }
+  }
+
+  async togglePostLike(postId, uid, isCurrentlyLiked, reaction = "SUPPORT") {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    if (!postId) throw new Error("Invalid discussion post.");
+    const { doc, setDoc, deleteDoc, serverTimestamp } = this.mods.fsMod;
+    const likeRef = doc(this.db, "communityPosts", postId, "likes", uid);
+    if (isCurrentlyLiked) {
+      await deleteDoc(likeRef);
+    } else {
+      await setDoc(likeRef, {
+        userId: uid,
+        reaction: ["LIKE", "HELPFUL", "SUPPORT"].includes(reaction) ? reaction : "SUPPORT",
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
   async reportCommunityPost(uid, reporterName, post, reason) {
     const { collection, addDoc, serverTimestamp } = this.mods.fsMod;
     await addDoc(collection(this.db, "contentReports"), {
@@ -1019,6 +1155,21 @@ class FirebaseService {
       targetId: post.id,
       targetTitle: String(post.title || "Post").slice(0, 140),
       reason: String(reason || "Inappropriate content").trim().slice(0, 300),
+      status: "PENDING",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async reportCommunityComment(uid, reporterName, postId, comment, reason) {
+    const { collection, addDoc, serverTimestamp } = this.mods.fsMod;
+    await addDoc(collection(this.db, "contentReports"), {
+      reporterId: uid,
+      reporterName: String(reporterName || "User").trim().slice(0, 80),
+      targetType: "COMMUNITY_COMMENT",
+      targetId: `${String(postId || "").slice(0, 60)}/${String(comment?.id || "").slice(0, 60)}`,
+      targetTitle: String(comment?.body || "Comment").slice(0, 140),
+      reason: String(reason || "Inappropriate comment").trim().slice(0, 300),
       status: "PENDING",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()

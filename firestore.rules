@@ -245,12 +245,37 @@ service cloud.firestore {
         data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
         data.collegeGroup is string && data.collegeGroup.size() >= 1 && data.collegeGroup.size() <= 100 &&
         data.topic in ['DOUBT', 'NOTES_SHARE', 'EXAM_PREP', 'FARM_TALK'] &&
+        (!('board' in data) || data.board in ['GENERAL', 'WOMEN_FARMER']) &&
+        (!('category' in data) || data.category in [
+          'GENERAL', 'CROP_CULTIVATION', 'DISEASE_PEST', 'GOVT_SCHEMES',
+          'WOMEN_RIGHTS', 'AGRI_TRAINING', 'AGRI_BUSINESS', 'HORTICULTURE',
+          'DAIRY_LIVESTOCK', 'FISHERIES', 'SUCCESS_STORIES'
+        ]) &&
+        (!('district' in data) || (data.district is string && data.district.size() <= 80)) &&
+        (!('commentCount' in data) || (data.commentCount is int && data.commentCount >= 0 && data.commentCount <= 1000000)) &&
         data.title is string && data.title.size() >= 3 && data.title.size() <= 140 &&
         data.body is string && data.body.size() >= 5 && data.body.size() <= 1500 &&
         data.helpfulCount is int && data.helpfulCount >= 0 && data.helpfulCount <= 1000000 &&
         data.status in ['ACTIVE', 'HIDDEN'] &&
         isValidTimestamp(data.createdAt) &&
         isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCommunityComment(data) {
+      return data.postId is string && data.postId.size() >= 1 && data.postId.size() <= 128 &&
+        (!('parentCommentId' in data) || (data.parentCommentId is string && data.parentCommentId.size() <= 128)) &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+        data.body is string && data.body.size() >= 1 && data.body.size() <= 1000 &&
+        data.status in ['ACTIVE', 'HIDDEN'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCommunityLike(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.reaction in ['LIKE', 'HELPFUL', 'SUPPORT'] &&
+        isValidTimestamp(data.createdAt);
     }
 
     function isValidAnnouncement(data) {
@@ -338,7 +363,7 @@ service cloud.firestore {
     function isValidContentReport(data) {
       return data.reporterId is string && data.reporterId.size() >= 1 && data.reporterId.size() <= 128 &&
         data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 80 &&
-        data.targetType in ['COMMUNITY_POST'] &&
+        data.targetType in ['COMMUNITY_POST', 'COMMUNITY_COMMENT'] &&
         data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
         data.targetTitle is string && data.targetTitle.size() >= 1 && data.targetTitle.size() <= 140 &&
         data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 300 &&
@@ -676,8 +701,13 @@ service cloud.firestore {
         incoming().authorId == request.auth.uid &&
         incoming().status == 'ACTIVE' &&
         incoming().helpfulCount == 0 &&
+        (!('commentCount' in incoming()) || incoming().commentCount == 0) &&
         incoming().keys().hasAll(['authorId', 'authorName', 'collegeGroup', 'topic', 'title', 'body', 'helpfulCount', 'status', 'createdAt', 'updatedAt']) &&
-        incoming().keys().hasOnly(['authorId', 'authorName', 'collegeGroup', 'topic', 'title', 'body', 'helpfulCount', 'status', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly([
+          'authorId', 'authorName', 'collegeGroup', 'topic', 'board', 'category',
+          'district', 'commentCount', 'title', 'body', 'helpfulCount', 'status',
+          'createdAt', 'updatedAt'
+        ]) &&
         isValidCommunityPost(incoming());
 
       allow update: if isSignedIn() &&
@@ -691,7 +721,8 @@ service cloud.firestore {
            existing().status == 'ACTIVE' &&
            incoming().status == 'ACTIVE' &&
            incoming().helpfulCount == existing().helpfulCount &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['collegeGroup', 'topic', 'title', 'body', 'updatedAt'])) ||
+           (!('board' in existing()) || incoming().board == existing().board) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['collegeGroup', 'topic', 'category', 'district', 'title', 'body', 'updatedAt'])) ||
           (existing().status == 'ACTIVE' &&
            incoming().status == 'ACTIVE' &&
            incoming().helpfulCount == existing().helpfulCount + 1 &&
@@ -700,6 +731,60 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && isValidId(postId) &&
         (existing().authorId == request.auth.uid || isAdmin());
+
+      // Threaded Comments & Replies under each Community / Women Farmer Discussion Post
+      match /comments/{commentId} {
+        allow get: if isValidId(postId) && isValidId(commentId) &&
+          (existing().status == 'ACTIVE' || (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin());
+        allow list: if isValidId(postId) &&
+          (existing().status == 'ACTIVE' || (isSignedIn() && existing().authorId == request.auth.uid) || isAdmin());
+
+        allow create: if isSignedIn() &&
+          isValidId(postId) &&
+          isValidId(commentId) &&
+          incoming().postId == postId &&
+          incoming().authorId == request.auth.uid &&
+          incoming().status == 'ACTIVE' &&
+          incoming().keys().hasAll(['postId', 'authorId', 'authorName', 'body', 'status', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['postId', 'parentCommentId', 'authorId', 'authorName', 'body', 'status', 'createdAt', 'updatedAt']) &&
+          isValidCommunityComment(incoming());
+
+        allow update: if isSignedIn() &&
+          isValidId(postId) &&
+          isValidId(commentId) &&
+          isValidCommunityComment(incoming()) &&
+          incoming().authorId == existing().authorId &&
+          incoming().postId == existing().postId &&
+          incoming().createdAt == existing().createdAt &&
+          ((!('parentCommentId' in existing()) && !('parentCommentId' in incoming())) ||
+           (('parentCommentId' in existing()) && ('parentCommentId' in incoming()) && incoming().parentCommentId == existing().parentCommentId)) &&
+          (
+            (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+            (existing().authorId == request.auth.uid &&
+             existing().status == 'ACTIVE' &&
+             incoming().status == 'ACTIVE' &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['body', 'updatedAt']))
+          );
+
+        allow delete: if isSignedIn() && isValidId(postId) && isValidId(commentId) &&
+          (existing().authorId == request.auth.uid || isAdmin());
+      }
+
+      // Per-User Authenticated Likes / Reactions (Zero PII — Document ID == Auth UID)
+      match /likes/{likerUid} {
+        allow get, list: if isValidId(postId);
+
+        allow create, update: if isSignedIn() &&
+          isValidId(postId) &&
+          likerUid == request.auth.uid &&
+          incoming().userId == request.auth.uid &&
+          incoming().keys().hasAll(['userId', 'reaction', 'createdAt']) &&
+          incoming().keys().hasOnly(['userId', 'reaction', 'createdAt']) &&
+          isValidCommunityLike(incoming());
+
+        allow delete: if isSignedIn() && isValidId(postId) &&
+          (likerUid == request.auth.uid || isAdmin());
+      }
     }
 
     // --- 7. ANNOUNCEMENTS (Active Notices Publicly Readable) ---
