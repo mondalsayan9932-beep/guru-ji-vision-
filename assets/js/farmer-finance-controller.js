@@ -23,7 +23,7 @@ import { escapeHtml, safeUrl } from "./calculators.js";
 
 export function createInitialFarmerFinanceState() {
   return {
-    subTab: "overview",
+    subTab: "schemes",
     leaseFormType: "FIXED_RENT",
     expenseFormCategory: "SEEDS",
     expenseFilterCategory: "ALL",
@@ -32,6 +32,7 @@ export function createInitialFarmerFinanceState() {
     pnlLand: "ALL",
     pnlIncludeLease: false,
     schemeFilter: "ALL",
+    schemeSearch: "",
     interestBankCategory: "ALL",
     interestInput: {
       bankProductId: VERIFIED_BANK_AGRI_RATES[0].id,
@@ -234,6 +235,13 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
       return;
     }
 
+    if (action === "clear-scheme-search") {
+      ff.schemeSearch = "";
+      ff.schemeFilter = "ALL";
+      renderActiveView();
+      return;
+    }
+
     // Exports & Printable PDF Reports
     const leases = filterByDateRange((ff.leases || []).filter((l) => l.status !== "ARCHIVED"), "startDate", ff.reportDateFrom, ff.reportDateTo);
     const loans = filterByDateRange((ff.loans || []).filter((l) => l.status !== "ARCHIVED"), "loanDate", ff.reportDateFrom, ff.reportDateTo);
@@ -411,6 +419,19 @@ export function bindFarmerFinanceEvents({ state, renderActiveView, showToast, wi
 
   document.addEventListener("input", (e) => {
     if (syncInterestCompareField(e.target)) return;
+    if (e.target?.id === "ffSchemeSearch") {
+      const selStart = typeof e.target.selectionStart === "number" ? e.target.selectionStart : null;
+      state.farmerFinance.schemeSearch = e.target.value;
+      renderActiveView();
+      const nextEl = document.getElementById("ffSchemeSearch");
+      if (nextEl) {
+        nextEl.focus();
+        if (selStart !== null && typeof nextEl.setSelectionRange === "function") {
+          try { nextEl.setSelectionRange(selStart, selStart); } catch (_) {}
+        }
+      }
+      return;
+    }
     if (e.target?.id === "ffDocSearch") {
       state.farmerFinance.docSearch = e.target.value;
       renderActiveView();

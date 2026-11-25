@@ -322,73 +322,289 @@ export function renderProfitLossSection(state, sales, expenses, leases) {
 }
 
 // ----------------------------------------------------------------------------
-// 3. GOVERNMENT SCHEMES & FINANCIAL ASSISTANCE
+// 3. GOVERNMENT SCHEMES & FINANCIAL ASSISTANCE (SIMPLIFIED FARMER CENTRE)
 // ----------------------------------------------------------------------------
 export function renderSchemesSection(state) {
   const scope = state.farmerFinance?.schemeFilter || "ALL";
-  const list = scope === "ALL" ? GOVERNMENT_SCHEMES : GOVERNMENT_SCHEMES.filter((s) => s.scope === scope);
+  const query = String(state.farmerFinance?.schemeSearch || "").trim().toLowerCase();
+
+  const scopeFiltered = scope === "ALL"
+    ? GOVERNMENT_SCHEMES
+    : GOVERNMENT_SCHEMES.filter((s) => s.scope === scope);
+
+  const list = query
+    ? scopeFiltered.filter((s) => {
+        const hay = [
+          s.name,
+          s.nameBn,
+          s.category,
+          s.purpose,
+          s.purposeBn,
+          s.eligibility,
+          s.eligibilityBn,
+          s.applicationProcess,
+          s.howToApplyBn,
+          s.helpline
+        ].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(query);
+      })
+    : scopeFiltered;
+
+  const centralCount = GOVERNMENT_SCHEMES.filter((s) => s.scope === "CENTRAL").length;
+  const wbCount = GOVERNMENT_SCHEMES.filter((s) => s.scope === "WEST_BENGAL").length;
 
   return `
-    <div class="space-y-4">
-      <section class="gv-card p-5 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+    <div data-farmer-schemes-centre="true" class="space-y-5">
+      <!-- Simple 3-Step Farmer Guide -->
+      <section class="gv-card p-4 sm:p-5 bg-gradient-to-br from-[#ECFDF5]/80 to-white border border-[#BBF7D0] space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 class="text-base font-extrabold text-[#14532D]">Government Schemes &amp; Financial Assistance</h2>
-            <p class="text-xs text-[#475569]">সরকারি কৃষি প্রকল্প, ঋণ ও বীমা সহায়তা — verified official portals for Central &amp; West Bengal schemes</p>
+            <h2 class="text-sm sm:text-base font-extrabold text-[#14532D]">How to Apply Safely (নিরাপদে আবেদন করার ৩টি সহজ ধাপ)</h2>
+            <p class="text-xs text-[#475569]">Follow these simple steps before applying for any Central or State agricultural scheme.</p>
           </div>
-          <div class="flex gap-1.5">
-            ${[
-              ["ALL", "All Schemes"],
-              ["CENTRAL", "Central Govt"],
-              ["WEST_BENGAL", "West Bengal"]
-            ].map(([k, lbl]) => `
-              <button data-ff-scheme-filter="${k}" type="button" class="px-3 py-1.5 rounded-xl text-xs font-extrabold border ${scope === k ? "bg-[#14532D] text-white border-[#14532D]" : "bg-[#F8FAFC] text-[#14532D] border-[#D9EAE0]"}">${lbl}</button>
-            `).join("")}
-          </div>
+          <span class="px-2.5 py-1 rounded-full bg-white border border-[#BBF7D0] text-[11px] font-extrabold text-[#15803D]">100% Official Portals</span>
         </div>
-
-        <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-950">
-          <strong>Important Notice:</strong> Guru Ji Vision provides verified official information links only. We do <strong>not</strong> process government applications or promise eligibility, approval, or payment. Always apply only through official government portals, CSC centres, or Block Agriculture Offices (ADA).
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="rounded-2xl bg-white border border-[#D9EAE0] p-3.5 flex items-start gap-3">
+            <span class="w-8 h-8 rounded-xl bg-[#14532D] text-white text-xs font-extrabold flex items-center justify-center shrink-0">1</span>
+            <div class="space-y-0.5">
+              <div class="text-xs font-extrabold text-[#14532D]">Keep Papers Ready • কাগজপত্র তৈরি রাখুন</div>
+              <p class="text-[11px] text-[#475569] leading-relaxed">Aadhaar, Voter ID, Land Parcha / Bargadar record &amp; Aadhaar-linked Bank Passbook.</p>
+            </div>
+          </div>
+          <div class="rounded-2xl bg-white border border-[#D9EAE0] p-3.5 flex items-start gap-3">
+            <span class="w-8 h-8 rounded-xl bg-[#15803D] text-white text-xs font-extrabold flex items-center justify-center shrink-0">2</span>
+            <div class="space-y-0.5">
+              <div class="text-xs font-extrabold text-[#14532D]">Use Official Portal or ADA Office • সঠিক জায়গায় আবেদন</div>
+              <p class="text-[11px] text-[#475569] leading-relaxed">Apply online via the official website below, CSC centre, Duare Sarkar camp, or Block Agriculture Office (ADA).</p>
+            </div>
+          </div>
+          <div class="rounded-2xl bg-white border border-[#D9EAE0] p-3.5 flex items-start gap-3">
+            <span class="w-8 h-8 rounded-xl bg-[#16A34A] text-white text-xs font-extrabold flex items-center justify-center shrink-0">3</span>
+            <div class="space-y-0.5">
+              <div class="text-xs font-extrabold text-[#14532D]">Never Pay Middlemen • দালাল থেকে সাবধান</div>
+              <p class="text-[11px] text-[#475569] leading-relaxed">Government farmer schemes do not charge bribes. Always take a receipt and check status on the official portal.</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        ${list.map((sc) => `
-          <article class="gv-card p-5 flex flex-col justify-between gap-3.5">
-            <div class="space-y-2.5">
-              <div class="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${sc.scope === "WEST_BENGAL" ? "bg-emerald-100 text-emerald-900" : "bg-[#DCFCE7] text-[#14532D]"}">
-                    ${sc.scope === "WEST_BENGAL" ? "West Bengal State Scheme" : "Central Govt Scheme"}
-                  </span>
-                  <h3 class="text-sm sm:text-base font-extrabold text-[#14532D] mt-1">${escapeHtml(sc.name)}</h3>
-                  <div class="text-xs font-semibold text-[#15803D]">${escapeHtml(sc.nameBn)}</div>
+      <!-- Filter & Simple Search Bar -->
+      <section class="gv-card p-4 sm:p-5 space-y-3.5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex flex-wrap gap-2">
+            ${[
+              ["ALL", `All Schemes • সব প্রকল্প (${GOVERNMENT_SCHEMES.length})`],
+              ["CENTRAL", `Central Govt • কেন্দ্রীয় (${centralCount})`],
+              ["WEST_BENGAL", `West Bengal • পশ্চিমবঙ্গ (${wbCount})`]
+            ].map(([k, lbl]) => `
+              <button data-ff-scheme-filter="${k}" type="button" class="min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-[13px] font-extrabold border transition-colors ${
+                scope === k
+                  ? "bg-[#14532D] text-white border-[#14532D] shadow-sm"
+                  : "bg-[#F8FAFC] text-[#14532D] border-[#D9EAE0] hover:bg-[#ECFDF5]"
+              }">${lbl}</button>
+            `).join("")}
+          </div>
+          <div class="flex items-center gap-2 w-full md:w-80">
+            <input
+              id="ffSchemeSearch"
+              type="search"
+              value="${escapeHtml(state.farmerFinance?.schemeSearch || "")}"
+              placeholder="Search scheme (PM-KISAN, Krishak Bandhu, KCC, বীমা)..."
+              aria-label="Search Government Schemes"
+              class="w-full min-h-[44px] rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2 text-xs sm:text-sm text-[#0F172A] focus:outline-none focus:border-[#15803D]"
+            />
+            ${query || scope !== "ALL" ? `
+              <button data-ff-action="clear-scheme-search" type="button" class="min-h-[44px] px-3 py-2 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#334155] text-xs font-extrabold shrink-0">Reset</button>
+            ` : ""}
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-xs text-amber-950 leading-relaxed">
+          <strong>Important Notice (জরুরি তথ্য):</strong> Guru Ji Vision provides verified official government scheme information and portal links only. We do <strong>not</strong> process applications or guarantee approval.
+          <span class="block text-[11px] text-amber-900 mt-0.5">গুরুজি ভিশন শুধুমাত্র যাচাইকৃত সরকারি তথ্য ও অফিশিয়াল ওয়েবসাইটের লিংক প্রদান করে — আবেদন ও অনুমোদন সম্পূর্ণভাবে সরকারি দপ্তরের অধীন।</span>
+        </div>
+      </section>
+
+      <!-- Scheme Cards Grid -->
+      ${list.length === 0 ? `
+        <div class="gv-card p-8 text-center space-y-3">
+          <div class="text-base font-extrabold text-[#14532D]">No Matching Scheme Found (কোনো প্রকল্প পাওয়া যায়নি)</div>
+          <p class="text-xs sm:text-sm text-[#475569]">Try searching with simple keywords like "PM-KISAN", "Krishak Bandhu", "KCC", "Bima", or "Soil".</p>
+          <button data-ff-action="clear-scheme-search" type="button" class="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">Show All ${GOVERNMENT_SCHEMES.length} Schemes</button>
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          ${list.map((sc) => `
+            <article class="gv-card p-5 sm:p-6 flex flex-col justify-between gap-4 border border-[#D9EAE0]">
+              <div class="space-y-3.5">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                  <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${sc.scope === "WEST_BENGAL" ? "bg-emerald-100 text-emerald-950 border border-emerald-200" : "bg-[#DCFCE7] text-[#14532D] border border-[#BBF7D0]"}">
+                        ${sc.scope === "WEST_BENGAL" ? "West Bengal • পশ্চিমবঙ্গ সরকার" : "Central Govt • কেন্দ্রীয় সরকার"}
+                      </span>
+                      ${sc.category ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569]">${escapeHtml(sc.category)}</span>` : ""}
+                    </div>
+                    <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] leading-snug pt-0.5">${escapeHtml(sc.name)}</h3>
+                    <div class="text-xs sm:text-sm font-bold text-[#15803D]">${escapeHtml(sc.nameBn)}</div>
+                  </div>
+                  <span class="text-[10px] font-bold text-[#64748B] shrink-0">Verified: ${escapeHtml(sc.verifiedDate)}</span>
                 </div>
-                <span class="text-[10px] font-bold text-[#64748B] shrink-0">Verified: ${escapeHtml(sc.verifiedDate)}</span>
+
+                <!-- Benefit / Purpose -->
+                <div class="rounded-2xl bg-[#ECFDF5]/60 border border-[#D9EAE0] p-3.5 space-y-1">
+                  <div class="text-[11px] font-extrabold uppercase tracking-wide text-[#14532D]">Benefit &amp; Purpose • কী সুবিধা পাবেন</div>
+                  <p class="text-xs sm:text-[13px] text-[#0F172A] leading-relaxed">${escapeHtml(sc.purpose)}</p>
+                  ${sc.purposeBn ? `<p class="text-xs text-[#15803D] leading-relaxed font-medium">${escapeHtml(sc.purposeBn)}</p>` : ""}
+                </div>
+
+                <!-- Eligibility -->
+                <div class="space-y-1">
+                  <div class="text-xs font-extrabold text-[#14532D]">Who Can Apply • কারা আবেদন করতে পারবেন</div>
+                  <p class="text-xs text-[#334155] leading-relaxed">${escapeHtml(sc.eligibility)}</p>
+                  ${sc.eligibilityBn ? `<p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(sc.eligibilityBn)}</p>` : ""}
+                </div>
+
+                <!-- Required Documents -->
+                <div class="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-3.5 space-y-1.5">
+                  <div class="text-xs font-extrabold text-[#14532D]">Required Documents • প্রয়োজনীয় কাগজপত্র</div>
+                  <ul class="list-disc pl-4 text-xs text-[#334155] space-y-1">
+                    ${sc.documents.map((doc) => `<li>${escapeHtml(doc)}</li>`).join("")}
+                  </ul>
+                </div>
+
+                <!-- Application Steps -->
+                <div class="space-y-1">
+                  <div class="text-xs font-extrabold text-[#14532D]">How to Apply • আবেদন পদ্ধতি</div>
+                  <p class="text-xs text-[#334155] leading-relaxed">${escapeHtml(sc.applicationProcess)}</p>
+                  ${sc.howToApplyBn ? `<p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(sc.howToApplyBn)}</p>` : ""}
+                </div>
               </div>
 
-              <p class="text-xs text-[#334155] leading-relaxed"><strong>Purpose:</strong> ${escapeHtml(sc.purpose)}</p>
-              <p class="text-xs text-[#475569] leading-relaxed"><strong>Eligibility:</strong> ${escapeHtml(sc.eligibility)}</p>
-
-              <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 space-y-1">
-                <div class="text-[11px] font-extrabold text-[#14532D]">Required Documents:</div>
-                <ul class="list-disc pl-4 text-xs text-[#475569] space-y-0.5">
-                  ${sc.documents.map((doc) => `<li>${escapeHtml(doc)}</li>`).join("")}
-                </ul>
+              <div class="pt-3.5 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2.5">
+                <span class="px-2.5 py-1.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[11px] font-extrabold text-[#334155]">
+                  Helpline: ${escapeHtml(sc.helpline)}
+                </span>
+                <a href="${escapeHtml(safeUrl(sc.officialUrl))}" target="_blank" rel="noopener noreferrer" class="gv-btn min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs sm:text-[13px] font-extrabold shadow-sm">
+                  Visit Official Website ↗
+                </a>
               </div>
+            </article>
+          `).join("")}
+        </div>
+      `}
+    </div>
+  `;
+}
 
-              <p class="text-xs text-[#475569] leading-relaxed"><strong>Application Process:</strong> ${escapeHtml(sc.applicationProcess)}</p>
-            </div>
+// ----------------------------------------------------------------------------
+// 3B. SIMPLIFIED OFFICIAL HELPLINES & LOCAL APPLICATION SUPPORT
+// ----------------------------------------------------------------------------
+export function renderSimplifiedHelplinesSection(state) {
+  const settings = state.appSettings || {};
+  const waHelpUrl = buildWhatsAppDirectUrl(
+    settings.whatsappNumber,
+    "Namaskar Guru Ji Vision, I need help understanding Government Farmer Schemes."
+  );
 
-            <div class="pt-3 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2">
-              <span class="text-[11px] font-bold text-[#475569]">Helpline: ${escapeHtml(sc.helpline)}</span>
-              <a href="${escapeHtml(safeUrl(sc.officialUrl))}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs font-extrabold shadow-sm">
-                Official Website ↗
-              </a>
+  return `
+    <div data-farmer-helplines-centre="true" class="space-y-5">
+      <!-- Featured Toll-Free Kisan Call Centre Banner -->
+      <section class="gv-card p-5 sm:p-6 bg-gradient-to-br from-[#ECFDF5] to-white border-2 border-[#BBF7D0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="space-y-1.5 max-w-2xl">
+          <span class="inline-block px-2.5 py-0.5 rounded-full bg-[#14532D] text-white text-[10px] font-extrabold uppercase tracking-wider">24x7 Toll-Free • সম্পূর্ণ বিনামূল্যে</span>
+          <h2 class="text-lg sm:text-xl font-extrabold text-[#14532D]">Kisan Call Centre — 1800-180-1551</h2>
+          <p class="text-xs sm:text-sm text-[#334155] leading-relaxed">
+            Call toll-free from any mobile or landline to speak with agricultural officers in <strong>Bengali, Hindi, or English</strong> about PM-KISAN, KCC, crop insurance, seeds, and farming help.
+          </p>
+          <p class="text-xs text-[#15803D] font-semibold">
+            যেকোনো ফোন থেকে সম্পূর্ণ বিনামূল্যে ১৮০০-১৮০-১৫৫১ নম্বরে কল করে বাংলায় সরকারি প্রকল্প ও চাষাবাদের পরামর্শ নিন।
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 shrink-0">
+          <a href="tel:18001801551" class="gv-btn min-h-[48px] inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-sm font-extrabold shadow-md">
+            Call 1800-180-1551
+          </a>
+          <a href="https://dackkms.gov.in/" target="_blank" rel="noopener noreferrer" class="min-h-[48px] inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-white border border-[#BBF7D0] text-[#14532D] text-xs font-extrabold hover:bg-[#ECFDF5]">
+            Official Portal ↗
+          </a>
+        </div>
+      </section>
+
+      <!-- Verified Official Helplines List -->
+      <section class="gv-card p-5 space-y-4">
+        <div>
+          <h3 class="text-base sm:text-lg font-extrabold text-[#14532D]">Official Government Farmer Helplines &amp; Portals</h3>
+          <p class="text-xs sm:text-sm text-[#475569]">সরকারি কৃষি হেল্পলাইন, ফসল বীমা, ব্যাংক সহায়তা ও বিনামূল্যে আইনি সাহায্য</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          ${OFFICIAL_GRIEVANCE_CONTACTS.map((c) => `
+            <article class="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-4 flex flex-col justify-between gap-3">
+              <div class="space-y-1">
+                <div class="text-sm font-extrabold text-[#14532D]">${escapeHtml(c.title)}</div>
+                <div class="text-xs font-bold text-[#15803D]">${escapeHtml(c.titleBn)}</div>
+                <p class="text-xs text-[#334155] leading-relaxed pt-1">${escapeHtml(c.desc)}</p>
+                ${c.descBn ? `<p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(c.descBn)}</p>` : ""}
+              </div>
+              <div class="pt-2.5 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2">
+                ${c.tel ? `
+                  <a href="tel:${escapeHtml(c.tel)}" class="min-h-[40px] inline-flex items-center px-3 py-1.5 rounded-xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#14532D] text-xs font-extrabold">
+                    Call: ${escapeHtml(c.contact)}
+                  </a>
+                ` : `
+                  <span class="px-3 py-1.5 rounded-xl bg-[#DCFCE7] text-[#14532D] text-xs font-extrabold">${escapeHtml(c.contact)}</span>
+                `}
+                <a href="${escapeHtml(safeUrl(c.url))}" target="_blank" rel="noopener noreferrer" class="min-h-[40px] inline-flex items-center px-3.5 py-1.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">
+                  Official Site ↗
+                </a>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <!-- Local Offline Help Offices -->
+      <section class="gv-card p-5 space-y-3.5">
+        <div>
+          <h3 class="text-base font-extrabold text-[#14532D]">Where to Get Local Offline Help (কাছাকাছি কোথায় সরাসরি সাহায্য পাবেন)</h3>
+          <p class="text-xs text-[#475569]">If you prefer in-person assistance for scheme forms, e-KYC, or document submission, visit these official centres:</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="rounded-2xl bg-[#ECFDF5]/60 border border-[#D9EAE0] p-3.5 space-y-1">
+            <div class="text-xs font-extrabold text-[#14532D]">Block Agriculture Office (ADA)</div>
+            <div class="text-[11px] font-bold text-[#15803D]">ব্লক কৃষি দপ্তর</div>
+            <p class="text-[11px] text-[#475569]">Krishak Bandhu, Bangla Shasya Bima, machinery subsidy &amp; soil testing.</p>
+          </div>
+          <div class="rounded-2xl bg-[#ECFDF5]/60 border border-[#D9EAE0] p-3.5 space-y-1">
+            <div class="text-xs font-extrabold text-[#14532D]">Common Service Centre (CSC)</div>
+            <div class="text-[11px] font-bold text-[#15803D]">তথ্যমিত্র কেন্দ্র (CSC)</div>
+            <p class="text-[11px] text-[#475569]">PM-KISAN registration, Aadhaar e-KYC, PMFBY &amp; status printout.</p>
+          </div>
+          <div class="rounded-2xl bg-[#ECFDF5]/60 border border-[#D9EAE0] p-3.5 space-y-1">
+            <div class="text-xs font-extrabold text-[#14532D]">Duare Sarkar Camp (WB)</div>
+            <div class="text-[11px] font-bold text-[#15803D]">দুয়ারে সরকার ক্যাম্প</div>
+            <p class="text-[11px] text-[#475569]">Direct village-level camps for Krishak Bandhu &amp; state farmer schemes.</p>
+          </div>
+          <div class="rounded-2xl bg-[#ECFDF5]/60 border border-[#D9EAE0] p-3.5 space-y-1">
+            <div class="text-xs font-extrabold text-[#14532D]">Krishi Vigyan Kendra (KVK)</div>
+            <div class="text-[11px] font-bold text-[#15803D]">কৃষি বিজ্ঞান কেন্দ্র</div>
+            <p class="text-[11px] text-[#475569]">District soil testing, crop advisory, seed support &amp; farmer training.</p>
+          </div>
+        </div>
+
+        ${waHelpUrl ? `
+          <div class="pt-3 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="text-xs sm:text-sm font-extrabold text-[#14532D]">Need guidance finding the right scheme portal?</div>
+              <div class="text-xs text-[#475569]">কোন সরকারি প্রকল্পের তথ্য খুঁজছেন বুঝতে সমস্যা হলে হোয়াটসঅ্যাপে মেসেজ করুন।</div>
             </div>
-          </article>
-        `).join("")}
-      </div>
+            <a href="${escapeHtml(waHelpUrl)}" target="_blank" rel="noopener noreferrer" class="min-h-[44px] inline-flex items-center px-4 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-extrabold shadow-sm">
+              WhatsApp Help Desk ↗
+            </a>
+          </div>
+        ` : ""}
+      </section>
     </div>
   `;
 }

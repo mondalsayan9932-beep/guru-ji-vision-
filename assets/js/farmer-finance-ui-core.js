@@ -8,7 +8,9 @@
 
 import { escapeHtml, formatDateShort, formatInr, safeUrl } from "./calculators.js";
 import {
+  GOVERNMENT_SCHEMES,
   LEASE_AREA_UNITS,
+  OFFICIAL_GRIEVANCE_CONTACTS,
   OFFICIAL_MSP_REFERENCE,
   PAYMENT_FREQUENCIES,
   FARM_SEASONS,
@@ -19,13 +21,9 @@ import {
   loadFormDraft
 } from "./farmer-finance-data.js";
 import {
-  renderExpensesSection,
-  renderProfitLossSection,
   renderSchemesSection,
-  renderRightsSection,
-  renderReportsDocumentsSection
+  renderSimplifiedHelplinesSection
 } from "./farmer-finance-ui-tools.js";
-import { renderInterestCompareSection } from "./farmer-finance-ui-interest.js";
 
 const FF_ICONS = {
   lease: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>`,
@@ -39,17 +37,12 @@ const FF_ICONS = {
   docs: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`
 };
 
+// Phase 4: Simplified Farmer-Friendly Navigation
+// Only essential Government Schemes & Official Helplines are shown in visible navigation.
+// All existing Firestore collections and backend records remain 100% preserved untouched.
 const SUB_TABS = [
-  { key: "overview", label: "Dashboard" },
-  { key: "leases", label: "Land & Lease" },
-  { key: "loans", label: "Loans & Debt" },
-  { key: "interest-compare", label: "Live Interest Comparison" },
-  { key: "market-sales", label: "Crop Selling & MSP" },
-  { key: "expenses", label: "Expenses" },
-  { key: "profit-loss", label: "Profit & Loss" },
-  { key: "schemes", label: "Govt Schemes" },
-  { key: "rights", label: "Rights & Support" },
-  { key: "reports", label: "Reports & Docs" }
+  { key: "schemes", label: "Government Schemes • সরকারি প্রকল্প", icon: FF_ICONS.scheme },
+  { key: "helplines", label: "Official Helplines & Help • হেল্পলাইন ও সহায়তা", icon: FF_ICONS.rights }
 ];
 
 export function renderAuthGateCard(title, subtitle) {
@@ -62,12 +55,8 @@ export function renderAuthGateCard(title, subtitle) {
         <h3 class="font-display text-lg sm:text-xl font-bold text-[#14532D]">${escapeHtml(title)}</h3>
         <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">${escapeHtml(subtitle)}</p>
       </div>
-      <div class="rounded-2xl bg-[#ECFDF5] border border-[#BBF7D0] p-3 text-left text-xs text-[#14532D] space-y-1">
-        <div class="font-extrabold">100% Private Farmer Vault (সুরক্ষিত ব্যক্তিগত হিসাব)</div>
-        <p class="text-[#15803D]">Your land leases, loan repayments, crop sales, expenses, and receipts are locked strictly to your Firebase Google Account UID. No other farmer or public visitor can view them.</p>
-      </div>
       <button data-action="open-auth" type="button" class="gv-btn inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-sm font-extrabold shadow-md">
-        Continue with Google to Access Private Records
+        Continue with Google
       </button>
     </div>
   `;
@@ -75,146 +64,65 @@ export function renderAuthGateCard(title, subtitle) {
 
 export function renderFarmerFinanceView(state) {
   const ff = state.farmerFinance || {};
-  const activeTab = ff.subTab || "overview";
-  const isSignedIn = Boolean(state.user);
+  const rawTab = ff.subTab || "schemes";
+  const activeTab = (rawTab === "helplines" || rawTab === "rights") ? "helplines" : "schemes";
 
-  const leases = (ff.leases || []).filter((l) => l.status !== "ARCHIVED");
-  const loans = (ff.loans || []).filter((l) => l.status !== "ARCHIVED");
-  const loanTx = ff.loanTransactions || [];
-  const sales = (ff.cropSales || []).filter((s) => s.status !== "ARCHIVED");
-  const expenses = (ff.expenses || []).filter((e) => e.status !== "ARCHIVED");
-  const complaints = ff.complaints || [];
-  const documents = ff.documents || [];
-
-  const totalLeaseDue = leases.reduce((sum, l) => sum + computeLeaseSummary(l).remainingPayment, 0);
-  const renewalAlerts = leases.filter((l) => computeLeaseSummary(l).renewalStatus === "DUE_SOON").length;
-  const totalLoanEstRem = loans.reduce((sum, ln) => sum + computeLoanSummary(ln, loanTx).remainingEstimatedAmount, 0);
-  const pnl = computeProfitAndLoss({ sales, expenses, leases });
-
-  let bodyHtml = "";
-  switch (activeTab) {
-    case "leases":
-      bodyHtml = isSignedIn
-        ? renderLandLeaseSection(state, leases, documents)
-        : renderAuthGateCard("Sign In to Manage Land & Lease Records", "Record Fixed Rent or Crop Sharing agreements, log payments, track renewal dates, and upload lease photos/PDFs privately.");
-      break;
-    case "loans":
-      bodyHtml = isSignedIn
-        ? renderLoanDebtSection(state, loans, loanTx, documents)
-        : renderAuthGateCard("Sign In to Track Loans & Repayments", "Calculate Simple or Compound interest estimates, log partial or irregular repayments, and compare your calculated balance with lender claims.");
-      break;
-    case "interest-compare":
-      bodyHtml = renderInterestCompareSection(state);
-      break;
-    case "market-sales":
-      bodyHtml = renderCropMarketSalesSection(state, sales, leases);
-      break;
-    case "expenses":
-      bodyHtml = isSignedIn
-        ? renderExpensesSection(state, expenses, leases, documents)
-        : renderAuthGateCard("Sign In to Track Farming Expenses", "Log seeds, fertilizers, pesticides, labour, irrigation, land lease, fuel, and custom agricultural expenses with receipts.");
-      break;
-    case "profit-loss":
-      bodyHtml = isSignedIn
-        ? renderProfitLossSection(state, sales, expenses, leases)
-        : renderAuthGateCard("Sign In to Calculate Farm Profit & Loss", "Analyze crop-wise, season-wise, and land-wise revenue vs production cost with transparent incomplete-record alerts.");
-      break;
-    case "schemes":
-      bodyHtml = renderSchemesSection(state);
-      break;
-    case "rights":
-      bodyHtml = renderRightsSection(state, complaints, documents);
-      break;
-    case "reports":
-      bodyHtml = isSignedIn
-        ? renderReportsDocumentsSection(state, leases, loans, loanTx, sales, expenses, complaints, documents, ff.auditLogs || [])
-        : renderAuthGateCard("Sign In to Access Your Document Vault & Reports", "Upload private PDF agreements & receipts, filter by date, generate printable PDF summaries, and export CSV records.");
-      break;
-    default:
-      bodyHtml = renderOverviewSection({
-        state,
-        leases,
-        loans,
-        loanTx,
-        sales,
-        expenses,
-        complaints,
-        documents,
-        totalLeaseDue,
-        renewalAlerts,
-        totalLoanEstRem,
-        pnl
-      });
-      break;
-  }
+  const bodyHtml = activeTab === "helplines"
+    ? renderSimplifiedHelplinesSection(state)
+    : renderSchemesSection(state);
 
   return `
-    <div class="ff-scope space-y-5 animate-fade-up">
-      <!-- ==================== HERO HEADER (SOLID DARK EMERALD HIGH-CONTRAST) ==================== -->
+    <div data-farmer-finance-simplified="true" class="ff-scope space-y-5">
+      <!-- ==================== SIMPLIFIED FARMER-FRIENDLY HERO HEADER ==================== -->
       <section class="ff-hero-card rounded-3xl p-5 sm:p-7">
         <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div class="space-y-2 max-w-3xl">
             <div class="flex flex-wrap items-center gap-2">
               <span class="ff-hero-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wide">
                 <span class="w-2 h-2 rounded-full bg-[#34D399]"></span>
-                Farmer Financial Support &amp; Rights • কৃষক আর্থিক সহায়তা ও অধিকার
+                Farmer Financial Support • কৃষক আর্থিক সহায়তা
               </span>
               <span class="ff-hero-badge inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold">
-                ${isSignedIn ? "Private Owner-Only Cloud Vault Active" : "Public Guide Active • Sign In for Private Records"}
+                Free Public Guide • কোনো লগইন ছাড়াই দেখুন
               </span>
             </div>
-            <h1 class="ff-hero-heading font-display text-2xl sm:text-3xl font-bold tracking-tight">Farmer Financial Support &amp; Rights</h1>
+            <h1 class="ff-hero-heading font-display text-2xl sm:text-3xl font-bold tracking-tight">
+              Government Schemes &amp; Financial Assistance
+            </h1>
+            <p class="text-sm sm:text-base font-bold text-[#DCFCE7]">
+              সরকারি কৃষি প্রকল্প, ফসল বীমা ও কৃষক সহায়তা কেন্দ্র
+            </p>
             <p class="ff-hero-desc text-xs sm:text-sm leading-relaxed">
-              Financial Transparency, Farmer Awareness &amp; Rights Protection — transparent records for <strong>Land &amp; Lease Agreements</strong>, <strong>Loan &amp; Debt Repayment</strong>, and <strong>Fair Crop Selling</strong>.
+              Simple, verified guides for Central &amp; West Bengal agricultural schemes, required documents, step-by-step application help, and toll-free farmer helplines.
             </p>
           </div>
-          <div class="flex flex-wrap gap-2 shrink-0">
-            <button data-ff-tab="leases" type="button" class="gv-btn ff-hero-btn-white px-3.5 py-2.5 rounded-xl text-xs font-extrabold">
-              + Land Lease
-            </button>
-            <button data-ff-tab="loans" type="button" class="gv-btn ff-hero-btn-emerald px-3.5 py-2.5 rounded-xl text-xs font-extrabold">
-              + Loan Tracker
-            </button>
-            <button data-ff-tab="market-sales" type="button" class="gv-btn ff-hero-btn-white px-3.5 py-2.5 rounded-xl text-xs font-extrabold">
-              + Crop Sale &amp; MSP
-            </button>
-          </div>
-        </div>
-
-        <!-- Quick KPI Strip -->
-        <div class="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5">
-          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
-            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Lease Balance Due</div>
-            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(totalLeaseDue)) : "Sign in"}</div>
-            <div class="ff-hero-sub text-[10px]">${leases.length} active • ${renewalAlerts} renewal soon</div>
-          </div>
-          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
-            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Loan Est. Remaining</div>
-            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(totalLoanEstRem)) : "Sign in"}</div>
-            <div class="ff-hero-sub text-[10px]">${loans.length} loans • ${loanTx.length} repayments</div>
-          </div>
-          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
-            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Crop Sale Revenue</div>
-            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(pnl.totalRevenue)) : "Sign in"}</div>
-            <div class="ff-hero-sub text-[10px]">${sales.length} logged sales</div>
-          </div>
-          <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
-            <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Est. Net Profit / Loss</div>
-            <div class="ff-hero-value text-base sm:text-lg font-extrabold mt-0.5">${isSignedIn ? escapeHtml(formatInr(pnl.netProfitLoss)) : "Sign in"}</div>
-            <div class="ff-hero-sub text-[10px]">${expenses.length} expenses • ${documents.length} docs</div>
+          <div class="grid grid-cols-3 lg:grid-cols-1 gap-2 shrink-0">
+            <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+              <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Verified Schemes</div>
+              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">${GOVERNMENT_SCHEMES.length} Govt Portals</div>
+            </div>
+            <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+              <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Helplines</div>
+              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">${OFFICIAL_GRIEVANCE_CONTACTS.length} Official Desks</div>
+            </div>
+            <div class="ff-hero-kpi rounded-2xl px-3.5 py-2.5">
+              <div class="ff-hero-label text-[10px] uppercase tracking-wider font-bold">Toll-Free Call</div>
+              <div class="ff-hero-value text-sm sm:text-base font-extrabold mt-0.5">1800-180-1551</div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- ==================== HORIZONTAL SUB-NAVIGATION PILLS ==================== -->
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+      <!-- ==================== SIMPLE 2-DESTINATION SWITCHER ==================== -->
+      <div class="flex flex-wrap items-center gap-2">
         ${SUB_TABS.map((t) => `
-          <button data-ff-tab="${t.key}" type="button" class="shrink-0 px-3.5 py-2.5 rounded-xl text-xs font-extrabold border transition-all ${
+          <button data-ff-tab="${t.key}" type="button" class="min-h-[48px] inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold border transition-all ${
             activeTab === t.key
               ? "bg-[#064E3B] text-white border-[#064E3B] shadow-sm"
               : "bg-white text-[#064E3B] border-[#CBD5E1] hover:bg-[#ECFDF5]"
           }">
-            ${escapeHtml(t.label)}
+            <span class="shrink-0">${t.icon}</span>
+            <span>${escapeHtml(t.label)}</span>
           </button>
         `).join("")}
       </div>

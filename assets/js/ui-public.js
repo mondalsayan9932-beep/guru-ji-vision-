@@ -337,7 +337,7 @@ export function renderHomeView(state) {
                   <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Mandi Price (বাজারদর)</span>
                   <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Weather Forecast</span>
                   <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Crop Disease &amp; Advisory</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Schemes &amp; Rights</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Govt Schemes (সরকারি প্রকল্প)</span>
                   <span class="px-2.5 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569] text-[11px] font-bold">+ 5 Shared Modules</span>
                 </div>
               </div>
@@ -690,27 +690,20 @@ export function renderFarmerZoneView(state) {
     },
     {
       route: "farmer-finance",
-      title: "Farmer Financial Support & Rights",
-      subtitle: "Land & Lease Transparency, Loan & Debt Tracker, Live Bank vs Private Interest Comparison, Crop Sales & Profit/Loss",
-      icon: AGRI_ICONS.money,
-      badge: "3 Main Pillars",
-      attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "overview" }
-    },
-    {
-      route: "farmer-finance",
-      title: "Government Schemes and Financial Assistance",
-      subtitle: "Verified official Central & West Bengal portals — PM-KISAN, Kisan Credit Card (KCC), PMFBY Crop Insurance & Krishak Bandhu",
+      title: "Government Schemes & Financial Assistance (সরকারি কৃষি প্রকল্প)",
+      subtitle: "Verified Central & West Bengal schemes — PM-KISAN, Krishak Bandhu, Kisan Credit Card (KCC), Bangla Shasya Bima, PMFBY, Soil Health Card & Women Farmer support",
       icon: AGRI_ICONS.scheme,
-      badge: "Official Portals",
+      badge: "9 Official Schemes",
+      featured: true,
       attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "schemes" }
     },
     {
       route: "farmer-finance",
-      title: "Farmer Rights, Legal Awareness & Women Farmer Support",
-      subtitle: "Know your land lease & fair market rights, log private support records, and access official farmer & women farmer helplines",
+      title: "Farmer Helplines & Application Help (কৃষক হেল্পলাইন ও সহায়তা)",
+      subtitle: "Toll-free Kisan Call Centre (1800-180-1551 in Bengali), Crop Insurance 14447, Block ADA / Duare Sarkar guidance & free legal aid",
       icon: AGRI_ICONS.rights,
-      badge: "Rights & Support",
-      attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "rights" }
+      badge: "Toll-Free Help",
+      attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "helplines" }
     }
   ];
 
@@ -747,7 +740,7 @@ export function renderFarmerZoneView(state) {
           <div class="flex flex-wrap gap-2 shrink-0">
             <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Live Mandi Rates</span>
             <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">7-Day Weather</span>
-            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Rights &amp; Schemes</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Govt Schemes</span>
           </div>
         </div>
       </section>
@@ -756,8 +749,8 @@ export function renderFarmerZoneView(state) {
       <section class="space-y-3">
         <div class="flex flex-wrap items-end justify-between gap-2 px-1">
           <div>
-            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Smart Farming, Advisory &amp; Farmer Support</h3>
-            <p class="text-xs text-[#475569]">Mandi Prices, Weather Alerts, Crop Disease IPM, Expert Advisory, Govt Schemes &amp; Financial Rights</p>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Smart Farming, Advisory &amp; Government Support</h3>
+            <p class="text-xs text-[#475569]">Mandi Prices, Weather Alerts, Crop Disease IPM, Expert Advisory, Govt Schemes &amp; Toll-Free Farmer Helplines</p>
           </div>
           <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">${farmerItems.length} Services</span>
         </div>
