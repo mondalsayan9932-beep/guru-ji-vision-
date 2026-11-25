@@ -428,7 +428,8 @@ class FirebaseService {
   unsubscribePrivate() {
     const publicKeys = new Set([
       "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
-      "announcements", "meetings", "professors", "appSettings", "firestoreMarketPrices"
+      "announcements", "meetings", "professors", "appSettings", "firestoreMarketPrices",
+      "agricultureSchemes", "universitySyllabi", "discoveredStudyResources"
     ]);
     for (const [key, unsub] of this.activeUnsubs.entries()) {
       if (!publicKeys.has(key)) {
@@ -2277,7 +2278,7 @@ class FirebaseService {
     const title = String(data.title || "").trim().slice(0, 150);
     const dedupeKey = String(data.dedupeKey || `${sourceUrl.toLowerCase()}|${title.toLowerCase()}`).trim().slice(0, 240);
 
-    const base = {
+    const editableFields = {
       title,
       sourceWebsite: String(data.sourceWebsite || "Official Source").trim().slice(0, 140),
       publicationDate: String(data.publicationDate || new Date().toISOString().slice(0, 10)).trim().slice(0, 30),
@@ -2285,8 +2286,6 @@ class FirebaseService {
       topic: String(data.topic || "General Agriculture").trim().slice(0, 120),
       category: validCats.includes(data.category) ? data.category : "NOTES_PDF",
       sourceUrl,
-      dedupeKey,
-      discoveryMethod: validMethods.includes(data.discoveryMethod) ? data.discoveryMethod : "ADMIN_SUBMITTED",
       reviewStatus: validStatuses.includes(data.reviewStatus) ? data.reviewStatus : "PENDING_REVIEW",
       summary: String(data.summary || "").trim().slice(0, 500),
       reviewedBy: uid,
@@ -2294,9 +2293,14 @@ class FirebaseService {
     };
 
     if (editId) {
-      await updateDoc(doc(this.db, "discoveredStudyResources", editId), base);
+      await updateDoc(doc(this.db, "discoveredStudyResources", editId), editableFields);
     } else {
-      await addDoc(collection(this.db, "discoveredStudyResources"), { ...base, createdAt: serverTimestamp() });
+      await addDoc(collection(this.db, "discoveredStudyResources"), {
+        ...editableFields,
+        dedupeKey,
+        discoveryMethod: validMethods.includes(data.discoveryMethod) ? data.discoveryMethod : "ADMIN_SUBMITTED",
+        createdAt: serverTimestamp()
+      });
     }
   }
 

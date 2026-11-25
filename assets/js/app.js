@@ -1399,7 +1399,7 @@ function bindGlobalEvents() {
       "[data-ai-prompt]",
       "[data-comm-sub]", "[data-comm-topic]", "[data-comm-circle]", "[data-career-cat]", "[data-upvote-post]", "[data-report-post]", "[data-edit-post]", "[data-del-post]",
       "[data-money-scope]", "[data-money-type]", "[data-money-filter]", "[data-edit-tx]", "[data-del-tx]", "[data-edit-goal]", "[data-del-goal]",
-      "[data-edit-meeting]", "[data-del-meeting]",
+      "[data-copy-meeting-url]", "[data-share-meeting]", "[data-edit-meeting]", "[data-del-meeting]",
       "[data-start-career-prof]", "[data-open-student-thread]", "[data-open-prof-thread]", "[data-prof-filter]", "[data-pick-fa-topic]", "[data-del-doubt-msg]", "[data-retry-email]",
       "[data-admin-sub]", "[data-edit-mat]", "[data-del-mat]", "[data-edit-quiz]", "[data-del-quiz]", "[data-edit-notice]", "[data-del-notice]",
       "[data-edit-mp]", "[data-del-mp]", "[data-edit-career]", "[data-del-career]", "[data-edit-prof]", "[data-del-prof]",
@@ -1851,6 +1851,51 @@ function bindGlobalEvents() {
     }
 
     // Meetings
+    if (target.dataset.copyMeetingUrl) {
+      const meetUrl = safeUrl(target.dataset.copyMeetingUrl);
+      if (!meetUrl) { showToast("Invalid meeting URL.", true); return; }
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(meetUrl);
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = meetUrl;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+        showToast("Google Meet link copied!");
+      } catch (_) {
+        showToast("Unable to copy automatically. Long-press the Join button to copy.", true);
+      }
+      return;
+    }
+    if (target.dataset.shareMeeting) {
+      const meetUrl = safeUrl(target.dataset.shareMeeting);
+      const title = target.dataset.shareMeetingTitle || "Guru Ji Vision Live Session";
+      const time = target.dataset.shareMeetingTime || "";
+      if (!meetUrl) { showToast("Invalid meeting URL.", true); return; }
+      const shareText = `${title}${time ? ` (${time})` : ""} — Join Google Meet: ${meetUrl}`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title, text: shareText, url: meetUrl });
+          showToast("Meeting shared!");
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareText);
+          showToast("Meeting invite copied to clipboard!");
+        } else {
+          showToast("Copy the link from the Join button to share.");
+        }
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          showToast("Could not open share menu. Try Copy Link instead.", true);
+        }
+      }
+      return;
+    }
     if (target.dataset.editMeeting) {
       const m = state.meetings.find((x) => x.id === target.dataset.editMeeting);
       if (m) {

@@ -36,6 +36,9 @@ export function clearWomenFarmerTransientState(state) {
   state.womenFarmer.editingPostId = "";
   state.womenFarmer.editingComment = null;
   state.womenFarmer.replyingTo = null;
+  state.womenFarmer.expandedPostIds = {};
+  state.womenFarmer.commentsByPost = {};
+  state.womenFarmer.likesByPost = {};
 }
 
 export function bindWomenFarmerEvents({
@@ -46,6 +49,8 @@ export function bindWomenFarmerEvents({
   openAuthModal,
   navigateTo
 }) {
+  const subscribedLikePostIds = new Set();
+
   const ensureWfState = () => {
     if (!state.womenFarmer) state.womenFarmer = createInitialWomenFarmerState();
     return state.womenFarmer;
@@ -64,16 +69,36 @@ export function bindWomenFarmerEvents({
     }
   };
 
+  const unsubscribeAllVisiblePostLikes = () => {
+    for (const postId of subscribedLikePostIds) {
+      firebaseService.unsubscribePostLikes(postId);
+    }
+    subscribedLikePostIds.clear();
+  };
+
   const subscribeVisiblePostLikes = () => {
     const wf = ensureWfState();
-    if (state.route !== "women-farmer" || wf.subTab !== "discussion") return;
+    if (state.route !== "women-farmer" || wf.subTab !== "discussion") {
+      unsubscribeAllVisiblePostLikes();
+      return;
+    }
     const posts = filterWomenDiscussions(
       state.communityPosts || [],
       { category: wf.discussionCategory, search: wf.discussionSearch },
       Boolean(state.isAdmin)
     ).slice(0, 25);
 
+    const visibleIds = new Set(posts.map((p) => p.id));
+    for (const postId of Array.from(subscribedLikePostIds)) {
+      if (!visibleIds.has(postId) && !wf.expandedPostIds?.[postId]) {
+        firebaseService.unsubscribePostLikes(postId);
+        subscribedLikePostIds.delete(postId);
+      }
+    }
+
     posts.forEach((p) => {
+      if (subscribedLikePostIds.has(p.id)) return;
+      subscribedLikePostIds.add(p.id);
       firebaseService.subscribePostLikes(p.id, (likes) => {
         wf.likesByPost[p.id] = likes;
         if (state.route === "women-farmer" && wf.subTab === "discussion") {
@@ -92,6 +117,7 @@ export function bindWomenFarmerEvents({
         renderActiveView({ fromLiveUpdate: true });
       }
     });
+    subscribedLikePostIds.add(postId);
     firebaseService.subscribePostLikes(postId, (likes) => {
       wf.likesByPost[postId] = likes;
       if (state.route === "women-farmer" && wf.subTab === "discussion") {
@@ -125,6 +151,7 @@ export function bindWomenFarmerEvents({
       wf.subTab = target.dataset.wfTab;
       renderActiveView();
       if (wf.subTab === "discussion") subscribeVisiblePostLikes();
+      else unsubscribeAllVisiblePostLikes();
       return;
     }
 
@@ -136,17 +163,20 @@ export function bindWomenFarmerEvents({
         wf.subTab = "schemes";
         wf.schemeMode = val || "ALL";
         wf.schemeCategory = "ALL";
+        unsubscribeAllVisiblePostLikes();
         renderActiveView();
       } else if (action === "wf-scheme-cat") {
         wf.subTab = "schemes";
         wf.schemeMode = "ALL";
         wf.schemeCategory = val || "ALL";
+        unsubscribeAllVisiblePostLikes();
         renderActiveView();
       } else if (action === "wf-scheme-detail") {
         if (state.farmerFinance) {
           state.farmerFinance.subTab = "schemes";
-          state.farmerFinance.schemeSelectedId = val;
+          state.farmerFinance.selectedSchemeId = val;
         }
+        unsubscribeAllVisiblePostLikes();
         state.lastZone = "farmer-zone";
         navigateTo("farmer-finance");
       } else if (action === "wf-discussion") {
@@ -156,8 +186,10 @@ export function bindWomenFarmerEvents({
         subscribeVisiblePostLikes();
       } else if (action === "wf-rights") {
         wf.subTab = "rights";
+        unsubscribeAllVisiblePostLikes();
         renderActiveView();
       } else if (action === "route" && val) {
+        unsubscribeAllVisiblePostLikes();
         state.lastZone = "farmer-zone";
         navigateTo(val);
       }
@@ -185,11 +217,12 @@ export function bindWomenFarmerEvents({
       const schemeId = target.dataset.wfOpenSchemeDetail;
       if (state.farmerFinance) {
         state.farmerFinance.subTab = "schemes";
-        state.farmerFinance.schemeSelectedId = schemeId;
+        state.farmerFinance.selectedSchemeId = schemeId;
         if (wf.lang === "BN" || wf.lang === "EN") {
           state.farmerFinance.schemeLang = wf.lang;
         }
       }
+      unsubscribeAllVisiblePostLikes();
       state.lastZone = "farmer-zone";
       navigateTo("farmer-finance");
       window.scrollTo({ top: 0, behavior: "smooth" });

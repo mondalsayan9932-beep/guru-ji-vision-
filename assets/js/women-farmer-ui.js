@@ -219,9 +219,10 @@ function renderSchemesSubView(state, lang) {
           <span class="text-[11px] font-bold text-[#496052]">${bn ? "রাজ্য / কেন্দ্রশাসিত অঞ্চল (৩৬)" : "State / UT Filter (All 36)"}</span>
           <select id="wfSchemeState" class="mt-1 w-full px-3 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
             <option value="ALL">${bn ? "সারা ভারত + সব রাজ্য" : "All India + All States"}</option>
-            ${getAllStatesList().map((st) => `
-              <option value="${escapeHtml(st)}" ${stateFilter === st ? "selected" : ""}>${escapeHtml(st)}</option>
-            `).join("")}
+            ${getAllStatesList().map((st) => {
+              const stName = typeof st === "string" ? st : (st?.name || "");
+              return `<option value="${escapeHtml(stName)}" ${stateFilter === stName ? "selected" : ""}>${escapeHtml(stName)}</option>`;
+            }).join("")}
           </select>
         </label>
         <label class="block">
@@ -251,13 +252,19 @@ function renderSchemesSubView(state, lang) {
             const portalUrl = safeUrl(scheme.officialPortalUrl || scheme.officialSourceUrl);
             const titleText = bn && scheme.nameBn ? scheme.nameBn : scheme.name;
             const subTitle = bn && scheme.nameBn ? scheme.name : (scheme.nameBn || "");
-            const summaryText = bn && scheme.summaryBn ? scheme.summaryBn : scheme.summary;
+            const summaryText = bn
+              ? (scheme.purposeBn || scheme.summaryBn || scheme.purpose || scheme.summary || scheme.benefitsBn || "")
+              : (scheme.purpose || scheme.summary || scheme.benefits || "");
+            const deptText = bn ? (scheme.departmentBn || scheme.department || "") : (scheme.department || "");
             const womenNote = bn
               ? (scheme.eligibility?.womenFarmersBn || scheme.eligibility?.womenFarmers || "")
               : (scheme.eligibility?.womenFarmers || "");
-            const docs = (bn && Array.isArray(scheme.requiredDocumentsBn) && scheme.requiredDocumentsBn.length)
+            const rawDocs = (bn && Array.isArray(scheme.requiredDocumentsBn) && scheme.requiredDocumentsBn.length)
               ? scheme.requiredDocumentsBn
-              : (scheme.requiredDocuments || []);
+              : (Array.isArray(scheme.requiredDocuments) ? scheme.requiredDocuments : []);
+            const docs = rawDocs
+              .map((d) => (typeof d === "string" ? d : (bn ? (d?.bn || d?.en || "") : (d?.en || d?.bn || ""))))
+              .filter(Boolean);
             return `
               <article class="gv-card p-4 sm:p-5 flex flex-col justify-between gap-3">
                 <div class="space-y-2.5">
@@ -276,10 +283,10 @@ function renderSchemesSubView(state, lang) {
                   <div>
                     <h4 class="text-base font-extrabold text-[#132219] leading-snug">${escapeHtml(titleText)}</h4>
                     ${subTitle ? `<div class="text-xs font-semibold text-[#1E7E45] mt-0.5">${escapeHtml(subTitle)}</div>` : ""}
-                    <div class="text-[11px] text-[#496052] mt-0.5">${escapeHtml(bn ? catMeta.bn : catMeta.en)} • ${escapeHtml(scheme.department || "")}</div>
+                    <div class="text-[11px] text-[#496052] mt-0.5">${escapeHtml(bn ? catMeta.bn : catMeta.en)}${deptText ? ` • ${escapeHtml(deptText)}` : ""}</div>
                   </div>
 
-                  <p class="text-xs sm:text-sm text-[#334155] leading-relaxed">${escapeHtml(summaryText)}</p>
+                  ${summaryText ? `<p class="text-xs sm:text-sm text-[#334155] leading-relaxed">${escapeHtml(summaryText)}</p>` : ""}
 
                   ${womenNote ? `
                     <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-2.5 text-xs text-[#1E293B]">

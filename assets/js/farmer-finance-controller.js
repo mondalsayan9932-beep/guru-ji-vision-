@@ -111,14 +111,31 @@ function serializeFormData(form) {
   return obj;
 }
 
+const SAFE_INLINE_IMAGE_RE = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i;
+const SAFE_INLINE_PDF_RE = /^data:application\/pdf;base64,[A-Za-z0-9+/=\s]+$/i;
+
+export function sanitizeSafeInlineDataUrl(raw) {
+  const value = String(raw || "").trim();
+  if (!value || value.length > 1024 * 1024) return "";
+  if (SAFE_INLINE_IMAGE_RE.test(value) || SAFE_INLINE_PDF_RE.test(value)) {
+    return value;
+  }
+  return "";
+}
+
 function openDocumentPreview(docRecord, showToast) {
   if (!docRecord) {
     showToast("Document record not found.", true);
     return;
   }
   const url = safeUrl(docRecord.downloadUrl);
-  const inline = String(docRecord.inlineDataUrl || "");
-  const isImage = (docRecord.mimeType || "").startsWith("image/") || inline.startsWith("data:image/");
+  const safeInline = sanitizeSafeInlineDataUrl(docRecord.inlineDataUrl);
+  const safeFileName = String(docRecord.fileName || "farmer-document")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 80) || "farmer-document";
+  const isSafeInlineImage = safeInline.startsWith("data:image/");
+  const isSafeInlinePdf = safeInline.startsWith("data:application/pdf;base64,");
+  const isImage = isSafeInlineImage || (Boolean(url) && /^image\/(png|jpeg|jpg|webp|gif)$/i.test(String(docRecord.mimeType || "")));
 
   const modal = document.getElementById("readerModal");
   const titleEl = document.getElementById("readerModalTitle");
@@ -129,26 +146,27 @@ function openDocumentPreview(docRecord, showToast) {
   if (modal && titleEl && metaEl && bodyEl && linkEl) {
     titleEl.textContent = docRecord.title || "Private Financial Document";
     metaEl.textContent = `${docRecord.docType || "DOCUMENT"} • ${docRecord.docDate || ""} • Private Owner-Only Vault (User Upload — Not Legally Verified)`;
-    if (isImage && (url || inline)) {
+    if (isImage && (url || isSafeInlineImage)) {
       bodyEl.innerHTML = `<div class="space-y-3">
-        <img src="${escapeHtml(url || inline)}" alt="${escapeHtml(docRecord.title || "Document")}" class="max-w-full rounded-xl border border-[#E2E8F0] mx-auto" />
+        <img src="${escapeHtml(url || safeInline)}" alt="${escapeHtml(docRecord.title || "Document")}" class="max-w-full rounded-xl border border-[#E2E8F0] mx-auto" />
         ${docRecord.notes ? `<p class="text-xs text-[#475569]"><strong>Notes:</strong> ${escapeHtml(docRecord.notes)}</p>` : ""}
       </div>`;
-    } else if (url || inline.startsWith("data:application/pdf;base64,")) {
+    } else if (url || isSafeInlinePdf) {
       bodyEl.innerHTML = `<div class="space-y-3">
-        <iframe src="${escapeHtml(url || inline)}" class="w-full h-[65vh] rounded-xl border border-[#E2E8F0]" title="PDF Preview"></iframe>
+        <iframe src="${escapeHtml(url || safeInline)}" sandbox="" class="w-full h-[65vh] rounded-xl border border-[#E2E8F0]" title="PDF Preview"></iframe>
         ${docRecord.notes ? `<p class="text-xs text-[#475569]"><strong>Notes:</strong> ${escapeHtml(docRecord.notes)}</p>` : ""}
       </div>`;
     } else {
-      bodyEl.innerHTML = `<p class="text-xs text-rose-700">Unable to preview this file format in-browser.</p>`;
+      bodyEl.innerHTML = `<p class="text-xs text-rose-700">Unable to preview this file format safely in-browser.</p>`;
     }
     if (url) {
+      linkEl.removeAttribute("download");
       linkEl.href = url;
       linkEl.textContent = "Open / Download File ↗";
       linkEl.classList.remove("hidden");
-    } else if (inline) {
-      linkEl.href = inline;
-      linkEl.setAttribute("download", docRecord.fileName || "farmer-document");
+    } else if (safeInline) {
+      linkEl.href = safeInline;
+      linkEl.setAttribute("download", safeFileName);
       linkEl.textContent = "Download File";
       linkEl.classList.remove("hidden");
     } else {

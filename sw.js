@@ -1,4 +1,4 @@
-const CACHE_NAME = "guruji-vision-static-v16";
+const CACHE_NAME = "guruji-vision-static-v17";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

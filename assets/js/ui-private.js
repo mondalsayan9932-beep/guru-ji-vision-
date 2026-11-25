@@ -406,6 +406,9 @@ export function renderMeetingZoneView(state) {
             <button id="cancelMeetingEditBtn" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
           </div>
           <input id="meetingEditId" type="hidden" value="" />
+          <p class="text-[11px] text-[#496052] bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3 py-2">
+            Create your live room on <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" class="font-extrabold text-[#14532D] underline">meet.google.com ↗</a> and paste the official <code>https://meet.google.com/...</code> link below. (Automatic Google Calendar/Meet room provisioning is not connected.)
+          </p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input id="meetTitle" type="text" required minlength="2" maxlength="150" placeholder="Meeting Title *" class="px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
             <input id="meetSubject" type="text" required minlength="2" maxlength="80" placeholder="Subject / Topic *" class="px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
@@ -464,13 +467,15 @@ function renderMeetingCard(m, canHost, uid, isSuperAdmin, isUpcoming) {
       </div>
       <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-emerald-50">
         ${url ? `
-          <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="gv-btn flex-1 text-center py-2.5 px-4 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
+          <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="gv-btn flex-1 min-w-[150px] text-center py-2.5 px-4 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
             📹 Join Google Meet ↗
           </a>
+          <button type="button" data-copy-meeting-url="${escapeHtml(url)}" class="px-3 py-2.5 min-h-[40px] rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#14532D] text-xs font-bold" aria-label="Copy Google Meet link">Copy Link</button>
+          <button type="button" data-share-meeting="${escapeHtml(url)}" data-share-meeting-title="${escapeHtml(m.title)}" data-share-meeting-time="${escapeHtml(`${m.scheduledDate} ${m.scheduledTime}`)}" class="px-3 py-2.5 min-h-[40px] rounded-xl bg-[#F8FAFC] hover:bg-[#ECFDF5] border border-[#CDE0D3] text-[#14532D] text-xs font-bold" aria-label="Share Google Meet link">Share</button>
         ` : ""}
         ${canManage ? `
-          <button data-edit-meeting="${escapeHtml(m.id)}" class="px-3 py-2.5 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
-          <button data-del-meeting="${escapeHtml(m.id)}" class="px-3 py-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
+          <button type="button" data-edit-meeting="${escapeHtml(m.id)}" class="px-3 py-2.5 min-h-[40px] rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
+          <button type="button" data-del-meeting="${escapeHtml(m.id)}" class="px-3 py-2.5 min-h-[40px] rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
         ` : ""}
       </div>
     </article>

@@ -45,6 +45,37 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+const DEFAULT_TRUSTED_SITE_URL = "https://guru-ji-vision.netlify.app";
+
+export function resolveTrustedSiteUrl(candidateUrl, envUrl = process.env.URL) {
+  const configuredOrigin = (() => {
+    try {
+      const parsed = new URL(String(envUrl || "").trim());
+      if (parsed.protocol === "https:") return parsed.origin;
+    } catch (_) {}
+    return DEFAULT_TRUSTED_SITE_URL;
+  })();
+
+  if (candidateUrl) {
+    try {
+      const parsed = new URL(String(candidateUrl).trim());
+      if (parsed.protocol === "https:") {
+        const host = parsed.hostname.toLowerCase();
+        const configuredHost = new URL(configuredOrigin).hostname.toLowerCase();
+        if (
+          host === configuredHost ||
+          host === "guru-ji-vision.netlify.app" ||
+          /^[a-z0-9-]+--guru-ji-vision\.netlify\.app$/i.test(host)
+        ) {
+          return parsed.origin;
+        }
+      }
+    } catch (_) {}
+  }
+
+  return configuredOrigin;
+}
+
 async function verifyFirebaseIdToken(idToken) {
   if (!idToken || typeof idToken !== "string") return null;
   const res = await fetch(
@@ -100,7 +131,7 @@ export default async (req) => {
     const brevoKey = process.env.BREVO_API_KEY || "";
     const fromEmail = process.env.EMAIL_FROM || "Guru Ji Vision <onboarding@resend.dev>";
     const senderEmailOnly = process.env.EMAIL_FROM_ADDRESS || "noreply@gurujivision.app";
-    const siteUrl = String(body.siteUrl || process.env.URL || "https://guru-ji-vision.netlify.app").replace(/\/$/, "");
+    const siteUrl = resolveTrustedSiteUrl(body.siteUrl);
 
     if (!resendKey && !brevoKey) {
       return jsonResponse(200, {
