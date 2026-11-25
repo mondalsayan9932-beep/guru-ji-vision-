@@ -19,7 +19,8 @@ import {
   getDistrictsForState,
   getMarketsForSelection,
   matchesCropFilter,
-  normalizeAdminName
+  normalizeAdminName,
+  normalizeMarketKey
 } from "./india-mandi-directory.js";
 
 // ----------------------------------------------------------------------------
@@ -500,6 +501,8 @@ function renderWeatherDataCards(w) {
 // 2. CROP MARKET PRICE – ফসলের বাজারদর (Official AGMARKNET + Admin Verified)
 // ----------------------------------------------------------------------------
 export async function fetchOfficialMandiPrices({ state = "", district = "", commodity = "", market = "", limit = 120, offset = 0 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
     const params = new URLSearchParams();
     if (state) params.set("state", state);
@@ -509,13 +512,15 @@ export async function fetchOfficialMandiPrices({ state = "", district = "", comm
     params.set("limit", String(limit));
     if (offset > 0) params.set("offset", String(offset));
 
-    const res = await fetch(`/.netlify/functions/mandi-prices?${params.toString()}`);
+    const res = await fetch(`/.netlify/functions/mandi-prices?${params.toString()}`, {
+      signal: controller.signal
+    });
     if (!res.ok) {
-      return { ok: false, configured: false, records: [], error: `Market API proxy unavailable (HTTP ${res.status}).` };
+      return { ok: false, configured: false, records: [], error: `Live mandi price data is temporarily unavailable (HTTP ${res.status}). Please try refreshing later.` };
     }
     const contentType = res.headers.get("content-type") || "";
     if (!contentType.includes("application/json")) {
-      return { ok: false, configured: false, records: [], error: "Live AGMARKNET serverless proxy activates on Netlify deployment when DATA_GOV_API_KEY is configured." };
+      return { ok: false, configured: false, records: [], error: "Live mandi price data is temporarily unavailable. Please try refreshing later." };
     }
     return await res.json();
   } catch (_) {
@@ -525,6 +530,8 @@ export async function fetchOfficialMandiPrices({ state = "", district = "", comm
       records: [],
       error: "Live mandi price data is temporarily unavailable. Please try refreshing later."
     };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -561,7 +568,7 @@ export function renderMarketPriceView(state) {
     const recDistrict = canonicalizeDistrictName(r.district, recState);
     if (fState !== "ALL" && normalizeAdminName(recState) !== normalizeAdminName(fState)) return false;
     if (fDistrict !== "ALL" && normalizeAdminName(recDistrict) !== normalizeAdminName(fDistrict)) return false;
-    if (fMarket !== "ALL" && normalizeAdminName(r.marketName) !== normalizeAdminName(fMarket)) return false;
+    if (fMarket !== "ALL" && normalizeMarketKey(r.marketName) !== normalizeMarketKey(fMarket)) return false;
     if (qCrop && !matchesCropFilter(r, qCrop, getCropBengaliName)) return false;
     return true;
   });
@@ -605,7 +612,9 @@ export function renderMarketPriceView(state) {
 
   const mandiOptionLabel = state.mandiLoading
     ? "Loading Mandis / Markets..."
-    : `All Mandis / Markets (${marketEntries.length})`;
+    : hasSelectedDistrictWithoutVerifiedMarkets
+      ? "No verified market directory entries yet"
+      : `All Mandis / Markets (${marketEntries.length})`;
 
   return `
     <div class="mandi-scope space-y-5 animate-fade-up">
@@ -636,13 +645,13 @@ export function renderMarketPriceView(state) {
       <!-- Search & Cascading All-India Directory Filters -->
       <div class="gv-card p-4 sm:p-5 space-y-3.5">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          <div>
+          <div class="min-w-0">
             <label for="marketCropSearch" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">Crop / Commodity</label>
-            <input id="marketCropSearch" type="search" value="${escapeHtml(qCrop)}" placeholder="Search crop (Paddy/ধান, Rice/চাল, Potato/আলু)..." class="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm" />
+            <input id="marketCropSearch" type="search" value="${escapeHtml(qCrop)}" placeholder="Search crop (Paddy/ধান, Rice/চাল, Potato/আলু)..." class="w-full min-w-0 px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm" />
           </div>
-          <div>
+          <div class="min-w-0">
             <label for="marketStateSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">State / Union Territory</label>
-            <select id="marketStateSelect" class="w-full px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
+            <select id="marketStateSelect" class="w-full min-w-0 px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
               <option value="ALL">All States (${allStates.length})</option>
               <optgroup label="28 Indian States">
                 ${allStates.filter((s) => s.type === "STATE").map((s) => `<option value="${escapeHtml(s.name)}" ${fState === s.name ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
@@ -652,16 +661,16 @@ export function renderMarketPriceView(state) {
               </optgroup>
             </select>
           </div>
-          <div>
-            <label for="marketDistrictSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">District ${fState !== "ALL" ? `(${escapeHtml(fState)})` : "(All India)"}</label>
-            <select id="marketDistrictSelect" class="w-full px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
+          <div class="min-w-0">
+            <label for="marketDistrictSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1 truncate">District ${fState !== "ALL" ? `(${escapeHtml(fState)})` : "(All India)"}</label>
+            <select id="marketDistrictSelect" class="w-full min-w-0 px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
               <option value="ALL">All Districts (${districts.length})</option>
               ${districts.map((d) => `<option value="${escapeHtml(d)}" ${fDistrict === d ? "selected" : ""}>${escapeHtml(d)}</option>`).join("")}
             </select>
           </div>
-          <div>
+          <div class="min-w-0">
             <label for="marketMandiSelect" class="block text-[11px] font-extrabold text-[#064E3B] mb-1">Mandi / APMC Market</label>
-            <select id="marketMandiSelect" class="w-full px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold">
+            <select id="marketMandiSelect" ${hasSelectedDistrictWithoutVerifiedMarkets && !state.mandiLoading ? "disabled" : ""} class="w-full min-w-0 px-3 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#0F172A] text-sm font-semibold disabled:opacity-80">
               <option value="ALL">${escapeHtml(mandiOptionLabel)}</option>
               ${marketEntries.map((m) => {
                 const tag = m.marketType === "APMC_REGULATED" ? " [APMC]" : (m.marketType === "LIVE_AGMARKNET" ? " [Live AGMARKNET]" : " [Agri Market]");
@@ -674,7 +683,7 @@ export function renderMarketPriceView(state) {
         <!-- District Market Directory Notice (Honest Coverage Reporting) -->
         ${hasSelectedDistrictWithoutVerifiedMarkets ? `
           <div class="rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-xs text-amber-950 font-semibold">
-            No verified market directory entries available for <strong>${escapeHtml(fDistrict)}, ${escapeHtml(fState)}</strong> yet. Tap <strong>Refresh Live AGMARKNET</strong> to discover live reporting mandis from data.gov.in if active today.
+            No verified market directory entries available for this district yet. (Selected: <strong>${escapeHtml(fDistrict)}, ${escapeHtml(fState)}</strong> — tap <strong>Refresh Live AGMARKNET</strong> to discover active live reporting mandis from data.gov.in.)
           </div>
         ` : (fState !== "ALL" && fDistrict !== "ALL" && marketEntries.length > 0) ? `
           <div class="rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] px-3.5 py-2.5 text-xs text-[#064E3B] space-y-1.5">
@@ -795,17 +804,25 @@ export function renderMarketPriceView(state) {
           ${filtered.map((r) => {
             const bn = getCropBengaliName(r.cropName, r.cropNameBn);
             const srcHref = safeUrl(r.sourceUrl);
+            const unitLabel = r.unit || "₹/quintal";
+            const varietyLabel = (r.variety && String(r.variety).trim()) ? String(r.variety).trim() : "Not Available";
+            const stateLabel = canonicalizeStateName(r.state) || "Not Available";
+            const districtLabel = canonicalizeDistrictName(r.district, stateLabel) || "Not Available";
+            const marketLabel = (r.marketName && String(r.marketName).trim()) ? String(r.marketName).trim() : "Not Available";
+            const arrivalLabel = (r.reportDate && String(r.reportDate).trim()) ? String(r.reportDate).trim() : "Not Available";
+            const sourceLabel = (r.sourceName && String(r.sourceName).trim()) ? String(r.sourceName).trim() : "Not Available";
+            const lastUpdatedLabel = state.mandiLastRefreshedAt || arrivalLabel;
             return `
               <article class="gv-card p-4 sm:p-5 space-y-3">
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <h4 class="text-base font-extrabold text-[#064E3B] truncate">${escapeHtml(r.cropName)}</h4>
+                    <h4 class="text-base font-extrabold text-[#064E3B] truncate">${escapeHtml(r.cropName || "Not Available")}</h4>
                     ${bn ? `<div class="text-xs font-bold text-[#047857]">${escapeHtml(bn)}</div>` : ""}
-                    ${r.variety ? `<div class="text-[11px] text-[#475569]">Variety: ${escapeHtml(r.variety)}</div>` : ""}
+                    <div class="text-[11px] text-[#475569]">Variety: <span class="font-semibold text-[#0F172A]">${escapeHtml(varietyLabel)}</span></div>
                   </div>
                   <div class="flex flex-col items-end gap-1 shrink-0">
-                    <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 text-[10px] font-extrabold">${escapeHtml(r.unit || "₹ / Quintal")}</span>
-                    ${state.mandiUsingCached && r.fromOfficialApi ? `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[9px] font-bold">Cached</span>` : ""}
+                    <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 text-[10px] font-extrabold">${escapeHtml(unitLabel)}</span>
+                    ${state.mandiUsingCached && r.fromOfficialApi ? `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[9px] font-bold">Cached / Historical</span>` : ""}
                   </div>
                 </div>
 
@@ -815,7 +832,7 @@ export function renderMarketPriceView(state) {
                     <div class="text-xs sm:text-sm font-extrabold text-[#0F172A]">${escapeHtml(formatMandiPriceCell(r.minPrice))}</div>
                   </div>
                   <div class="rounded-xl bg-[#DCFCE7] border border-[#86EFAC] p-2">
-                    <div class="text-[10px] font-extrabold text-[#064E3B]">MODAL / গড়</div>
+                    <div class="text-[10px] font-extrabold text-[#064E3B]">MODAL / প্রচলিত দর</div>
                     <div class="text-sm sm:text-base font-extrabold text-[#064E3B]">${escapeHtml(formatMandiPriceCell(r.modalPrice))}</div>
                   </div>
                   <div class="rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] p-2">
@@ -825,10 +842,12 @@ export function renderMarketPriceView(state) {
                 </div>
 
                 <div class="text-xs text-[#334155] space-y-1 pt-2 border-t border-[#E2E8F0]">
-                  <div><strong>Market / বাজার:</strong> ${escapeHtml(r.marketName)}, ${escapeHtml(r.district)}, ${escapeHtml(r.state)}</div>
-                  <div><strong>Arrival / Report Date:</strong> <span class="font-bold text-[#0F172A]">${escapeHtml(r.reportDate || "Not Available")}</span></div>
+                  <div><strong>Mandi / Market:</strong> ${escapeHtml(marketLabel)}</div>
+                  <div><strong>District &amp; State:</strong> ${escapeHtml(districtLabel)}, ${escapeHtml(stateLabel)}</div>
+                  <div><strong>Arrival Date:</strong> <span class="font-bold text-[#0F172A]">${escapeHtml(arrivalLabel)}</span></div>
+                  <div><strong>Last Updated:</strong> ${escapeHtml(lastUpdatedLabel)}</div>
                   <div class="flex items-center justify-between gap-2 text-[11px]">
-                    <span class="truncate"><strong>Source:</strong> ${escapeHtml(r.sourceName)}</span>
+                    <span class="truncate"><strong>Data Source:</strong> ${escapeHtml(sourceLabel)}</span>
                     ${srcHref ? `<a href="${escapeHtml(srcHref)}" target="_blank" rel="noopener noreferrer" class="text-[#047857] font-extrabold hover:underline shrink-0">Verify ↗</a>` : ""}
                   </div>
                 </div>

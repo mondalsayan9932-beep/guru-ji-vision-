@@ -339,7 +339,7 @@ export const INDIA_STATES_AND_UTS = [
     districts: ["Dadra and Nagar Haveli", "Daman", "Diu"]
   },
   {
-    name: "Delhi (NCT)",
+    name: "Delhi",
     type: "UT",
     districts: [
       "Central Delhi", "East Delhi", "New Delhi", "North Delhi", "North East Delhi",
@@ -572,14 +572,14 @@ export const VERIFIED_DISTRICT_MARKETS = {
     { name: "Dhamtari Krishi Upaj Mandi", marketType: "APMC_REGULATED" },
     { name: "Kurud Mandi", marketType: "APMC_REGULATED" }
   ],
-  "Delhi (NCT)::North Delhi": [
+  "Delhi::North Delhi": [
     { name: "Azadpur APMC Mandi", marketType: "APMC_REGULATED" },
     { name: "Narela Grain APMC", marketType: "APMC_REGULATED" }
   ],
-  "Delhi (NCT)::South West Delhi": [
+  "Delhi::South West Delhi": [
     { name: "Najafgarh Grain APMC", marketType: "APMC_REGULATED" }
   ],
-  "Delhi (NCT)::East Delhi": [
+  "Delhi::East Delhi": [
     { name: "Ghazipur APMC Mandi", marketType: "APMC_REGULATED" }
   ],
   "Gujarat::Mehsana": [
@@ -791,8 +791,9 @@ export const VERIFIED_DISTRICT_MARKETS = {
 
 // Common spelling aliases returned by AGMARKNET vs official LGD names
 const STATE_ALIASES = {
-  "nct of delhi": "Delhi (NCT)",
-  "delhi": "Delhi (NCT)",
+  "nct of delhi": "Delhi",
+  "delhi (nct)": "Delhi",
+  "delhi": "Delhi",
   "orissa": "Odisha",
   "pondicherry": "Puducherry",
   "jammu & kashmir": "Jammu and Kashmir",
@@ -892,6 +893,16 @@ export function getDistrictsForState(stateName, liveRecords = []) {
   return [...byKey.values()].sort((a, b) => a.localeCompare(b));
 }
 
+export function normalizeMarketKey(raw) {
+  const base = normalizeAdminName(raw)
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\b(regulated\s+market|krishi\s+upaj\s+mandi|kisan\s+mandi|apmc\s+mandi|apmc\s+yard|grain\s+apmc|grain\s+mandi|mandi\s+yard|apmc|mandi|market|yard)\b/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return base || normalizeAdminName(raw);
+}
+
 export function getMarketsForSelection(stateName, districtName, liveRecords = []) {
   const byKey = new Map();
   const canonicalState = stateName && stateName !== "ALL" ? canonicalizeStateName(stateName) : "ALL";
@@ -899,7 +910,7 @@ export function getMarketsForSelection(stateName, districtName, liveRecords = []
 
   const addMarket = (name, marketType, source) => {
     const clean = String(name || "").trim();
-    const key = normalizeAdminName(clean);
+    const key = normalizeMarketKey(clean);
     if (!key) return;
     if (!byKey.has(key)) {
       byKey.set(key, { name: clean, marketType, source });

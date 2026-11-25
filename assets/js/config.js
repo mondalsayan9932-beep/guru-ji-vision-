@@ -321,7 +321,7 @@ export const FARMER_ADVISOR_TOPICS = [
 ];
 
 export const CROP_NAME_BN_MAP = {
-  rice: "ধান / চাল",
+  rice: "চাল",
   paddy: "ধান",
   wheat: "গম",
   potato: "আলু",

@@ -171,6 +171,15 @@ html, body {
   background-color: #ffffff;
   color: #0f172a;
   border-color: #cbd5e1;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+.mandi-scope select:disabled {
+  background-color: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
+  opacity: 1;
 }
 
 .ff-scope input::placeholder,
