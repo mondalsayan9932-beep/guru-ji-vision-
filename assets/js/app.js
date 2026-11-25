@@ -26,6 +26,7 @@ import {
 } from "./calculators.js";
 import { firebaseService } from "./firebase-service.js";
 import {
+  patchHomeDashboardInPlace,
   renderAiGuruView,
   renderCommunityView,
   renderFarmerView,
@@ -200,7 +201,8 @@ const state = {
 
   // PWA Install & Update State
   deferredInstallPrompt: null,
-  waitingServiceWorker: null
+  waitingServiceWorker: null,
+  userRequestedSwUpdate: false
 };
 
 // ----------------------------------------------------------------------------
@@ -246,6 +248,7 @@ function loadOpeningBalanceForUid(uid) {
 }
 
 function clearPrivateStateOnLogout() {
+  const wasAdmin = state.isAdmin || state.isSuperAdmin;
   state.user = null;
   state.userProfile = null;
   state.isAdmin = false;
@@ -284,6 +287,28 @@ function clearPrivateStateOnLogout() {
   state.ownerContentReports = [];
   state.ownerAuditLogs = [];
   clearFarmerFinancePrivateState(state);
+
+  // Purge stale private snapshot signatures so signing back in always hydrates cleanly
+  if (wasAdmin) {
+    collectionSignatures.clear();
+  } else {
+    for (const sigKey of Array.from(collectionSignatures.keys())) {
+      if (
+        sigKey === "userProfile" ||
+        sigKey === "farmerQueries" ||
+        sigKey === "moneyTransactions" ||
+        sigKey === "moneyBudgets" ||
+        sigKey === "openingBalance" ||
+        sigKey === "quizAttempts" ||
+        sigKey === "studentDoubtThreads" ||
+        sigKey === "professorDoubtThreads" ||
+        sigKey.startsWith("ff:") ||
+        sigKey.startsWith("owner")
+      ) {
+        collectionSignatures.delete(sigKey);
+      }
+    }
+  }
 }
 
 function recomputeUnreadDoubts() {
@@ -350,21 +375,81 @@ async function loadOfficialMandiData(force = false) {
 }
 
 // ----------------------------------------------------------------------------
-// RENDER SHELL & ACTIVE VIEW
+// RENDER SHELL & ACTIVE VIEW (Stable, Diff-Aware, Coalesced — ZERO Blinking)
 // ----------------------------------------------------------------------------
+const ROUTE_DATA_DEPS = {
+  home: new Set([
+    "appSettings", "studyMaterials", "announcements", "meetings",
+    "professors", "careerOpportunities", "firestoreMarketPrices",
+    "studentDoubtThreads", "professorDoubtThreads", "userProfile"
+  ]),
+  weather: new Set([]),
+  market: new Set(["firestoreMarketPrices"]),
+  marketplace: new Set([]),
+  student: new Set(["studyMaterials", "quizzes", "quizAttempts"]),
+  farmer: new Set(["appSettings", "farmerQueries"]),
+  "farmer-finance": new Set(["firestoreMarketPrices"]),
+  tools: new Set([]),
+  ai: new Set(["appSettings", "studyMaterials"]),
+  community: new Set(["communityPosts", "careerOpportunities"]),
+  "career-guidance": new Set(["professors", "studentDoubtThreads", "professorDoubtThreads"]),
+  "farmer-advisor": new Set(["professors", "studentDoubtThreads", "professorDoubtThreads"]),
+  professor: new Set(["professors", "professorDoubtThreads", "studentDoubtThreads"]),
+  meeting: new Set(["meetings"]),
+  money: new Set(["moneyTransactions", "moneyBudgets", "openingBalance", "userProfile"]),
+  doubt: new Set(["studentDoubtThreads", "professorDoubtThreads", "activeDoubtMessages"]),
+  admin: new Set([
+    "appSettings", "studyMaterials", "quizzes", "announcements",
+    "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices", "communityPosts"
+  ]),
+  owner: new Set([
+    "appSettings", "ownerUsers", "ownerAdmins", "ownerActivities",
+    "ownerExamStats", "ownerAiLogs", "ownerErrorLogs", "ownerContentReports", "ownerAuditLogs"
+  ])
+};
+
+const renderTracker = {
+  lastRenderedRoute: "",
+  lastRenderedHtml: "",
+  lastHomeStructureKey: "",
+  lastSyncPillState: null,
+  lastHeaderAuthKey: "",
+  lastDrawerAuthKey: "",
+  scheduledTimer: null
+};
+
+function getHomeStructureKey() {
+  return [
+    state.user?.uid || "GUEST",
+    Boolean(state.facultyIdentity?.isAuthorizedProfessor),
+    Boolean(state.isAdmin),
+    state.lang
+  ].join("|");
+}
+
+function scheduleActiveViewRender() {
+  if (renderTracker.scheduledTimer !== null) return;
+  renderTracker.scheduledTimer = setTimeout(() => {
+    renderTracker.scheduledTimer = null;
+    renderActiveView({ fromLiveUpdate: true });
+  }, 32);
+}
+
 function renderShellChrome() {
   const dict = I18N[state.lang] || I18N.en;
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.getAttribute("data-i18n");
-    if (dict[key]) el.textContent = dict[key];
+    if (dict[key] && el.textContent !== dict[key]) el.textContent = dict[key];
   });
 
   const langBtn = document.getElementById("langToggleBtn");
-  if (langBtn) langBtn.textContent = state.lang === "en" ? "বাংলা" : "EN";
+  const nextLangLabel = state.lang === "en" ? "বাংলা" : "EN";
+  if (langBtn && langBtn.textContent !== nextLangLabel) langBtn.textContent = nextLangLabel;
 
-  // Sync status pill
+  // Sync status pill (mutate ONLY when connection state changes)
   const syncPill = document.getElementById("syncStatusPill");
-  if (syncPill) {
+  if (syncPill && renderTracker.lastSyncPillState !== state.cloudConnected) {
+    renderTracker.lastSyncPillState = state.cloudConnected;
     if (state.cloudConnected) {
       syncPill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#DCFCE7] text-[#14532D] border border-[#BBF7D0] shrink-0";
       syncPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span> Live Cloud`;
@@ -374,27 +459,31 @@ function renderShellChrome() {
     }
   }
 
-  // Auth button in header
+  // Auth button in header (mutate ONLY when label/action changes)
   const authBtn = document.getElementById("headerAuthBtn");
   if (authBtn) {
-    if (state.user) {
-      const label = (state.userProfile?.displayName || state.user.displayName || state.user.phoneNumber || state.user.email || "Account").split(" ")[0];
+    const label = state.user
+      ? (state.userProfile?.displayName || state.user.displayName || state.user.phoneNumber || state.user.email || "Account").split(" ")[0]
+      : dict.signIn;
+    const action = state.user ? "open-profile" : "open-auth";
+    const key = `${label}|${action}`;
+    if (renderTracker.lastHeaderAuthKey !== key) {
+      renderTracker.lastHeaderAuthKey = key;
       authBtn.textContent = label;
-      authBtn.dataset.action = "open-profile";
-    } else {
-      authBtn.textContent = dict.signIn;
-      authBtn.dataset.action = "open-auth";
+      authBtn.dataset.action = action;
     }
   }
 
   // Badges for Meetings & Consultations
   const upcomingCount = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m)).length;
+  const upcomingText = upcomingCount > 0 ? String(upcomingCount) : "";
   document.querySelectorAll("[data-badge='meetings']").forEach((el) => {
-    el.textContent = upcomingCount > 0 ? String(upcomingCount) : "";
+    if (el.textContent !== upcomingText) el.textContent = upcomingText;
     el.classList.toggle("hidden", upcomingCount === 0);
   });
+  const doubtsText = state.totalUnreadDoubts > 0 ? (state.totalUnreadDoubts > 99 ? "99+" : String(state.totalUnreadDoubts)) : "";
   document.querySelectorAll("[data-badge='doubts']").forEach((el) => {
-    el.textContent = state.totalUnreadDoubts > 0 ? (state.totalUnreadDoubts > 99 ? "99+" : String(state.totalUnreadDoubts)) : "";
+    if (el.textContent !== doubtsText) el.textContent = doubtsText;
     el.classList.toggle("hidden", state.totalUnreadDoubts === 0);
   });
 
@@ -409,50 +498,74 @@ function renderShellChrome() {
     el.classList.toggle("hidden", !state.facultyIdentity?.isAuthorizedProfessor);
   });
 
-  // Active nav highlighting
+  // Active nav highlighting (mutate ONLY when className actually changes)
   document.querySelectorAll("[data-nav]").forEach((btn) => {
     const isBottom = btn.classList.contains("bottom-nav-item");
     const isRail = btn.classList.contains("rail-nav-item");
     const isDrawer = btn.classList.contains("drawer-nav-item");
     const active = btn.dataset.nav === state.route;
 
+    let nextClass = "";
     if (isBottom) {
-      btn.className = active
+      nextClass = active
         ? "bottom-nav-item flex flex-col items-center justify-center gap-0.5 min-h-[48px] rounded-xl text-[10px] font-extrabold bg-[#DCFCE7] text-[#14532D] transition-colors"
         : "bottom-nav-item flex flex-col items-center justify-center gap-0.5 min-h-[48px] rounded-xl text-[10px] font-semibold text-[#475569] hover:text-[#14532D] transition-colors";
     } else if (isRail || isDrawer) {
-      btn.className = `${isRail ? "rail-nav-item" : "drawer-nav-item"} w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs sm:text-sm transition-all ${
+      nextClass = `${isRail ? "rail-nav-item" : "drawer-nav-item"} w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs sm:text-sm transition-all ${
         active
           ? "bg-gradient-to-r from-[#14532D] to-[#15803D] text-white font-extrabold shadow-sm"
           : "text-[#0F172A] hover:bg-[#ECFDF5] hover:text-[#14532D] font-semibold"
       }`;
     }
+    if (nextClass && btn.className !== nextClass) {
+      btn.className = nextClass;
+    }
   });
 
-  // Drawer user header
+  // Drawer user header (mutate ONLY when changed)
   const drawerName = document.getElementById("drawerUserName");
   const drawerSub = document.getElementById("drawerUserSub");
   const drawerAuthAction = document.getElementById("drawerAuthAction");
   if (drawerName && drawerSub && drawerAuthAction) {
-    if (state.user) {
-      drawerName.textContent = state.userProfile?.displayName || state.user.displayName || "Guru Ji Member";
-      drawerSub.textContent = state.user.phoneNumber || state.user.email || state.user.uid;
-      drawerAuthAction.textContent = dict.signOut;
-      drawerAuthAction.dataset.action = "sign-out";
-      drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition-colors";
-    } else {
-      drawerName.textContent = "Guest Visitor";
-      drawerSub.textContent = "Public access active • Sign in with Google for private tools";
-      drawerAuthAction.textContent = "Continue with Google";
-      drawerAuthAction.dataset.action = "open-auth";
-      drawerAuthAction.className = "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition-opacity";
+    const nextName = state.user ? (state.userProfile?.displayName || state.user.displayName || "Guru Ji Member") : "Guest Visitor";
+    const nextSub = state.user ? (state.user.phoneNumber || state.user.email || state.user.uid) : "Public access active • Sign in with Google for private tools";
+    const nextActionText = state.user ? dict.signOut : "Continue with Google";
+    const nextAction = state.user ? "sign-out" : "open-auth";
+    const drawerKey = `${nextName}|${nextSub}|${nextActionText}|${nextAction}`;
+    if (renderTracker.lastDrawerAuthKey !== drawerKey) {
+      renderTracker.lastDrawerAuthKey = drawerKey;
+      drawerName.textContent = nextName;
+      drawerSub.textContent = nextSub;
+      drawerAuthAction.textContent = nextActionText;
+      drawerAuthAction.dataset.action = nextAction;
+      drawerAuthAction.className = state.user
+        ? "w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition-colors"
+        : "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition-opacity";
     }
   }
 }
 
-function renderActiveView() {
+function renderActiveView({ fromLiveUpdate = false } = {}) {
   const root = document.getElementById("appMainContent");
   if (!root) return;
+
+  if (renderTracker.scheduledTimer !== null) {
+    clearTimeout(renderTracker.scheduledTimer);
+    renderTracker.scheduledTimer = null;
+  }
+
+  const sameRoute = renderTracker.lastRenderedRoute === state.route;
+
+  // STABLE IN-PLACE HOME DASHBOARD PATCHING:
+  // When Home Dashboard is already mounted with the same user/role structure,
+  // update only changed live counters/notices/labels in place — NEVER replace root.innerHTML!
+  if (state.route === "home" && sameRoute) {
+    const nextHomeKey = getHomeStructureKey();
+    if (renderTracker.lastHomeStructureKey === nextHomeKey && patchHomeDashboardInPlace(root, state)) {
+      renderShellChrome();
+      return;
+    }
+  }
 
   let html = "";
   switch (state.route) {
@@ -477,7 +590,23 @@ function renderActiveView() {
     default: html = renderHomeView(state); break;
   }
 
+  // On same-route live updates, strip entrance fade-from-zero animation so DOM updates never flash white
+  if (sameRoute || fromLiveUpdate) {
+    html = html.replace(/\banimate-fade-up\b/g, "");
+  }
+
+  // Skip redundant DOM replacement if the rendered HTML is identical
+  if (sameRoute && html === renderTracker.lastRenderedHtml) {
+    renderShellChrome();
+    return;
+  }
+
   root.innerHTML = html;
+  renderTracker.lastRenderedRoute = state.route;
+  renderTracker.lastRenderedHtml = html;
+  if (state.route === "home") {
+    renderTracker.lastHomeStructureKey = getHomeStructureKey();
+  }
   renderShellChrome();
 
   // Auto-scroll active consultation chat to bottom
@@ -720,27 +849,60 @@ async function handleGoogleSignIn(forceMethod = "") {
 }
 
 // ----------------------------------------------------------------------------
-// FIREBASE LIVE PUBLIC & AUTH SUBSCRIPTIONS
+// FIREBASE LIVE PUBLIC & AUTH SUBSCRIPTIONS (Deduplicated & Route-Scoped)
 // ----------------------------------------------------------------------------
+const collectionSignatures = new Map();
+let lastProcessedAuthUid = "__UNSET__";
+let authHandlingSeq = 0;
+
+function computeCollectionSignature(data) {
+  if (data === null || data === undefined) return `prim:${String(data)}`;
+  if (typeof data !== "object") return `prim:${String(data)}`;
+  try {
+    return `json:${JSON.stringify(data)}`;
+  } catch (_) {
+    if (Array.isArray(data)) {
+      return `arr:${data.length}|${data.map((item) => item?.id || String(item)).join(",")}`;
+    }
+    return `obj:${Object.keys(data).length}`;
+  }
+}
+
 function handleCollectionUpdate(key, data, isLivePublic = false) {
+  const prevCloud = state.cloudConnected;
   if (isLivePublic) state.cloudConnected = true;
 
+  let nextVal;
   if (key === "studyMaterials") {
-    state.studyMaterials = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_STUDY_MATERIALS]);
+    nextVal = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_STUDY_MATERIALS]);
   } else if (key === "quizzes") {
-    state.quizzes = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_QUIZZES]);
+    nextVal = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_QUIZZES]);
   } else if (key === "careerOpportunities") {
-    state.careerOpportunities = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_CAREERS]);
+    nextVal = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_CAREERS]);
   } else if (key === "announcements") {
-    state.announcements = data.length > 0 ? data : [...FALLBACK_ANNOUNCEMENTS];
+    nextVal = data.length > 0 ? data : [...FALLBACK_ANNOUNCEMENTS];
   } else if (key === "openingBalance") {
-    state.openingBalance = Number(data) || 0;
-    if (state.user) localStorage.setItem(openingBalanceKey(state.user.uid), String(state.openingBalance));
+    nextVal = Number(data) || 0;
+    if (state.user) localStorage.setItem(openingBalanceKey(state.user.uid), String(nextVal));
   } else {
-    state[key] = data;
+    nextVal = data;
   }
 
-  renderActiveView();
+  const sig = computeCollectionSignature(nextVal);
+  const dataChanged = collectionSignatures.get(key) !== sig;
+  const cloudChanged = prevCloud !== state.cloudConnected;
+
+  if (!dataChanged && !cloudChanged) return;
+
+  collectionSignatures.set(key, sig);
+  state[key] = nextVal;
+
+  const routeDeps = ROUTE_DATA_DEPS[state.route];
+  if ((routeDeps && routeDeps.has(key)) || (cloudChanged && state.route === "home")) {
+    scheduleActiveViewRender();
+  } else if (cloudChanged || key === "meetings") {
+    renderShellChrome();
+  }
 }
 
 function handleRedirectOutcome(res) {
@@ -761,29 +923,53 @@ function handleRedirectOutcome(res) {
 }
 
 async function handleAuthStateChange(user) {
+  const incomingUid = user?.uid || null;
+  const seq = ++authHandlingSeq;
   state.authInitializing = false;
 
-  if (!user) {
+  // Guard against duplicate auth events for the exact same signed-out or signed-in identity
+  if (incomingUid === lastProcessedAuthUid) {
+    if (user) state.user = user;
     setAuthLoadingOverlay(false);
+    return;
+  }
+
+  if (!user) {
+    const wasSignedIn = lastProcessedAuthUid !== "__UNSET__" && lastProcessedAuthUid !== null;
+    lastProcessedAuthUid = null;
+    setAuthLoadingOverlay(false);
+    farmerFinanceService.clearSubs();
+    firebaseService.unsubscribePrivate();
     clearPrivateStateOnLogout();
     state.justSignedInFromAuth = false;
-    // Re-subscribe public collections in guest mode so live public data stays connected
+
+    // Only re-subscribe public collections if scope actually changed (guarded inside subscribePublicCollections)
     firebaseService.subscribePublicCollections({
       isAdmin: false,
       isSuperAdmin: false,
       isAuthorizedMeetingHost: false,
       onUpdate: handleCollectionUpdate
     });
-    renderActiveView();
+
+    // If initial guest boot (never signed in), Home Dashboard is already cleanly rendered; only update chrome
+    if (wasSignedIn) {
+      renderActiveView();
+    } else {
+      renderShellChrome();
+    }
     return;
   }
 
+  lastProcessedAuthUid = incomingUid;
   state.user = user;
   state.openingBalance = loadOpeningBalanceForUid(user.uid);
   const [roles, profileResult] = await Promise.all([
     firebaseService.resolveUserRoles(user),
     firebaseService.ensureGoogleUserProfile(user, state.lang.toUpperCase())
   ]);
+
+  // Discard stale async completion if another auth transition happened in the meantime
+  if (seq !== authHandlingSeq) return;
 
   state.isAdmin = roles.isAdmin;
   state.isSuperAdmin = roles.isSuperAdmin;
@@ -793,22 +979,29 @@ async function handleAuthStateChange(user) {
   const activeProfile = profileResult.profile;
   if (activeProfile) {
     state.userProfile = activeProfile;
+    collectionSignatures.set("userProfile", computeCollectionSignature(activeProfile));
     if (!state.moneyLedgerScope && activeProfile.role) {
       state.moneyLedgerScope = activeProfile.role === "FARMER" ? "FARMER" : "STUDENT";
     }
   }
 
   firebaseService.subscribeUserProfile(user.uid, (profile) => {
+    const nextSig = computeCollectionSignature(profile);
+    if (collectionSignatures.get("userProfile") === nextSig) return;
+    collectionSignatures.set("userProfile", nextSig);
     state.userProfile = profile;
     if (!state.moneyLedgerScope && profile?.role) {
       state.moneyLedgerScope = profile.role === "FARMER" ? "FARMER" : "STUDENT";
     }
     if (profile?.language) {
-      state.lang = profile.language === "BN" ? "bn" : "en";
-      localStorage.setItem("gjv_lang", state.lang);
+      const nextLang = profile.language === "BN" ? "bn" : "en";
+      if (state.lang !== nextLang) {
+        state.lang = nextLang;
+        localStorage.setItem("gjv_lang", state.lang);
+      }
     }
     renderShellChrome();
-    if (state.route === "home" || state.route === "money") renderActiveView();
+    if (state.route === "home" || state.route === "money") scheduleActiveViewRender();
   });
 
   firebaseService.subscribeEcosystemCollections({
@@ -820,31 +1013,44 @@ async function handleAuthStateChange(user) {
   });
 
   farmerFinanceService.subscribeFarmerFinance(user.uid, (key, list) => {
+    const sigKey = `ff:${key}`;
+    const nextSig = computeCollectionSignature(list);
+    if (collectionSignatures.get(sigKey) === nextSig) return;
+    collectionSignatures.set(sigKey, nextSig);
     state.farmerFinance[key] = list;
-    if (state.route === "farmer-finance") renderActiveView();
+    if (state.route === "farmer-finance") scheduleActiveViewRender();
   });
 
   firebaseService.subscribeDoubtThreads({
     uid: user.uid,
     facultyIdentity: state.facultyIdentity,
     onStudentThreads: (threads) => {
+      const nextSig = computeCollectionSignature(threads);
+      if (collectionSignatures.get("studentDoubtThreads") === nextSig) return;
+      collectionSignatures.set("studentDoubtThreads", nextSig);
       state.studentDoubtThreads = threads;
       recomputeUnreadDoubts();
-      if (["career-guidance", "farmer-advisor", "doubt", "home"].includes(state.route)) renderActiveView();
+      if (["career-guidance", "farmer-advisor", "doubt", "home"].includes(state.route)) scheduleActiveViewRender();
       else renderShellChrome();
     },
     onProfessorThreads: (threads) => {
+      const nextSig = computeCollectionSignature(threads);
+      if (collectionSignatures.get("professorDoubtThreads") === nextSig) return;
+      collectionSignatures.set("professorDoubtThreads", nextSig);
       state.professorDoubtThreads = threads;
       recomputeUnreadDoubts();
-      if (["professor", "career-guidance", "doubt", "home"].includes(state.route)) renderActiveView();
+      if (["professor", "career-guidance", "doubt", "home"].includes(state.route)) scheduleActiveViewRender();
       else renderShellChrome();
     }
   });
 
   if (state.isSuperAdmin) {
     firebaseService.subscribeOwnerTelemetry(true, (key, data) => {
+      const nextSig = computeCollectionSignature(data);
+      if (collectionSignatures.get(key) === nextSig) return;
+      collectionSignatures.set(key, nextSig);
       state[key] = data;
-      if (state.route === "owner" || state.route === "admin") renderActiveView();
+      if (state.route === "owner" || state.route === "admin") scheduleActiveViewRender();
     });
   }
 
@@ -1155,6 +1361,7 @@ function bindGlobalEvents() {
           }
           return;
         case "apply-sw-update":
+          state.userRequestedSwUpdate = true;
           if (state.waitingServiceWorker) {
             state.waitingServiceWorker.postMessage({ type: "SKIP_WAITING" });
           } else {
@@ -2541,8 +2748,12 @@ if ("serviceWorker" in navigator) {
           }
         });
       });
+      let swReloading = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        window.location.reload();
+        if (state.userRequestedSwUpdate && !swReloading) {
+          swReloading = true;
+          window.location.reload();
+        }
       });
     } catch (_) {}
   });

@@ -11,6 +11,7 @@ import { compressImageFileToBase64, getTimestampMs } from "./calculators.js";
 class FarmerFinanceService {
   constructor() {
     this.unsubs = new Map();
+    this.subscribedUid = null;
   }
 
   get ready() {
@@ -34,14 +35,20 @@ class FarmerFinanceService {
       try { unsub(); } catch (_) {}
     }
     this.unsubs.clear();
+    this.subscribedUid = null;
   }
 
   // --------------------------------------------------------------------------
   // REAL-TIME OWNER-SCOPED SUBSCRIPTIONS
   // --------------------------------------------------------------------------
   subscribeFarmerFinance(uid, onUpdate) {
+    if (!this.ready || !uid) {
+      this.clearSubs();
+      return;
+    }
+    if (this.subscribedUid === uid && this.unsubs.size > 0) return;
     this.clearSubs();
-    if (!this.ready || !uid) return;
+    this.subscribedUid = uid;
     const { collection, query, where, limit, onSnapshot } = firebaseService.mods.fsMod;
     const db = firebaseService.db;
 

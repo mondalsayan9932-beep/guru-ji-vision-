@@ -31,6 +31,13 @@ class FirebaseService {
     this.redirectHandled = false;
     this.lastRedirectReturnedEmpty = false;
     this.activeUnsubs = new Map();
+    this.initPromise = null;
+    this.authUnsub = null;
+    this.publicSubScopeKey = null;
+    this.privateSubKey = null;
+    this.profileSubUid = null;
+    this.doubtSubKey = null;
+    this.ownerTelemetrySubscribed = false;
   }
 
   getEffectiveFirebaseConfig() {
@@ -84,80 +91,90 @@ class FirebaseService {
   }
 
   async init(onAuthCallback, onPublicUpdate, onRedirectOutcome) {
-    try {
-      const [appMod, authMod, fsMod, storageMod] = await Promise.all([
-        import(`${FB_CDN}/firebase-app.js`),
-        import(`${FB_CDN}/firebase-auth.js`),
-        import(`${FB_CDN}/firebase-firestore.js`),
-        import(`${FB_CDN}/firebase-storage.js`)
-      ]);
-
-      // Initialize Firebase strictly once — never create a second app instance
-      const effectiveConfig = this.getEffectiveFirebaseConfig();
-      this.app = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(effectiveConfig);
-      this.auth = authMod.getAuth(this.app);
-      this.db = fsMod.getFirestore(this.app, FIRESTORE_DATABASE_ID);
-      this.storage = storageMod.getStorage(this.app);
-      this.mods = { appMod, authMod, fsMod, storageMod };
-      this.ready = true;
-
-      // Persist authenticated session reliably across page refreshes & mobile tabs
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    this.initPromise = (async () => {
       try {
-        await authMod.setPersistence(this.auth, authMod.browserLocalPersistence);
-      } catch (persistErr) {
-        console.warn("Auth persistence fallback:", persistErr);
-      }
+        const [appMod, authMod, fsMod, storageMod] = await Promise.all([
+          import(`${FB_CDN}/firebase-app.js`),
+          import(`${FB_CDN}/firebase-auth.js`),
+          import(`${FB_CDN}/firebase-firestore.js`),
+          import(`${FB_CDN}/firebase-storage.js`)
+        ]);
 
-      // Immediately subscribe to public collections so visitors see live updates without login
-      if (onPublicUpdate) {
-        this.subscribePublicCollections({ isAdmin: false, isSuperAdmin: false, isAuthorizedMeetingHost: false, onUpdate: onPublicUpdate });
-      }
+        // Initialize Firebase strictly once — never create a second app instance
+        const effectiveConfig = this.getEffectiveFirebaseConfig();
+        this.app = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(effectiveConfig);
+        this.auth = authMod.getAuth(this.app);
+        this.db = fsMod.getFirestore(this.app, FIRESTORE_DATABASE_ID);
+        this.storage = storageMod.getStorage(this.app);
+        this.mods = { appMod, authMod, fsMod, storageMod };
+        this.ready = true;
 
-      // Process Google Sign-In redirect result strictly ONCE during app initialization
-      if (!this.redirectHandled) {
-        this.redirectHandled = true;
-        const wasRedirectPending = this.hasPendingRedirect();
-        this.clearRedirectPending();
-
+        // Persist authenticated session reliably across page refreshes & mobile tabs
         try {
-          const redirectRes = await authMod.getRedirectResult(this.auth);
-          if (redirectRes?.user) {
-            this.lastRedirectReturnedEmpty = false;
-            if (onRedirectOutcome) {
-              onRedirectOutcome({ ok: true, user: redirectRes.user, fromRedirect: true });
+          await authMod.setPersistence(this.auth, authMod.browserLocalPersistence);
+        } catch (persistErr) {
+          console.warn("Auth persistence fallback:", persistErr);
+        }
+
+        // Immediately subscribe to public collections so visitors see live updates without login
+        if (onPublicUpdate) {
+          this.subscribePublicCollections({ isAdmin: false, isSuperAdmin: false, isAuthorizedMeetingHost: false, onUpdate: onPublicUpdate });
+        }
+
+        // Process Google Sign-In redirect result strictly ONCE during app initialization
+        if (!this.redirectHandled) {
+          this.redirectHandled = true;
+          const wasRedirectPending = this.hasPendingRedirect();
+          this.clearRedirectPending();
+
+          try {
+            const redirectRes = await authMod.getRedirectResult(this.auth);
+            if (redirectRes?.user) {
+              this.lastRedirectReturnedEmpty = false;
+              if (onRedirectOutcome) {
+                onRedirectOutcome({ ok: true, user: redirectRes.user, fromRedirect: true });
+              }
+            } else if (wasRedirectPending && !this.auth.currentUser) {
+              // Browser blocked third-party redirect storage (e.g. strict mobile/Safari cookie blocking)
+              this.lastRedirectReturnedEmpty = true;
+              if (onRedirectOutcome) {
+                onRedirectOutcome({
+                  ok: false,
+                  redirectEmpty: true,
+                  error: "Your browser blocked login cookies during full-page redirect. Tap 'Continue with Google' again to sign in via direct Google popup."
+                });
+              }
             }
-          } else if (wasRedirectPending && !this.auth.currentUser) {
-            // Browser blocked third-party redirect storage (e.g. strict mobile/Safari cookie blocking)
-            this.lastRedirectReturnedEmpty = true;
+          } catch (redirectErr) {
             if (onRedirectOutcome) {
               onRedirectOutcome({
                 ok: false,
-                redirectEmpty: true,
-                error: "Your browser blocked login cookies during full-page redirect. Tap 'Continue with Google' again to sign in via direct Google popup."
+                code: redirectErr?.code || "",
+                error: this.formatAuthError(redirectErr)
               });
             }
           }
-        } catch (redirectErr) {
-          if (onRedirectOutcome) {
-            onRedirectOutcome({
-              ok: false,
-              code: redirectErr?.code || "",
-              error: this.formatAuthError(redirectErr)
-            });
-          }
         }
-      }
 
-      authMod.onAuthStateChanged(this.auth, async (user) => {
-        if (onAuthCallback) await onAuthCallback(user);
-      });
-      return true;
-    } catch (err) {
-      console.warn("Firebase CDN unavailable; running in offline/fallback mode.", err);
-      this.ready = false;
-      if (onAuthCallback) await onAuthCallback(null);
-      return false;
-    }
+        // Attach strictly ONE onAuthStateChanged listener for the lifetime of the app
+        if (typeof this.authUnsub === "function") {
+          try { this.authUnsub(); } catch (_) {}
+        }
+        this.authUnsub = authMod.onAuthStateChanged(this.auth, async (user) => {
+          if (onAuthCallback) await onAuthCallback(user);
+        });
+        return true;
+      } catch (err) {
+        console.warn("Firebase CDN unavailable; running in offline/fallback mode.", err);
+        this.ready = false;
+        if (onAuthCallback) await onAuthCallback(null);
+        return false;
+      }
+    })();
+    return this.initPromise;
   }
 
   // --------------------------------------------------------------------------
@@ -419,6 +436,10 @@ class FirebaseService {
         this.activeUnsubs.delete(key);
       }
     }
+    this.privateSubKey = null;
+    this.profileSubUid = null;
+    this.doubtSubKey = null;
+    this.ownerTelemetrySubscribed = false;
   }
 
   unsubscribeAll() {
@@ -426,6 +447,21 @@ class FirebaseService {
       try { unsub(); } catch (_) {}
     }
     this.activeUnsubs.clear();
+    this.publicSubScopeKey = null;
+    this.privateSubKey = null;
+    this.profileSubUid = null;
+    this.doubtSubKey = null;
+    this.ownerTelemetrySubscribed = false;
+  }
+
+  getActiveSubscriptionStats() {
+    return {
+      count: this.activeUnsubs.size,
+      keys: Array.from(this.activeUnsubs.keys()),
+      publicSubScopeKey: this.publicSubScopeKey,
+      privateSubKey: this.privateSubKey,
+      hasAuthListener: typeof this.authUnsub === "function"
+    };
   }
 
   // --------------------------------------------------------------------------
@@ -488,6 +524,8 @@ class FirebaseService {
 
   subscribeUserProfile(uid, onData) {
     if (!this.ready || !uid) return;
+    if (this.profileSubUid === uid && this.activeUnsubs.has("userProfile")) return;
+    this.profileSubUid = uid;
     const { doc, onSnapshot } = this.mods.fsMod;
     const unsub = onSnapshot(
       doc(this.db, "users", uid),
@@ -575,6 +613,16 @@ class FirebaseService {
   // --------------------------------------------------------------------------
   subscribePublicCollections({ isAdmin = false, isSuperAdmin = false, isAuthorizedMeetingHost = false, onUpdate }) {
     if (!this.ready || !onUpdate) return;
+    const scopeKey = `${Boolean(isAdmin)}|${Boolean(isSuperAdmin)}|${Boolean(isAuthorizedMeetingHost)}`;
+    const requiredPublicKeys = [
+      "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
+      "announcements", "meetings", "professors", "firestoreMarketPrices", "appSettings"
+    ];
+    // Prevent duplicate tear-down and re-subscription when the public query scope has not changed
+    if (this.publicSubScopeKey === scopeKey && requiredPublicKeys.every((k) => this.activeUnsubs.has(k))) {
+      return;
+    }
+    this.publicSubScopeKey = scopeKey;
     const { collection, doc, query, where, limit, onSnapshot } = this.mods.fsMod;
 
     // Study Materials
@@ -675,8 +723,15 @@ class FirebaseService {
     if (!this.ready || !uid) return;
     const { collection, query, where, limit, onSnapshot } = this.mods.fsMod;
 
-    // Upgrade public subscriptions if user is Admin / SuperAdmin / Host
+    // Upgrade public subscriptions ONLY if role scope actually changed
     this.subscribePublicCollections({ isAdmin, isSuperAdmin, isAuthorizedMeetingHost, onUpdate });
+
+    const privKey = `${uid}|${Boolean(isAdmin)}`;
+    const requiredPrivateKeys = ["farmerQueries", "moneyTransactions", "moneyBudgets", "quizAttempts"];
+    if (this.privateSubKey === privKey && requiredPrivateKeys.every((k) => this.activeUnsubs.has(k))) {
+      return;
+    }
+    this.privateSubKey = privKey;
 
     // Farmer Queries (own queries or all for Admin)
     const fqQ = isAdmin
@@ -988,6 +1043,11 @@ class FirebaseService {
   // --------------------------------------------------------------------------
   subscribeDoubtThreads({ uid, facultyIdentity, onStudentThreads, onProfessorThreads }) {
     if (!this.ready || !uid) return;
+    const doubtKey = `${uid}|${Boolean(facultyIdentity?.isAuthorizedProfessor)}|${facultyIdentity?.professorId || ""}|${facultyIdentity?.matchedByEmail || ""}`;
+    if (this.doubtSubKey === doubtKey && this.activeUnsubs.has("studentDoubtThreads")) {
+      return;
+    }
+    this.doubtSubKey = doubtKey;
     const { collection, query, where, limit, onSnapshot } = this.mods.fsMod;
 
     // Student's own threads
@@ -1575,6 +1635,8 @@ class FirebaseService {
   // --------------------------------------------------------------------------
   subscribeOwnerTelemetry(isSuperAdmin, onUpdate) {
     if (!this.ready || !isSuperAdmin) return;
+    if (this.ownerTelemetrySubscribed && this.activeUnsubs.has("ownerUsers")) return;
+    this.ownerTelemetrySubscribed = true;
     const { collection, query, limit, onSnapshot } = this.mods.fsMod;
 
     const specs = [

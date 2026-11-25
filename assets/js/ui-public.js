@@ -165,13 +165,15 @@ export function renderHomeView(state) {
   }
 
   return `
-    <div class="space-y-6 animate-fade-up">
-      ${settings.maintenanceBanner ? `
-        <div class="rounded-2xl bg-amber-50 border border-amber-300 px-4 py-3 text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2.5 shadow-sm">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-          <span>${escapeHtml(settings.maintenanceBanner)}</span>
-        </div>
-      ` : ""}
+    <div data-home-dashboard="true" class="space-y-6">
+      <div data-home-slot="maintenance-banner" class="${settings.maintenanceBanner ? "" : "hidden"}">
+        ${settings.maintenanceBanner ? `
+          <div class="rounded-2xl bg-amber-50 border border-amber-300 px-4 py-3 text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2.5 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+            <span data-home-slot="maintenance-text">${escapeHtml(settings.maintenanceBanner)}</span>
+          </div>
+        ` : ""}
+      </div>
 
       <!-- ==================== SMART AGRICULTURE HERO SECTION ==================== -->
       <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white">
@@ -184,7 +186,7 @@ export function renderHomeView(state) {
             <div class="flex flex-wrap items-center gap-2">
               <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/12 border border-white/20 backdrop-blur-sm text-[11px] font-bold text-[#DCFCE7]">
                 <span class="w-2 h-2 rounded-full bg-[#22C55E] shadow-[0_0_8px_#22C55E]"></span>
-                <span>${state.cloudConnected ? "Live Smart Agri Cloud Connected" : "Smart Agriculture • Open Public Access"}</span>
+                <span data-home-slot="cloud-status">${state.cloudConnected ? "Live Smart Agri Cloud Connected" : "Smart Agriculture • Open Public Access"}</span>
               </span>
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22C55E]/15 border border-[#22C55E]/30 text-[11px] font-bold text-[#DCFCE7]">
                 Digital Farming &amp; Agri Education
@@ -200,10 +202,10 @@ export function renderHomeView(state) {
                 }
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-1.5">
-                    <span class="text-xs sm:text-sm font-extrabold text-white truncate">Welcome, ${escapeHtml(userDisplayName)}</span>
-                    <span class="px-2 py-0.5 rounded-full bg-[#22C55E]/25 text-[#DCFCE7] text-[10px] font-extrabold">${escapeHtml(userRoleLabel)}</span>
+                    <span data-home-slot="user-name" class="text-xs sm:text-sm font-extrabold text-white truncate">Welcome, ${escapeHtml(userDisplayName)}</span>
+                    <span data-home-slot="user-role" class="px-2 py-0.5 rounded-full bg-[#22C55E]/25 text-[#DCFCE7] text-[10px] font-extrabold">${escapeHtml(userRoleLabel)}</span>
                   </div>
-                  ${userSubMeta ? `<div class="text-[11px] text-[#DCFCE7]/85 truncate">${escapeHtml(userSubMeta)}</div>` : ""}
+                  <div data-home-slot="user-sub" class="text-[11px] text-[#DCFCE7]/85 truncate ${userSubMeta ? "" : "hidden"}">${escapeHtml(userSubMeta)}</div>
                 </div>
                 <button data-action="open-profile" type="button" class="ml-1 px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-[11px] font-extrabold text-white shrink-0 transition-colors">
                   Profile
@@ -212,10 +214,10 @@ export function renderHomeView(state) {
             ` : ""}
 
             <div class="space-y-2">
-              <h2 class="font-display text-2xl sm:text-4xl font-bold leading-tight tracking-tight text-white">
+              <h2 data-home-slot="hero-headline" class="font-display text-2xl sm:text-4xl font-bold leading-tight tracking-tight text-white">
                 ${escapeHtml(settings.heroHeadline)}
               </h2>
-              <p class="text-sm sm:text-base text-[#DCFCE7]/90 leading-relaxed max-w-xl">
+              <p data-home-slot="about-text" class="text-sm sm:text-base text-[#DCFCE7]/90 leading-relaxed max-w-xl">
                 ${escapeHtml(settings.aboutText)}
               </p>
             </div>
@@ -250,22 +252,22 @@ export function renderHomeView(state) {
           <div class="grid grid-cols-3 lg:grid-cols-2 gap-2.5 sm:gap-3 shrink-0 lg:w-72">
             <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
               <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Resources</div>
-              <div class="text-xl sm:text-2xl font-extrabold text-white mt-0.5">${publicMaterials.length}</div>
+              <div data-home-slot="stat-materials" class="text-xl sm:text-2xl font-extrabold text-white mt-0.5">${publicMaterials.length}</div>
               <div class="text-[11px] text-[#DCFCE7]/85">Notes &amp; PDFs</div>
             </div>
             <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
               <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Experts</div>
-              <div class="text-xl sm:text-2xl font-extrabold text-[#86EFAC] mt-0.5">${state.professors.length}</div>
+              <div data-home-slot="stat-professors" class="text-xl sm:text-2xl font-extrabold text-[#86EFAC] mt-0.5">${state.professors.length}</div>
               <div class="text-[11px] text-[#DCFCE7]/85">Faculty Advisors</div>
             </div>
             <div class="rounded-2xl bg-white/10 border border-white/18 backdrop-blur-md p-3.5 text-center lg:text-left">
               <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/80">Updates</div>
-              <div class="text-xl sm:text-2xl font-extrabold text-white mt-0.5">${activeNotices.length}</div>
+              <div data-home-slot="stat-notices" class="text-xl sm:text-2xl font-extrabold text-white mt-0.5">${activeNotices.length}</div>
               <div class="text-[11px] text-[#DCFCE7]/85">Active Notices</div>
             </div>
             <div class="hidden lg:block rounded-2xl bg-[#22C55E]/15 border border-[#22C55E]/30 backdrop-blur-md p-3.5 text-left">
               <div class="text-[10px] font-bold uppercase tracking-wider text-[#DCFCE7]/85">Live Sessions</div>
-              <div class="text-xl sm:text-2xl font-extrabold text-[#DCFCE7] mt-0.5">${upcomingMeetings.length}</div>
+              <div data-home-slot="stat-meetings" class="text-xl sm:text-2xl font-extrabold text-[#DCFCE7] mt-0.5">${upcomingMeetings.length}</div>
               <div class="text-[11px] text-[#DCFCE7]/85">Scheduled Meets</div>
             </div>
           </div>
@@ -399,28 +401,9 @@ export function renderHomeView(state) {
       </section>
 
       <!-- ==================== ACTIVE NOTICES & UPDATES ==================== -->
-      ${activeNotices.length > 0 ? `
-        <section class="gv-card p-5 space-y-3">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-sm font-extrabold uppercase tracking-wider text-[#14532D] flex items-center gap-2">
-              <span class="w-8 h-8 rounded-xl gv-icon-box inline-flex items-center justify-center">${AGRI_ICONS.bell}</span>
-              <span>Latest Notices &amp; Updates</span>
-            </h3>
-            <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-xs font-bold text-[#15803D]">${activeNotices.length} active</span>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            ${activeNotices.slice(0, 3).map((n) => `
-              <div class="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#BBF7D0] p-4 transition-colors space-y-1.5">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#DCFCE7] text-[#14532D]">${escapeHtml(n.audience || "ALL")}</span>
-                </div>
-                <div class="font-bold text-sm text-[#0F172A] leading-snug">${escapeHtml(n.title)}</div>
-                <p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(n.message)}</p>
-              </div>
-            `).join("")}
-          </div>
-        </section>
-      ` : ""}
+      <div data-home-slot="notices-wrap" class="${activeNotices.length > 0 ? "" : "hidden"}">
+        ${renderHomeNoticesMarkup(activeNotices)}
+      </div>
 
       <!-- ==================== COMPLETE SMART AGRICULTURE ECOSYSTEM GRID ==================== -->
       <section class="space-y-3.5">
@@ -440,7 +423,7 @@ export function renderHomeView(state) {
                   ${c.icon}
                 </span>
                 <div class="flex items-center gap-1.5">
-                  ${c.badge ? `<span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">${escapeHtml(c.badge)}</span>` : ""}
+                  <span data-home-mod-badge="${c.tab}" class="${c.badge ? "" : "hidden "}px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">${escapeHtml(c.badge || "")}</span>
                   <span class="px-2 py-0.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[10px] font-bold text-[#15803D]">${escapeHtml(c.tag)}</span>
                 </div>
               </div>
@@ -449,7 +432,7 @@ export function renderHomeView(state) {
                   <div class="text-sm font-extrabold text-[#0F172A] group-hover:text-[#14532D] transition-colors">${escapeHtml(c.title)}</div>
                   <span class="text-[#94A3B8] group-hover:text-[#15803D] group-hover:translate-x-0.5 transition-all">${AGRI_ICONS.chevron}</span>
                 </div>
-                <div class="text-xs text-[#475569] leading-relaxed">${escapeHtml(c.sub)}</div>
+                <div data-home-mod-sub="${c.tab}" class="text-xs text-[#475569] leading-relaxed">${escapeHtml(c.sub)}</div>
               </div>
             </button>
           `).join("")}
@@ -467,21 +450,165 @@ export function renderHomeView(state) {
             <p class="text-xs sm:text-sm text-[#475569] mt-0.5">Need quick help with crop problems, study materials, or account guidance? Message us directly on WhatsApp.</p>
           </div>
         </div>
-        <div class="flex flex-wrap gap-2.5 shrink-0">
-          ${waDirect ? `
-            <a href="${escapeHtml(waDirect)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-              <span>WhatsApp Help (${escapeHtml(settings.whatsappNumber)})</span>
-            </a>
-          ` : ""}
-          ${waGroup ? `
-            <a href="${escapeHtml(waGroup)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0F3D22] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-              <span>Join Official Group</span>
-            </a>
-          ` : ""}
+        <div data-home-slot="wa-actions" class="flex flex-wrap gap-2.5 shrink-0">
+          ${renderHomeWhatsAppMarkup(waDirect, waGroup, settings.whatsappNumber)}
         </div>
       </section>
     </div>
   `;
+}
+
+function renderHomeNoticesMarkup(activeNotices) {
+  if (!activeNotices.length) return "";
+  return `
+    <section class="gv-card p-5 space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-sm font-extrabold uppercase tracking-wider text-[#14532D] flex items-center gap-2">
+          <span class="w-8 h-8 rounded-xl gv-icon-box inline-flex items-center justify-center">${AGRI_ICONS.bell}</span>
+          <span>Latest Notices &amp; Updates</span>
+        </h3>
+        <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-xs font-bold text-[#15803D]">${activeNotices.length} active</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        ${activeNotices.slice(0, 3).map((n) => `
+          <div class="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#BBF7D0] p-4 transition-colors space-y-1.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#DCFCE7] text-[#14532D]">${escapeHtml(n.audience || "ALL")}</span>
+            </div>
+            <div class="font-bold text-sm text-[#0F172A] leading-snug">${escapeHtml(n.title)}</div>
+            <p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(n.message)}</p>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderHomeWhatsAppMarkup(waDirect, waGroup, whatsappNumber) {
+  return `
+    ${waDirect ? `
+      <a href="${escapeHtml(waDirect)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+        <span>WhatsApp Help (${escapeHtml(whatsappNumber)})</span>
+      </a>
+    ` : ""}
+    ${waGroup ? `
+      <a href="${escapeHtml(waGroup)}" target="_blank" rel="noopener noreferrer" class="gv-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0F3D22] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+        <span>Join Official Group</span>
+      </a>
+    ` : ""}
+  `;
+}
+
+// Surgical in-place Home Dashboard updater — preserves existing DOM nodes during live Firestore updates (ZERO flicker/blink)
+export function patchHomeDashboardInPlace(root, state) {
+  const dash = root?.querySelector?.("[data-home-dashboard='true']");
+  if (!dash) return false;
+
+  const setText = (slot, nextText) => {
+    const el = dash.querySelector(`[data-home-slot='${slot}']`);
+    if (el && el.textContent !== nextText) el.textContent = nextText;
+  };
+
+  const settings = state.appSettings;
+  const publicMaterials = state.studyMaterials.filter((m) => m.published !== false);
+  const activeNotices = state.announcements.filter((a) => a.active !== false);
+  const upcomingMeetings = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m));
+  const isProf = state.facultyIdentity?.isAuthorizedProfessor;
+  const unreadDoubts = state.totalUnreadDoubts || 0;
+  const marketCount = (state.mandiApiRecords?.length || 0) + (state.firestoreMarketPrices?.filter((r) => r.published !== false).length || 0);
+
+  // Maintenance banner
+  const maintWrap = dash.querySelector("[data-home-slot='maintenance-banner']");
+  if (maintWrap) {
+    const hasBanner = Boolean(settings.maintenanceBanner);
+    maintWrap.classList.toggle("hidden", !hasBanner);
+    if (hasBanner) {
+      const maintText = maintWrap.querySelector("[data-home-slot='maintenance-text']");
+      if (maintText) {
+        if (maintText.textContent !== settings.maintenanceBanner) maintText.textContent = settings.maintenanceBanner;
+      } else {
+        maintWrap.innerHTML = `
+          <div class="rounded-2xl bg-amber-50 border border-amber-300 px-4 py-3 text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2.5 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+            <span data-home-slot="maintenance-text">${escapeHtml(settings.maintenanceBanner)}</span>
+          </div>
+        `;
+      }
+    }
+  }
+
+  // Cloud status & hero copy
+  setText("cloud-status", state.cloudConnected ? "Live Smart Agri Cloud Connected" : "Smart Agriculture • Open Public Access");
+  setText("hero-headline", String(settings.heroHeadline || ""));
+  setText("about-text", String(settings.aboutText || ""));
+
+  // Signed-in user identity bar text
+  if (state.user) {
+    const userDisplayName = state.userProfile?.displayName || state.user?.displayName || state.user?.email?.split("@")[0] || "Scholar";
+    const userRoleLabel = isProf
+      ? "Verified Professor"
+      : (state.userProfile?.role === "FARMER" ? "Farmer" : (state.isAdmin ? "Admin" : "Student"));
+    const userSubMeta = state.userProfile?.institutionOrVillage || state.userProfile?.district || state.user?.email || "";
+    setText("user-name", `Welcome, ${userDisplayName}`);
+    setText("user-role", userRoleLabel);
+    const subEl = dash.querySelector("[data-home-slot='user-sub']");
+    if (subEl) {
+      if (subEl.textContent !== userSubMeta) subEl.textContent = userSubMeta;
+      subEl.classList.toggle("hidden", !userSubMeta);
+    }
+  }
+
+  // Hero stat counters
+  setText("stat-materials", String(publicMaterials.length));
+  setText("stat-professors", String(state.professors.length));
+  setText("stat-notices", String(activeNotices.length));
+  setText("stat-meetings", String(upcomingMeetings.length));
+
+  // Module card dynamic sub-labels & unread badge
+  const dynamicSubs = {
+    market: marketCount > 0 ? `${marketCount} verified mandi prices loaded` : "Official AGMARKNET & Verified Mandi Rates",
+    student: `${publicMaterials.length} Notes, Syllabus, PYQs & MCQs`,
+    "career-guidance": unreadDoubts > 0 ? `${unreadDoubts} unread advisor replies` : "M.Sc, JRF, ICAR, Govt Exams & 9 Advisors",
+    community: `${state.careerOpportunities.length} Jobs & Student Forum`,
+    meeting: `${upcomingMeetings.length} Upcoming Google Meet Live Classes`,
+    professor: `${state.professorDoubtThreads.length} Assigned Student & Farmer Consultations`
+  };
+  Object.entries(dynamicSubs).forEach(([tab, text]) => {
+    const el = dash.querySelector(`[data-home-mod-sub='${tab}']`);
+    if (el && el.textContent !== text) el.textContent = text;
+  });
+  const careerBadge = dash.querySelector("[data-home-mod-badge='career-guidance']");
+  if (careerBadge) {
+    const nextBadge = unreadDoubts > 0 ? `${unreadDoubts} new` : "";
+    if (careerBadge.textContent !== nextBadge) careerBadge.textContent = nextBadge;
+    careerBadge.classList.toggle("hidden", !nextBadge);
+  }
+
+  // Notices block — replace ONLY if its content actually changed
+  const noticesWrap = dash.querySelector("[data-home-slot='notices-wrap']");
+  if (noticesWrap) {
+    const nextNoticesHtml = renderHomeNoticesMarkup(activeNotices);
+    const nextKey = activeNotices.slice(0, 3).map((n) => `${n.id}|${n.audience}|${n.title}|${n.message}`).join("||") + `#${activeNotices.length}`;
+    if (noticesWrap.dataset.noticesKey !== nextKey) {
+      noticesWrap.dataset.noticesKey = nextKey;
+      noticesWrap.innerHTML = nextNoticesHtml;
+    }
+    noticesWrap.classList.toggle("hidden", activeNotices.length === 0);
+  }
+
+  // WhatsApp links — replace ONLY if settings actually changed
+  const waWrap = dash.querySelector("[data-home-slot='wa-actions']");
+  if (waWrap) {
+    const waKey = `${settings.whatsappNumber || ""}|${settings.whatsappGroupInviteUrl || ""}`;
+    if (waWrap.dataset.waKey !== waKey) {
+      waWrap.dataset.waKey = waKey;
+      const waDirect = buildWhatsAppDirectUrl(settings.whatsappNumber, "Namaskar Guru Ji Vision Team, I need help regarding agriculture / B.Sc Agriculture.");
+      const waGroup = safeUrl(settings.whatsappGroupInviteUrl);
+      waWrap.innerHTML = renderHomeWhatsAppMarkup(waDirect, waGroup, settings.whatsappNumber);
+    }
+  }
+
+  return true;
 }
 
 // ----------------------------------------------------------------------------
