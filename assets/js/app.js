@@ -70,6 +70,18 @@ import {
   clearWomenFarmerTransientState,
   createInitialWomenFarmerState
 } from "./women-farmer-controller.js";
+import {
+  filterQuizQuestions,
+  mergeQuizQuestions,
+  mergeStudyMaterials,
+  resolveSubjectKey
+} from "./agri-education-data.js";
+import {
+  bindAgriEducationEvents,
+  createInitialEduState,
+  loadGuestBookmarks,
+  recordContinueLearning
+} from "./agri-education-controller.js";
 
 const VALID_ROUTES = new Set([
   "home",
@@ -166,6 +178,12 @@ const state = {
 
   // Women Farmer Zone & Discussion Board State (Phase 6)
   womenFarmer: createInitialWomenFarmerState(),
+
+  // Agriculture Education Hub State (Phase 7: Notes, MCQs, University Syllabus, Discovery & Bookmarks)
+  universitySyllabi: [],
+  discoveredStudyResources: [],
+  studyBookmarks: loadGuestBookmarks(),
+  edu: createInitialEduState(),
 
   // Student Career Guidance / Farmer Advisor / Professor Dashboard Threads
   studentDoubtThreads: [],
@@ -306,6 +324,7 @@ function clearPrivateStateOnLogout() {
   state.ownerContentReports = [];
   state.ownerAuditLogs = [];
   state.agricultureSchemeHistory = [];
+  state.studyBookmarks = loadGuestBookmarks();
   clearFarmerFinancePrivateState(state);
   clearWomenFarmerTransientState(state);
 
@@ -321,6 +340,7 @@ function clearPrivateStateOnLogout() {
         sigKey === "moneyBudgets" ||
         sigKey === "openingBalance" ||
         sigKey === "quizAttempts" ||
+        sigKey === "studyBookmarks" ||
         sigKey === "studentDoubtThreads" ||
         sigKey === "professorDoubtThreads" ||
         sigKey.startsWith("ff:") ||
@@ -404,7 +424,7 @@ const ROUTE_DATA_DEPS = {
     "professors", "studentDoubtThreads", "professorDoubtThreads", "userProfile"
   ]),
   "student-zone": new Set([
-    "studyMaterials", "quizzes", "careerOpportunities", "meetings",
+    "studyMaterials", "quizzes", "universitySyllabi", "careerOpportunities", "meetings",
     "communityPosts", "professors", "studentDoubtThreads", "professorDoubtThreads"
   ]),
   "farmer-zone": new Set([
@@ -416,7 +436,10 @@ const ROUTE_DATA_DEPS = {
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
   marketplace: new Set([]),
-  student: new Set(["studyMaterials", "quizzes", "quizAttempts"]),
+  student: new Set([
+    "studyMaterials", "quizzes", "quizAttempts",
+    "universitySyllabi", "discoveredStudyResources", "studyBookmarks"
+  ]),
   farmer: new Set(["appSettings", "farmerQueries"]),
   "farmer-finance": new Set(["firestoreMarketPrices", "agricultureSchemes"]),
   tools: new Set([]),
@@ -429,8 +452,8 @@ const ROUTE_DATA_DEPS = {
   money: new Set(["moneyTransactions", "moneyBudgets", "openingBalance", "userProfile"]),
   doubt: new Set(["studentDoubtThreads", "professorDoubtThreads", "activeDoubtMessages"]),
   admin: new Set([
-    "appSettings", "studyMaterials", "quizzes", "announcements",
-    "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
+    "appSettings", "studyMaterials", "quizzes", "universitySyllabi", "discoveredStudyResources",
+    "announcements", "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
     "agricultureSchemes", "agricultureSchemeHistory", "communityPosts"
   ]),
   owner: new Set([
@@ -860,14 +883,33 @@ function closeProfileModal() {
 }
 
 function openMaterialReader(materialId) {
-  const mat = state.studyMaterials.find((m) => m.id === materialId);
+  const allMaterials = mergeStudyMaterials(state.studyMaterials || [], state.isAdmin);
+  const mat = allMaterials.find((m) => m.id === materialId);
   if (!mat) return;
-  document.getElementById("readerTitle").textContent = mat.title;
-  document.getElementById("readerMeta").textContent = `Semester ${mat.semester} • ${mat.subject} • ${mat.category}`;
-  document.getElementById("readerSummary").textContent = mat.summary;
-  document.getElementById("readerContent").textContent = mat.contentText || "Open the linked PDF resource below to view full study material.";
+  const bn = (state.edu?.lang === "BN") || (!state.edu?.lang && state.lang === "bn");
+  const title = bn && mat.titleBn ? mat.titleBn : mat.title;
+  const summary = bn && mat.summaryBn ? mat.summaryBn : mat.summary;
+  const mainBody = (bn && mat.contentTextBn ? mat.contentTextBn : mat.contentText)
+    || "Open the linked official source or PDF resource below to view full study material.";
+  const metaParts = [
+    `Semester ${mat.semester}`,
+    bn ? (mat.subjectLabelBn || mat.subject) : (mat.subjectLabelEn || mat.subject),
+    mat.topic || "",
+    mat.category,
+    mat.lastUpdatedDate ? `Updated: ${mat.lastUpdatedDate}` : ""
+  ].filter(Boolean);
+  const footerLines = [
+    mat.sourceName ? `\n\nSource: ${mat.sourceName}` : "",
+    mat.referenceCitation ? `\nReference: ${mat.referenceCitation}` : "",
+    mat.sourceUrl ? `\nOfficial Reference URL: ${mat.sourceUrl}` : ""
+  ].join("");
+
+  document.getElementById("readerTitle").textContent = title;
+  document.getElementById("readerMeta").textContent = metaParts.join(" • ");
+  document.getElementById("readerSummary").textContent = summary;
+  document.getElementById("readerContent").textContent = `${mainBody}${footerLines}`;
   const link = document.getElementById("readerPdfBtn");
-  const href = safeUrl(mat.resourceUrl);
+  const href = safeUrl(mat.resourceUrl || mat.sourceUrl);
   if (href) {
     link.href = href;
     link.classList.remove("hidden");
@@ -875,6 +917,7 @@ function openMaterialReader(materialId) {
     link.classList.add("hidden");
   }
   document.getElementById("readerModal")?.classList.remove("hidden");
+  recordContinueLearning(state, mat);
 }
 
 function closeReaderModal() {
@@ -1500,16 +1543,41 @@ function bindGlobalEvents() {
           loadOfficialMandiData(true);
           return;
         case "submit-quiz": {
-          const activeQuizzes = state.quizzes.filter((qz) =>
-            qz.published !== false && (state.studentSemester === 0 || Number(qz.semester) === state.studentSemester)
+          const edu = state.edu || {};
+          const mode = edu.quizMode || "PRACTICE";
+          const savedMcqIds = new Set(
+            (state.studyBookmarks || []).filter((b) => b.itemType === "MCQ").map((b) => b.itemId)
+          );
+          const activeQuizzes = filterQuizQuestions(
+            mergeQuizQuestions(state.quizzes || [], false),
+            {
+              semester: state.studentSemester || 0,
+              subjectKey: edu.quizSubject || "ALL",
+              examCategory: edu.quizExam || "ALL",
+              questionType: mode === "PYQ_SET" ? "OFFICIAL_PYQ" : (edu.quizType || "ALL"),
+              difficulty: edu.quizDifficulty || "ALL",
+              search: edu.quizSearch || "",
+              savedOnly: Boolean(edu.quizSavedOnly)
+            },
+            savedMcqIds
           );
           let score = 0;
           activeQuizzes.forEach((q) => {
-            if (Number(state.quizAnswers[q.id]) === Number(q.correctIndex)) score++;
+            if (state.quizAnswers[q.id] !== undefined && Number(state.quizAnswers[q.id]) === Number(q.correctIndex)) score++;
           });
           state.quizSubmitted = true;
           if (state.user && activeQuizzes.length > 0) {
-            await firebaseService.recordQuizAttempt(state.user.uid, state.studentSemester || 1, score, activeQuizzes.length).catch(() => {});
+            await firebaseService.recordQuizAttempt(
+              state.user.uid,
+              state.studentSemester || 1,
+              score,
+              activeQuizzes.length,
+              {
+                mode,
+                examCategory: edu.quizExam || "ALL",
+                subjectKey: edu.quizSubject || "ALL"
+              }
+            ).catch(() => {});
           }
           showToast(`Exam submitted! Score: ${score}/${activeQuizzes.length}`);
           renderActiveView();
@@ -1898,16 +1966,29 @@ function bindGlobalEvents() {
     if (target.dataset.editMat) {
       const m = state.studyMaterials.find((x) => x.id === target.dataset.editMat);
       if (m) {
-        document.getElementById("amEditId").value = m.id;
-        document.getElementById("amTitle").value = m.title;
-        document.getElementById("amSemester").value = String(m.semester || 1);
-        document.getElementById("amCategory").value = m.category || "NOTES_PDF";
-        document.getElementById("amSubject").value = m.subject || "";
-        document.getElementById("amUrl").value = m.resourceUrl || "";
-        document.getElementById("amSummary").value = m.summary || "";
-        document.getElementById("amContent").value = m.contentText || "";
-        document.getElementById("amPublished").checked = m.published !== false;
-        document.getElementById("amVerifiedAi").checked = m.verifiedForAi !== false;
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        setVal("amEditId", m.id);
+        setVal("amTitle", m.title || "");
+        setVal("amTitleBn", m.titleBn || "");
+        setVal("amSemester", String(m.semester || 1));
+        setVal("amCategory", m.category || "NOTES_PDF");
+        setVal("amSubjectKey", m.subjectKey || resolveSubjectKey(m.subject, m.title));
+        setVal("amSubject", m.subject || "");
+        setVal("amTopic", m.topic || "");
+        setVal("amUrl", m.resourceUrl || "");
+        setVal("amSourceName", m.sourceName || "");
+        setVal("amSourceUrl", m.sourceUrl || "");
+        setVal("amReference", m.referenceCitation || "");
+        setVal("amLastUpdated", m.lastUpdatedDate || "");
+        setVal("amOrigin", m.contentOrigin || "VERIFIED_FACULTY");
+        setVal("amSummary", m.summary || "");
+        setVal("amContent", m.contentText || "");
+        const pubEl = document.getElementById("amPublished");
+        if (pubEl) pubEl.checked = m.published !== false;
+        const aiEl = document.getElementById("amVerifiedAi");
+        if (aiEl) aiEl.checked = m.verifiedForAi !== false;
+        const dlEl = document.getElementById("amDownloadOk");
+        if (dlEl) dlEl.checked = Boolean(m.downloadPermitted);
         document.getElementById("amFormTitle").textContent = "Edit Study Material";
         document.getElementById("amCancelEdit")?.classList.remove("hidden");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1925,16 +2006,27 @@ function bindGlobalEvents() {
     if (target.dataset.editQuiz) {
       const q = state.quizzes.find((x) => x.id === target.dataset.editQuiz);
       if (q) {
-        document.getElementById("aqEditId").value = q.id;
-        document.getElementById("aqTitle").value = q.title || "";
-        document.getElementById("aqSem").value = String(q.semester || 1);
-        document.getElementById("aqSubject").value = q.subject || "";
-        document.getElementById("aqQuestion").value = q.questionText || "";
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        setVal("aqEditId", q.id);
+        setVal("aqTitle", q.title || "");
+        setVal("aqSem", String(q.semester || 1));
+        setVal("aqSubjectKey", q.subjectKey || resolveSubjectKey(q.subject, q.title));
+        setVal("aqSubject", q.subject || "");
+        setVal("aqTopic", q.topic || "");
+        setVal("aqQuestionType", q.questionType || "PRACTICE");
+        setVal("aqDifficulty", q.difficulty || "MEDIUM");
+        setVal("aqExamCategory", q.examCategory || "BSC_SEMESTER");
+        setVal("aqExamYear", q.examYear || "");
+        setVal("aqSourcePaper", q.sourcePaper || "");
+        setVal("aqSourceUrl", q.sourceUrl || "");
+        setVal("aqQuestion", q.questionText || "");
         [0, 1, 2, 3].forEach((i) => {
-          document.getElementById(`aqOpt${i}`).value = q.options?.[i] || "";
+          setVal(`aqOpt${i}`, q.options?.[i] || "");
         });
-        document.getElementById("aqCorrect").value = String(q.correctIndex ?? 0);
-        document.getElementById("aqExplanation").value = q.explanation || "";
+        setVal("aqCorrect", String(q.correctIndex ?? 0));
+        setVal("aqExplanation", q.explanation || "");
+        const pubEl = document.getElementById("aqPublished");
+        if (pubEl) pubEl.checked = q.published !== false;
         document.getElementById("aqFormTitle").textContent = "Edit MCQ Question";
         document.getElementById("aqCancelEdit")?.classList.remove("hidden");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2670,10 +2762,19 @@ function bindGlobalEvents() {
             state.user.uid,
             {
               title: document.getElementById("amTitle").value,
+              titleBn: document.getElementById("amTitleBn")?.value || "",
               semester: document.getElementById("amSemester").value,
               category: document.getElementById("amCategory").value,
+              subjectKey: document.getElementById("amSubjectKey")?.value || resolveSubjectKey(document.getElementById("amSubject").value, document.getElementById("amTitle").value),
               subject: document.getElementById("amSubject").value,
+              topic: document.getElementById("amTopic")?.value || "",
               resourceUrl: document.getElementById("amUrl").value,
+              sourceName: document.getElementById("amSourceName")?.value || "",
+              sourceUrl: document.getElementById("amSourceUrl")?.value || "",
+              referenceCitation: document.getElementById("amReference")?.value || "",
+              lastUpdatedDate: document.getElementById("amLastUpdated")?.value || new Date().toISOString().slice(0, 10),
+              contentOrigin: document.getElementById("amOrigin")?.value || "VERIFIED_FACULTY",
+              downloadPermitted: Boolean(document.getElementById("amDownloadOk")?.checked),
               summary: document.getElementById("amSummary").value,
               contentText: document.getElementById("amContent").value,
               published: document.getElementById("amPublished").checked,
@@ -2697,12 +2798,20 @@ function bindGlobalEvents() {
             {
               title: document.getElementById("aqTitle").value,
               semester: document.getElementById("aqSem").value,
+              subjectKey: document.getElementById("aqSubjectKey")?.value || resolveSubjectKey(document.getElementById("aqSubject").value, document.getElementById("aqTitle").value),
               subject: document.getElementById("aqSubject").value,
+              topic: document.getElementById("aqTopic")?.value || "",
+              questionType: document.getElementById("aqQuestionType")?.value || "PRACTICE",
+              difficulty: document.getElementById("aqDifficulty")?.value || "MEDIUM",
+              examCategory: document.getElementById("aqExamCategory")?.value || "BSC_SEMESTER",
+              examYear: document.getElementById("aqExamYear")?.value || "",
+              sourcePaper: document.getElementById("aqSourcePaper")?.value || "",
+              sourceUrl: document.getElementById("aqSourceUrl")?.value || "",
               questionText: document.getElementById("aqQuestion").value,
               options: [0, 1, 2, 3].map((i) => document.getElementById(`aqOpt${i}`).value),
               correctIndex: document.getElementById("aqCorrect").value,
               explanation: document.getElementById("aqExplanation").value,
-              published: true
+              published: document.getElementById("aqPublished") ? document.getElementById("aqPublished").checked : true
             },
             editId
           );
@@ -3020,6 +3129,13 @@ bindWomenFarmerEvents({
   withBusySubmit,
   openAuthModal,
   navigateTo
+});
+bindAgriEducationEvents({
+  state,
+  renderActiveView,
+  showToast,
+  withBusySubmit,
+  openAuthModal
 });
 const initialHash = (window.location.hash || "").replace(/^#/, "");
 if (initialHash && VALID_ROUTES.has(initialHash)) {

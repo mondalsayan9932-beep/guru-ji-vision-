@@ -26,6 +26,12 @@ import {
   SCHEME_CATEGORIES,
   mergeAgricultureSchemes
 } from "./govt-schemes-data.js";
+import {
+  mergeQuizQuestions,
+  mergeStudyMaterials,
+  mergeSyllabi
+} from "./agri-education-data.js";
+import { renderAgriEducationView } from "./agri-education-ui.js";
 
 const GREEN_HEAVEN_LOGO_SVG = `
   <span class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-[#DCFCE7] shadow-sm shrink-0" aria-hidden="true">
@@ -485,11 +491,12 @@ function renderSharedCommonModulesSection(state, zoneKey) {
 // 1B. DEDICATED STUDENT ZONE DASHBOARD (route: "student-zone")
 // ----------------------------------------------------------------------------
 export function renderStudentZoneView(state) {
-  const publicMaterials = state.studyMaterials.filter((m) => m.published !== false);
+  const publicMaterials = mergeStudyMaterials(state.studyMaterials || [], false);
   const notesCount = publicMaterials.filter((m) => m.category === "NOTES_PDF").length;
   const pyqCount = publicMaterials.filter((m) => m.category === "PYQ").length;
   const practicalCount = publicMaterials.filter((m) => m.category === "PRACTICAL" || m.category === "VIDEO_LECTURE").length;
-  const quizCount = state.quizzes.filter((q) => q.published !== false).length;
+  const quizCount = mergeQuizQuestions(state.quizzes || [], false).length;
+  const syllabusCount = mergeSyllabi(state.universitySyllabi || [], false).length;
   const careerCount = state.careerOpportunities.filter((c) => c.published !== false).length;
   const unreadDoubts = state.totalUnreadDoubts || 0;
   const isProf = state.facultyIdentity?.isAuthorizedProfessor;
@@ -523,9 +530,9 @@ export function renderStudentZoneView(state) {
     {
       route: "student",
       title: "Agriculture Syllabus",
-      subtitle: "Complete ICAR 5th Deans' Committee B.Sc (Hons.) Agriculture course structure from Semester 1 to Semester 8",
+      subtitle: `ICAR 5th Deans' Committee (Sem 1–8) + University-wise official B.Sc. Agriculture syllabi (${syllabusCount} curriculum entries)`,
       icon: AGRI_ICONS.syllabus,
-      badge: "Sem 1–8",
+      badge: `${syllabusCount} Syllabi`,
       attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "syllabus" }
     },
     {
@@ -919,236 +926,13 @@ export function patchHomeDashboardInPlace(root, state) {
 }
 
 // ----------------------------------------------------------------------------
-// 2. STUDENT SECTION (Materials, Syllabus, PYQ, Practicals, Online MCQ Quiz)
+// 2. STUDENT SECTION (Upgraded Phase 7 Agriculture Education Hub)
 // ----------------------------------------------------------------------------
 export function renderStudentView(state) {
-  const sub = state.studentSubTab || "materials";
-  const publicMaterials = state.studyMaterials.filter((m) => m.published !== false);
-  const q = (state.studentSearch || "").trim().toLowerCase();
-
-  const filteredMaterials = publicMaterials.filter((m) => {
-    if (state.studentSemester > 0 && Number(m.semester) !== state.studentSemester) return false;
-    if (state.studentCategory !== "ALL" && m.category !== state.studentCategory) return false;
-    if (q) {
-      const hay = `${m.title} ${m.subject} ${m.summary} ${m.contentText || ""}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
-
-  const activeQuizzes = state.quizzes.filter((qz) =>
-    qz.published !== false && (state.studentSemester === 0 || Number(qz.semester) === state.studentSemester)
-  );
-
   return `
     <div class="space-y-4 animate-fade-up">
-      <!-- Header + Sub-tabs -->
-      <div class="gv-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 class="font-display text-xl sm:text-2xl font-bold text-[#14532D]">Student Academic Portal</h2>
-          <p class="text-xs sm:text-sm text-[#496052]">ICAR B.Sc (Hons.) Agriculture • Semesters 1–8 Notes, PDFs, Syllabus, Practicals &amp; MCQs</p>
-        </div>
-        <div class="flex flex-wrap gap-1.5 bg-[#EDF4EE] p-1 rounded-xl">
-          ${[
-            ["materials", "Notes & PDFs"],
-            ["syllabus", "ICAR Syllabus"],
-            ["quiz", "MCQ Quiz"]
-          ].map(([key, label]) => `
-            <button data-student-sub="${key}" class="px-3.5 py-2 rounded-lg text-xs font-extrabold transition-colors ${
-              sub === key ? "bg-[#14532D] text-white shadow-sm" : "text-[#14532D] hover:bg-white/70"
-            }">${label}</button>
-          `).join("")}
-        </div>
-      </div>
-
-      <!-- Semester Filter Bar (Shared across Materials, Syllabus & Quiz) -->
-      <div class="gv-card p-3.5 space-y-3">
-        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map((sem) => `
-            <button data-student-sem="${sem}" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
-              state.studentSemester === sem ? "bg-[#14532D] text-white" : "bg-[#EDF4EE] text-[#14532D] hover:bg-[#D8F3DC]"
-            }">${sem === 0 ? "All Semesters" : `Sem ${sem}`}</button>
-          `).join("")}
-        </div>
-
-        ${sub === "materials" ? `
-          <div class="flex flex-col sm:flex-row gap-2.5 pt-2 border-t border-emerald-100">
-            <input id="studentSearchInput" type="search" value="${escapeHtml(state.studentSearch || "")}" placeholder="Search subject, chapter, Agronomy, Soil Science, PYQ..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm focus:outline-none focus:ring-2 focus:ring-[#1E7E45]" />
-            <div class="flex flex-wrap gap-1.5">
-              ${Object.entries(STUDY_CATEGORIES).map(([key, meta]) => `
-                <button data-student-cat="${key}" class="px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                  state.studentCategory === key ? "bg-amber-400 text-[#0C3B20]" : "bg-slate-100 text-slate-700 hover:bg-emerald-50"
-                }">${escapeHtml(meta.en)}</button>
-              `).join("")}
-            </div>
-          </div>
-        ` : ""}
-      </div>
-
-      ${sub === "materials" ? `
-        ${!state.cloudConnected ? `
-          <div class="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-2">
-            <span>Showing open-access reference study notes. Sign in to sync live cloud uploads from Guru Ji Vision Firestore.</span>
-            <button data-action="open-auth" class="px-3 py-1.5 rounded-lg bg-[#14532D] text-white font-bold">Sign In</button>
-          </div>
-        ` : ""}
-
-        ${filteredMaterials.length === 0 ? `
-          <div class="gv-card p-8 text-center space-y-2">
-            <p class="text-base font-bold text-[#14532D]">No matching study materials found</p>
-            <p class="text-xs text-[#496052]">Try clearing your search or selecting "All Semesters".</p>
-          </div>
-        ` : `
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${filteredMaterials.map((mat) => {
-              const cat = STUDY_CATEGORIES[mat.category] || STUDY_CATEGORIES.NOTES_PDF;
-              const pdfUrl = safeUrl(mat.resourceUrl);
-              return `
-                <article class="gv-card p-4 sm:p-5 flex flex-col justify-between gap-3.5 hover:shadow-md transition-shadow">
-                  <div class="space-y-2">
-                    <div class="flex flex-wrap items-center gap-1.5">
-                      <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${cat.badge}">${escapeHtml(cat.en)}</span>
-                      <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#EDF4EE] text-[#14532D]">Sem ${escapeHtml(mat.semester)}</span>
-                      ${mat.verifiedForAi ? `<span class="ml-auto text-[10px] font-bold text-emerald-700">✓ Verified</span>` : ""}
-                    </div>
-                    <h3 class="text-base font-extrabold text-[#132219] leading-snug">${escapeHtml(mat.title)}</h3>
-                    <p class="text-xs font-bold text-[#1E7E45]">${escapeHtml(mat.subject)}</p>
-                    <p class="text-xs sm:text-sm text-[#496052] leading-relaxed line-clamp-3">${escapeHtml(mat.summary)}</p>
-                  </div>
-                  <div class="flex gap-2 pt-2 border-t border-emerald-50">
-                    <button data-read-material="${escapeHtml(mat.id)}" class="flex-1 py-2.5 px-3 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold transition-colors">
-                      Read Notes
-                    </button>
-                    ${pdfUrl ? `
-                      <a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener noreferrer" class="gv-btn flex-1 inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold transition-colors">
-                        Open PDF ↗
-                      </a>
-                    ` : ""}
-                  </div>
-                </article>
-              `;
-            }).join("")}
-          </div>
-        `}
-      ` : ""}
-
-      ${sub === "syllabus" ? `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          ${Object.entries(ICAR_SYLLABUS)
-            .filter(([sem]) => state.studentSemester === 0 || Number(sem) === state.studentSemester)
-            .map(([sem, courses]) => `
-              <div class="gv-card p-5 space-y-3">
-                <div class="flex items-center justify-between">
-                  <h3 class="text-base font-extrabold text-[#14532D]">Semester ${sem} — ICAR 5th Deans' Syllabus</h3>
-                  <button data-student-jump-sem="${sem}" class="text-xs font-bold text-[#1E7E45] hover:underline">View Notes →</button>
-                </div>
-                <ul class="space-y-1.5 text-sm text-[#132219]">
-                  ${courses.map((c, idx) => `
-                    <li class="flex items-start gap-2">
-                      <span class="w-5 h-5 rounded-md bg-[#EDF4EE] text-[#14532D] text-[11px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">${idx + 1}</span>
-                      <span>${escapeHtml(c)}</span>
-                    </li>
-                  `).join("")}
-                </ul>
-              </div>
-            `).join("")}
-        </div>
-      ` : ""}
-
-      ${sub === "quiz" ? renderQuizSection(state, activeQuizzes) : ""}
-
+      ${renderAgriEducationView(state)}
       ${renderGreenHeavenCompactCard()}
-    </div>
-  `;
-}
-
-function renderQuizSection(state, quizzes) {
-  const answers = state.quizAnswers || {};
-  const submitted = state.quizSubmitted;
-  let score = 0;
-  if (submitted) {
-    quizzes.forEach((q) => {
-      if (Number(answers[q.id]) === Number(q.correctIndex)) score++;
-    });
-  }
-
-  return `
-    <div class="space-y-4">
-      <div class="gv-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 class="text-base font-extrabold text-[#14532D]">B.Sc Agriculture Online MCQ Practice (${quizzes.length} Questions)</h3>
-          <p class="text-xs text-[#496052]">Select your answers and submit to check score, explanations, and save to your student history.</p>
-        </div>
-        ${submitted ? `
-          <div class="flex items-center gap-2">
-            <span class="px-3.5 py-2 rounded-xl bg-emerald-100 text-[#14532D] text-sm font-extrabold">
-              Score: ${score} / ${quizzes.length} (${quizzes.length ? Math.round((score * 100) / quizzes.length) : 0}%)
-            </span>
-            <button data-action="reset-quiz" class="px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs font-bold text-[#14532D]">Retake</button>
-          </div>
-        ` : ""}
-      </div>
-
-      ${quizzes.length === 0 ? `
-        <div class="gv-card p-6 text-center text-sm text-[#496052]">No MCQ questions for this semester yet. Select "All Semesters".</div>
-      ` : `
-        <div class="space-y-3.5">
-          ${quizzes.map((q, idx) => {
-            const chosen = answers[q.id];
-            return `
-              <div class="gv-card p-4 sm:p-5 space-y-3">
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="px-2 py-0.5 rounded-md bg-[#EDF4EE] text-[#14532D] text-[11px] font-bold">Q${idx + 1} • Sem ${escapeHtml(q.semester)}</span>
-                  <span class="text-xs font-bold text-[#1E7E45]">${escapeHtml(q.subject)}</span>
-                </div>
-                <p class="text-sm sm:text-base font-bold text-[#132219]">${escapeHtml(q.questionText)}</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  ${(q.options || []).map((opt, oIdx) => {
-                    const isSelected = Number(chosen) === oIdx;
-                    const isCorrect = Number(q.correctIndex) === oIdx;
-                    let cls = "border-[#CDE0D3] bg-white hover:bg-[#F1F7F2] text-[#132219]";
-                    if (submitted) {
-                      if (isCorrect) cls = "border-emerald-500 bg-emerald-50 text-emerald-950 font-bold";
-                      else if (isSelected && !isCorrect) cls = "border-rose-400 bg-rose-50 text-rose-900";
-                    } else if (isSelected) {
-                      cls = "border-[#14532D] bg-[#D8F3DC] text-[#0A2E18] font-bold";
-                    }
-                    return `
-                      <button type="button" data-quiz-q="${escapeHtml(q.id)}" data-quiz-opt="${oIdx}" ${submitted ? "disabled" : ""} class="text-left px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm transition-colors ${cls}">
-                        <span class="font-extrabold mr-1.5">${["A", "B", "C", "D"][oIdx]}.</span> ${escapeHtml(opt)}
-                      </button>
-                    `;
-                  }).join("")}
-                </div>
-                ${submitted && q.explanation ? `
-                  <div class="rounded-xl bg-[#EDF4EE] px-3.5 py-2.5 text-xs text-[#0A2E18]">
-                    <strong>Explanation:</strong> ${escapeHtml(q.explanation)}
-                  </div>
-                ` : ""}
-              </div>
-            `;
-          }).join("")}
-        </div>
-        ${!submitted ? `
-          <button data-action="submit-quiz" class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-sm font-extrabold shadow-sm">
-            Submit Exam &amp; View Score
-          </button>
-        ` : ""}
-      `}
-
-      ${state.quizAttempts.length > 0 ? `
-        <div class="gv-card p-4 sm:p-5 space-y-2.5">
-          <h4 class="text-sm font-extrabold text-[#14532D]">Your Past Exam Attempts</h4>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            ${state.quizAttempts.slice(0, 6).map((a) => `
-              <div class="rounded-xl bg-[#F1F7F2] border border-[#CDE0D3] p-3 text-xs">
-                <div class="font-extrabold text-[#14532D]">Sem ${a.semester} — ${a.score}/${a.totalQuestions} (${Math.round((a.score * 100) / Math.max(1, a.totalQuestions))}%)</div>
-                <div class="text-[#496052] mt-0.5">${formatDateShort(a.createdAtMs)}</div>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-      ` : ""}
     </div>
   `;
 }

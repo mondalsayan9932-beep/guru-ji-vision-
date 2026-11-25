@@ -12,6 +12,13 @@ import {
   evaluateSchemeVerification,
   mergeAgricultureSchemes
 } from "./govt-schemes-data.js";
+import {
+  AGRI_SUBJECTS,
+  DIFFICULTY_META,
+  EXAM_PREP_CATEGORIES,
+  QUESTION_PROVENANCE_META
+} from "./agri-education-data.js";
+import { renderAdminSyllabusDiscoveryTab } from "./agri-education-ui.js";
 
 // ----------------------------------------------------------------------------
 // 1. ADMIN DASHBOARD
@@ -40,6 +47,7 @@ export function renderAdminView(state) {
   const tabs = [
     ["materials", "Notes & PDFs"],
     ["quizzes", "MCQs"],
+    ["syllabus-discovery", "Syllabus & Discovery"],
     ["notices", "Notices"],
     ["market", "Market Prices"],
     ["schemes", "Govt Schemes"],
@@ -79,6 +87,7 @@ export function renderAdminView(state) {
 
       ${sub === "materials" ? renderAdminMaterials(state) : ""}
       ${sub === "quizzes" ? renderAdminQuizzes(state) : ""}
+      ${sub === "syllabus-discovery" ? renderAdminSyllabusDiscoveryTab(state) : ""}
       ${sub === "notices" ? renderAdminNotices(state) : ""}
       ${sub === "market" ? renderAdminMarketPrices(state) : ""}
       ${sub === "schemes" ? renderAdminSchemes(state) : ""}
@@ -94,49 +103,72 @@ export function renderAdminView(state) {
 function renderAdminMaterials(state) {
   return `
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-      <form id="adminMaterialForm" class="lg:col-span-5 gv-card p-5 space-y-3 h-fit">
+      <form id="adminMaterialForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
         <div class="flex items-center justify-between">
           <h3 id="amFormTitle" class="text-base font-extrabold text-[#14532D]">Add Study Material / PDF</h3>
           <button id="amCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel</button>
         </div>
         <input id="amEditId" type="hidden" value="" />
-        <input id="amTitle" type="text" required minlength="2" maxlength="150" placeholder="Title *" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+        <input id="amTitle" type="text" required minlength="2" maxlength="150" placeholder="Title (English) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
+        <input id="amTitleBn" type="text" maxlength="180" placeholder="Bengali Title (optional)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <div class="grid grid-cols-2 gap-2">
-          <select id="amSemester" class="px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm">
+          <select id="amSemester" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-sm">
             ${[1, 2, 3, 4, 5, 6, 7, 8].map((s) => `<option value="${s}">Semester ${s}</option>`).join("")}
           </select>
-          <select id="amCategory" class="px-3 py-2.5 rounded-xl border border-[#CDE0D3] bg-white text-sm">
+          <select id="amCategory" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-sm">
             <option value="NOTES_PDF">Notes &amp; PDFs</option>
             <option value="PYQ">PYQ Papers</option>
             <option value="PRACTICAL">Practical</option>
             <option value="VIDEO_LECTURE">Video Lecture</option>
           </select>
         </div>
-        <input id="amSubject" type="text" required minlength="2" maxlength="80" placeholder="Subject (e.g. Agronomy) *" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+        <div class="grid grid-cols-2 gap-2">
+          <select id="amSubjectKey" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs">
+            ${AGRI_SUBJECTS.map((s) => `<option value="${s.key}">${escapeHtml(s.en)}</option>`).join("")}
+          </select>
+          <input id="amSubject" type="text" required minlength="2" maxlength="80" placeholder="Subject Label *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <input id="amTopic" type="text" maxlength="120" placeholder="Topic / Chapter (e.g. Tillage, IPM, Soil Colloids)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <div class="space-y-1.5">
-          <input id="amUrl" type="url" maxlength="400" placeholder="PDF / Resource URL (https://...)" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+          <input id="amUrl" type="url" maxlength="400" placeholder="PDF / Official Resource URL (https://...)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
           <label class="inline-flex items-center gap-2 text-xs font-bold text-[#1E7E45] cursor-pointer">
             <span>⬆️ Or upload PDF to Firebase Storage</span>
             <input id="amPdfUpload" type="file" accept="application/pdf" class="hidden" />
           </label>
         </div>
-        <textarea id="amSummary" rows="2" required minlength="5" maxlength="1000" placeholder="Summary *" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm"></textarea>
-        <textarea id="amContent" rows="4" maxlength="12000" placeholder="Full Notes Text (also indexed by AI Guru Knowledge Base)" class="w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm"></textarea>
-        <div class="flex flex-wrap gap-4 text-xs font-bold">
+        <div class="grid grid-cols-2 gap-2">
+          <input id="amSourceName" type="text" maxlength="140" placeholder="Source Name (e.g. ICAR e-Courses)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="amLastUpdated" type="date" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <input id="amSourceUrl" type="url" maxlength="400" placeholder="Official Source / Reference URL (optional)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <input id="amReference" type="text" maxlength="300" placeholder="Citation / Book Reference (optional)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <select id="amOrigin" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs">
+          <option value="VERIFIED_FACULTY">Origin: Verified Faculty Notes</option>
+          <option value="OFFICIAL_PUBLICATION">Origin: Official Publication / ICAR / University</option>
+          <option value="CURATED_REFERENCE">Origin: Curated Academic Reference</option>
+          <option value="AI_PRACTICE">Origin: AI-Assisted Study Summary (Reviewed)</option>
+        </select>
+        <textarea id="amSummary" rows="2" required minlength="5" maxlength="1000" placeholder="Summary *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm"></textarea>
+        <textarea id="amContent" rows="4" maxlength="12000" placeholder="Full Notes Text (also indexed by AI Guru Knowledge Base)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm"></textarea>
+        <div class="flex flex-wrap gap-3 text-xs font-bold">
           <label class="flex items-center gap-1.5"><input id="amPublished" type="checkbox" checked class="accent-[#14532D]" /> Published</label>
           <label class="flex items-center gap-1.5"><input id="amVerifiedAi" type="checkbox" checked class="accent-[#14532D]" /> Verified for AI Guru</label>
+          <label class="flex items-center gap-1.5"><input id="amDownloadOk" type="checkbox" class="accent-[#14532D]" /> Legal Download Permitted</label>
         </div>
         <button type="submit" class="w-full py-3 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Save Study Material</button>
       </form>
 
       <div class="lg:col-span-7 gv-card p-5 space-y-2.5">
         <h3 class="text-base font-extrabold text-[#14532D]">Published &amp; Draft Materials (${state.studyMaterials.length})</h3>
-        <div class="space-y-2 max-h-[600px] overflow-y-auto">
+        <div class="space-y-2 max-h-[680px] overflow-y-auto">
           ${state.studyMaterials.map((m) => `
             <div class="rounded-2xl border border-[#CDE0D3] p-3.5 flex items-center justify-between gap-3 bg-[#F7F9F5]">
               <div class="min-w-0">
-                <div class="text-xs font-bold text-[#1E7E45]">Sem ${m.semester} • ${escapeHtml(m.subject)} • ${m.published ? "Live" : "Draft"}</div>
+                <div class="text-xs font-bold text-[#1E7E45]">
+                  Sem ${m.semester} • ${escapeHtml(m.subject)}${m.topic ? ` • ${escapeHtml(m.topic)}` : ""} • ${m.published ? "Live" : "Draft"}
+                </div>
                 <div class="text-sm font-extrabold text-[#132219] truncate">${escapeHtml(m.title)}</div>
+                ${m.sourceName ? `<div class="text-[11px] text-[#496052] truncate">Source: ${escapeHtml(m.sourceName)} ${m.lastUpdatedDate ? `(${escapeHtml(m.lastUpdatedDate)})` : ""}</div>` : ""}
               </div>
               <div class="flex gap-1.5 shrink-0">
                 <button data-edit-mat="${escapeHtml(m.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
@@ -158,14 +190,39 @@ function renderAdminQuizzes(state) {
           <h3 id="aqFormTitle" class="text-base font-extrabold text-[#14532D]">Add MCQ Question</h3>
           <button id="aqCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel</button>
         </div>
+        <div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-950 font-semibold">
+          Integrity Rule: Label Official PYQs ONLY when verified from an authentic official exam paper. Never label AI-generated or practice questions as Official PYQs.
+        </div>
         <input id="aqEditId" type="hidden" value="" />
         <input id="aqTitle" type="text" required minlength="2" maxlength="120" placeholder="Short Topic Title *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
         <div class="grid grid-cols-2 gap-2">
           <select id="aqSem" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-sm">
             ${[1, 2, 3, 4, 5, 6, 7, 8].map((s) => `<option value="${s}">Sem ${s}</option>`).join("")}
           </select>
-          <input id="aqSubject" type="text" required minlength="2" maxlength="80" placeholder="Subject *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
+          <select id="aqSubjectKey" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs">
+            ${AGRI_SUBJECTS.map((s) => `<option value="${s.key}">${escapeHtml(s.en)}</option>`).join("")}
+          </select>
         </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="aqSubject" type="text" required minlength="2" maxlength="80" placeholder="Subject Label *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="aqTopic" type="text" maxlength="120" placeholder="Topic (e.g. Irrigation)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="aqQuestionType" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+            ${Object.values(QUESTION_PROVENANCE_META).map((pt) => `<option value="${pt.key}" ${pt.key === "PRACTICE" ? "selected" : ""}>${escapeHtml(pt.en)}</option>`).join("")}
+          </select>
+          <select id="aqDifficulty" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs">
+            ${Object.values(DIFFICULTY_META).map((d) => `<option value="${d.key}" ${d.key === "MEDIUM" ? "selected" : ""}>Difficulty: ${escapeHtml(d.en)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="aqExamCategory" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs">
+            ${EXAM_PREP_CATEGORIES.filter((e) => e.key !== "ALL").map((ex) => `<option value="${ex.key}">${escapeHtml(ex.en)}</option>`).join("")}
+          </select>
+          <input id="aqExamYear" type="text" maxlength="20" placeholder="Exam Year (if PYQ, e.g. 2024)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <input id="aqSourcePaper" type="text" maxlength="160" placeholder="Official Paper / Reference Source (optional)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <input id="aqSourceUrl" type="url" maxlength="400" placeholder="Official Source URL (optional)" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <textarea id="aqQuestion" rows="2" required minlength="5" maxlength="500" placeholder="Question text *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-sm"></textarea>
         <input id="aqOpt0" type="text" required maxlength="160" placeholder="Option A *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <input id="aqOpt1" type="text" required maxlength="160" placeholder="Option B *" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
@@ -177,25 +234,35 @@ function renderAdminQuizzes(state) {
           <option value="2">Correct Answer: Option C</option>
           <option value="3">Correct Answer: Option D</option>
         </select>
-        <textarea id="aqExplanation" rows="2" maxlength="500" placeholder="Explanation" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+        <textarea id="aqExplanation" rows="2" maxlength="500" placeholder="Detailed Explanation" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+        <label class="flex items-center gap-1.5 text-xs font-bold"><input id="aqPublished" type="checkbox" checked class="accent-[#14532D]" /> Published (Uncheck to hold in Admin review draft)</label>
         <button type="submit" class="w-full py-2.5 rounded-xl bg-[#14532D] text-white text-sm font-extrabold">Save MCQ Question</button>
       </form>
 
       <div class="lg:col-span-7 gv-card p-5 space-y-2.5">
-        <h3 class="text-base font-extrabold text-[#14532D]">MCQ Bank (${state.quizzes.length})</h3>
-        <div class="space-y-2 max-h-[540px] overflow-y-auto">
-          ${state.quizzes.map((q) => `
-            <div class="rounded-2xl border border-[#CDE0D3] p-3.5 flex items-center justify-between gap-3 bg-[#F7F9F5]">
-              <div class="min-w-0">
-                <div class="text-xs font-bold text-[#1E7E45]">Sem ${q.semester} • ${escapeHtml(q.subject)}</div>
-                <div class="text-sm font-bold text-[#132219] truncate">${escapeHtml(q.questionText)}</div>
+        <h3 class="text-base font-extrabold text-[#14532D]">Cloud MCQ Bank (${state.quizzes.length})</h3>
+        <div class="space-y-2 max-h-[680px] overflow-y-auto">
+          ${state.quizzes.map((q) => {
+            const prov = QUESTION_PROVENANCE_META[q.questionType] || QUESTION_PROVENANCE_META.PRACTICE;
+            const diff = DIFFICULTY_META[q.difficulty] || DIFFICULTY_META.MEDIUM;
+            return `
+              <div class="rounded-2xl border border-[#CDE0D3] p-3.5 flex items-center justify-between gap-3 bg-[#F7F9F5]">
+                <div class="min-w-0 space-y-1">
+                  <div class="flex flex-wrap items-center gap-1 text-[10px] font-extrabold">
+                    <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[#14532D]">Sem ${q.semester} • ${escapeHtml(q.subject)}</span>
+                    <span class="px-2 py-0.5 rounded-full border ${prov.badgeClass}">${escapeHtml(prov.en)}</span>
+                    <span class="px-2 py-0.5 rounded-full border ${diff.badgeClass}">${escapeHtml(diff.en)}</span>
+                    <span class="px-2 py-0.5 rounded-full ${q.published !== false ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}">${q.published !== false ? "Published" : "Draft"}</span>
+                  </div>
+                  <div class="text-sm font-bold text-[#132219] truncate">${escapeHtml(q.questionText)}</div>
+                </div>
+                <div class="flex gap-1.5 shrink-0">
+                  <button data-edit-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
+                  <button data-del-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
+                </div>
               </div>
-              <div class="flex gap-1.5 shrink-0">
-                <button data-edit-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-xs font-bold">Edit</button>
-                <button data-del-quiz="${escapeHtml(q.id)}" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">Delete</button>
-              </div>
-            </div>
-          `).join("")}
+            `;
+          }).join("")}
         </div>
       </div>
     </div>

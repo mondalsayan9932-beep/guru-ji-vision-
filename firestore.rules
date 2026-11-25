@@ -155,7 +155,23 @@ service cloud.firestore {
         data.score is int && data.score >= 0 && data.score <= 200 &&
         data.totalQuestions is int && data.totalQuestions >= 1 && data.totalQuestions <= 200 &&
         data.score <= data.totalQuestions &&
+        (!('mode' in data) || data.mode in ['PRACTICE', 'MOCK_TEST', 'PYQ_SET']) &&
+        (!('examCategory' in data) || data.examCategory in [
+          'ALL', 'BSC_SEMESTER', 'ICAR_ENTRANCE', 'ICAR_JRF', 'CUET_PG', 'IBPS_AFO', 'NABARD', 'STATE_AO', 'OTHER_COMPETITIVE'
+        ]) &&
+        (!('subjectKey' in data) || (data.subjectKey is string && data.subjectKey.size() <= 40)) &&
+        (!('durationSec' in data) || (data.durationSec is int && data.durationSec >= 0 && data.durationSec <= 28800)) &&
         isValidTimestamp(data.createdAt);
+    }
+
+    function isValidStudyBookmark(data) {
+      return data.itemType in ['NOTE', 'MCQ', 'SYLLABUS', 'PROGRESS'] &&
+        data.itemId is string && data.itemId.size() >= 1 && data.itemId.size() <= 140 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 180 &&
+        (!('subject' in data) || (data.subject is string && data.subject.size() <= 100)) &&
+        (!('semester' in data) || (data.semester is int && data.semester >= 0 && data.semester <= 8)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
     }
 
     function isValidFarmerQuery(data) {
@@ -195,11 +211,28 @@ service cloud.firestore {
 
     function isValidStudyMaterial(data) {
       return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
+        (!('titleBn' in data) || (data.titleBn is string && data.titleBn.size() <= 180)) &&
         data.semester is int && data.semester >= 1 && data.semester <= 8 &&
         data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 80 &&
+        (!('subjectKey' in data) || data.subjectKey in [
+          'AGRONOMY', 'SOIL_SCIENCE', 'GENETICS_BREEDING', 'PLANT_PATHOLOGY', 'ENTOMOLOGY',
+          'HORTICULTURE', 'AGRI_ECONOMICS', 'AGRI_EXTENSION', 'SEED_SCIENCE', 'PLANT_PHYSIOLOGY',
+          'AGRI_ENGINEERING', 'ANIMAL_HUSBANDRY', 'OTHER'
+        ]) &&
+        (!('topic' in data) || (data.topic is string && data.topic.size() <= 120)) &&
         data.category in ['NOTES_PDF', 'VIDEO_LECTURE', 'PYQ', 'PRACTICAL'] &&
         data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 1000 &&
+        (!('summaryBn' in data) || (data.summaryBn is string && data.summaryBn.size() <= 1000)) &&
         (!('contentText' in data) || (data.contentText is string && data.contentText.size() <= 12000)) &&
+        (!('contentTextBn' in data) || (data.contentTextBn is string && data.contentTextBn.size() <= 12000)) &&
+        (!('sourceName' in data) || (data.sourceName is string && data.sourceName.size() <= 140)) &&
+        (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() <= 400)) &&
+        (!('referenceCitation' in data) || (data.referenceCitation is string && data.referenceCitation.size() <= 300)) &&
+        (!('lastUpdatedDate' in data) || (data.lastUpdatedDate is string && data.lastUpdatedDate.size() <= 30)) &&
+        (!('downloadPermitted' in data) || data.downloadPermitted is bool) &&
+        (!('contentOrigin' in data) || data.contentOrigin in ['OFFICIAL_PUBLICATION', 'VERIFIED_FACULTY', 'CURATED_REFERENCE', 'AI_PRACTICE']) &&
+        (!('examTags' in data) || (data.examTags is list && data.examTags.size() <= 10)) &&
+        (!('popularityScore' in data) || (data.popularityScore is int && data.popularityScore >= 0 && data.popularityScore <= 1000000)) &&
         (!('verifiedForAi' in data) || data.verifiedForAi is bool) &&
         data.resourceUrl is string && data.resourceUrl.size() <= 400 &&
         data.published is bool &&
@@ -212,7 +245,14 @@ service cloud.firestore {
       return data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
         data.semester is int && data.semester >= 1 && data.semester <= 8 &&
         data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 80 &&
+        (!('subjectKey' in data) || data.subjectKey in [
+          'AGRONOMY', 'SOIL_SCIENCE', 'GENETICS_BREEDING', 'PLANT_PATHOLOGY', 'ENTOMOLOGY',
+          'HORTICULTURE', 'AGRI_ECONOMICS', 'AGRI_EXTENSION', 'SEED_SCIENCE', 'PLANT_PHYSIOLOGY',
+          'AGRI_ENGINEERING', 'ANIMAL_HUSBANDRY', 'OTHER'
+        ]) &&
+        (!('topic' in data) || (data.topic is string && data.topic.size() <= 120)) &&
         data.questionText is string && data.questionText.size() >= 5 && data.questionText.size() <= 500 &&
+        (!('questionTextBn' in data) || (data.questionTextBn is string && data.questionTextBn.size() <= 500)) &&
         data.options is list && data.options.size() == 4 &&
         data.options[0] is string && data.options[0].size() >= 1 && data.options[0].size() <= 160 &&
         data.options[1] is string && data.options[1].size() >= 1 && data.options[1].size() <= 160 &&
@@ -220,8 +260,60 @@ service cloud.firestore {
         data.options[3] is string && data.options[3].size() >= 1 && data.options[3].size() <= 160 &&
         data.correctIndex is int && data.correctIndex >= 0 && data.correctIndex <= 3 &&
         data.explanation is string && data.explanation.size() <= 500 &&
+        (!('explanationBn' in data) || (data.explanationBn is string && data.explanationBn.size() <= 500)) &&
+        (!('questionType' in data) || data.questionType in ['OFFICIAL_PYQ', 'VERIFIED_PUBLISHED', 'PRACTICE', 'AI_GENERATED']) &&
+        (!('difficulty' in data) || data.difficulty in ['EASY', 'MEDIUM', 'HARD']) &&
+        (!('examCategory' in data) || data.examCategory in [
+          'BSC_SEMESTER', 'ICAR_ENTRANCE', 'ICAR_JRF', 'CUET_PG', 'IBPS_AFO', 'NABARD', 'STATE_AO', 'OTHER_COMPETITIVE'
+        ]) &&
+        (!('examYear' in data) || (data.examYear is string && data.examYear.size() <= 20)) &&
+        (!('sourcePaper' in data) || (data.sourcePaper is string && data.sourcePaper.size() <= 160)) &&
+        (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() <= 400)) &&
         data.published is bool &&
         data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidUniversitySyllabus(data) {
+      return data.university is string && data.university.size() >= 2 && data.university.size() <= 160 &&
+        data.universityShort is string && data.universityShort.size() >= 2 && data.universityShort.size() <= 60 &&
+        data.course is string && data.course.size() >= 2 && data.course.size() <= 120 &&
+        data.semester is int && data.semester >= 1 && data.semester <= 8 &&
+        data.subject is string && data.subject.size() >= 2 && data.subject.size() <= 140 &&
+        (!('subjectKey' in data) || data.subjectKey in [
+          'AGRONOMY', 'SOIL_SCIENCE', 'GENETICS_BREEDING', 'PLANT_PATHOLOGY', 'ENTOMOLOGY',
+          'HORTICULTURE', 'AGRI_ECONOMICS', 'AGRI_EXTENSION', 'SEED_SCIENCE', 'PLANT_PHYSIOLOGY',
+          'AGRI_ENGINEERING', 'ANIMAL_HUSBANDRY', 'OTHER'
+        ]) &&
+        data.topics is list && data.topics.size() <= 40 &&
+        data.publicationYear is string && data.publicationYear.size() >= 4 && data.publicationYear.size() <= 60 &&
+        data.sourceUrl is string && data.sourceUrl.size() <= 400 &&
+        (!('pdfUrl' in data) || (data.pdfUrl is string && data.pdfUrl.size() <= 400)) &&
+        (!('downloadPermitted' in data) || data.downloadPermitted is bool) &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidDiscoveredStudyResource(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
+        data.sourceWebsite is string && data.sourceWebsite.size() >= 2 && data.sourceWebsite.size() <= 140 &&
+        data.publicationDate is string && data.publicationDate.size() >= 4 && data.publicationDate.size() <= 30 &&
+        data.subjectKey in [
+          'AGRONOMY', 'SOIL_SCIENCE', 'GENETICS_BREEDING', 'PLANT_PATHOLOGY', 'ENTOMOLOGY',
+          'HORTICULTURE', 'AGRI_ECONOMICS', 'AGRI_EXTENSION', 'SEED_SCIENCE', 'PLANT_PHYSIOLOGY',
+          'AGRI_ENGINEERING', 'ANIMAL_HUSBANDRY', 'OTHER'
+        ] &&
+        data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 120 &&
+        data.category in ['NOTES_PDF', 'PYQ', 'PRACTICAL', 'SYLLABUS', 'EXAM_NOTIFICATION'] &&
+        data.sourceUrl is string && data.sourceUrl.size() >= 8 && data.sourceUrl.size() <= 400 &&
+        data.dedupeKey is string && data.dedupeKey.size() >= 3 && data.dedupeKey.size() <= 240 &&
+        data.discoveryMethod in ['RSS_FEED', 'PUBLIC_API', 'ADMIN_SUBMITTED'] &&
+        data.reviewStatus in ['PENDING_REVIEW', 'APPROVED_PUBLISHED', 'REJECTED'] &&
+        (!('summary' in data) || (data.summary is string && data.summary.size() <= 500)) &&
+        (!('reviewedBy' in data) || (data.reviewedBy is string && data.reviewedBy.size() <= 128)) &&
         isValidTimestamp(data.createdAt) &&
         isValidTimestamp(data.updatedAt);
     }
@@ -578,11 +670,27 @@ service cloud.firestore {
           isValidId(attemptId) &&
           isOwner(userId) &&
           incoming().keys().hasAll(['semester', 'score', 'totalQuestions', 'createdAt']) &&
-          incoming().keys().hasOnly(['semester', 'score', 'totalQuestions', 'createdAt']) &&
+          incoming().keys().hasOnly(['semester', 'score', 'totalQuestions', 'mode', 'examCategory', 'subjectKey', 'durationSec', 'createdAt']) &&
           isValidQuizAttempt(incoming());
 
         allow update: if false;
         allow delete: if isValidId(userId) && isValidId(attemptId) && isOwner(userId);
+      }
+
+      // Private Student Study Bookmarks & Continue Learning Progress (Owner ONLY)
+      match /studyBookmarks/{bookmarkId} {
+        allow get: if isValidId(userId) && isValidId(bookmarkId) && isOwner(userId);
+        allow list: if isOwner(userId);
+
+        allow create, update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(bookmarkId) &&
+          isOwner(userId) &&
+          incoming().keys().hasAll(['itemType', 'itemId', 'title', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['itemType', 'itemId', 'title', 'subject', 'semester', 'createdAt', 'updatedAt']) &&
+          isValidStudyBookmark(incoming());
+
+        allow delete: if isValidId(userId) && isValidId(bookmarkId) && isOwner(userId);
       }
     }
 
@@ -628,7 +736,13 @@ service cloud.firestore {
         isValidStudyMaterial(incoming()) &&
         incoming().createdBy == request.auth.uid &&
         incoming().keys().hasAll(['title', 'semester', 'subject', 'category', 'summary', 'resourceUrl', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
-        incoming().keys().hasOnly(['title', 'semester', 'subject', 'category', 'summary', 'contentText', 'verifiedForAi', 'resourceUrl', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly([
+          'title', 'titleBn', 'semester', 'subject', 'subjectKey', 'topic', 'category',
+          'summary', 'summaryBn', 'contentText', 'contentTextBn',
+          'sourceName', 'sourceUrl', 'referenceCitation', 'lastUpdatedDate',
+          'downloadPermitted', 'contentOrigin', 'examTags', 'popularityScore',
+          'verifiedForAi', 'resourceUrl', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
         isAdmin();
 
       allow update: if isSignedIn() &&
@@ -637,7 +751,13 @@ service cloud.firestore {
         incoming().createdBy == existing().createdBy &&
         incoming().createdAt == existing().createdAt &&
         isAdmin() &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'semester', 'subject', 'category', 'summary', 'contentText', 'verifiedForAi', 'resourceUrl', 'published', 'updatedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'titleBn', 'semester', 'subject', 'subjectKey', 'topic', 'category',
+          'summary', 'summaryBn', 'contentText', 'contentTextBn',
+          'sourceName', 'sourceUrl', 'referenceCitation', 'lastUpdatedDate',
+          'downloadPermitted', 'contentOrigin', 'examTags', 'popularityScore',
+          'verifiedForAi', 'resourceUrl', 'published', 'updatedAt'
+        ]);
 
       allow delete: if isSignedIn() && isValidId(materialId) && isAdmin();
     }
@@ -652,7 +772,13 @@ service cloud.firestore {
         isValidQuizQuestion(incoming()) &&
         incoming().createdBy == request.auth.uid &&
         incoming().keys().hasAll(['title', 'semester', 'subject', 'questionText', 'options', 'correctIndex', 'explanation', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
-        incoming().keys().hasOnly(['title', 'semester', 'subject', 'questionText', 'options', 'correctIndex', 'explanation', 'published', 'createdBy', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly([
+          'title', 'semester', 'subject', 'subjectKey', 'topic',
+          'questionText', 'questionTextBn', 'options', 'correctIndex',
+          'explanation', 'explanationBn', 'questionType', 'difficulty',
+          'examCategory', 'examYear', 'sourcePaper', 'sourceUrl',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
         isAdmin();
 
       allow update: if isSignedIn() &&
@@ -661,7 +787,13 @@ service cloud.firestore {
         incoming().createdBy == existing().createdBy &&
         incoming().createdAt == existing().createdAt &&
         isAdmin() &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'semester', 'subject', 'questionText', 'options', 'correctIndex', 'explanation', 'published', 'updatedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'semester', 'subject', 'subjectKey', 'topic',
+          'questionText', 'questionTextBn', 'options', 'correctIndex',
+          'explanation', 'explanationBn', 'questionType', 'difficulty',
+          'examCategory', 'examYear', 'sourcePaper', 'sourceUrl',
+          'published', 'updatedAt'
+        ]);
 
       allow delete: if isSignedIn() && isValidId(quizId) && isAdmin();
     }
@@ -1857,6 +1989,74 @@ service cloud.firestore {
 
       allow update: if false;
       allow delete: if false;
+    }
+
+    // --- PHASE 7: UNIVERSITY-WISE OFFICIAL SYLLABI (Public Read when Published, Admin-Only Write) ---
+    match /syllabi/{syllabusId} {
+      allow get: if isValidId(syllabusId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(syllabusId) &&
+        isAdmin() &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'university', 'universityShort', 'course', 'semester', 'subject',
+          'topics', 'publicationYear', 'sourceUrl', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'university', 'universityShort', 'course', 'semester', 'subject', 'subjectKey',
+          'topics', 'publicationYear', 'sourceUrl', 'pdfUrl', 'downloadPermitted',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidUniversitySyllabus(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(syllabusId) &&
+        isAdmin() &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidUniversitySyllabus(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'university', 'universityShort', 'course', 'semester', 'subject', 'subjectKey',
+          'topics', 'publicationYear', 'sourceUrl', 'pdfUrl', 'downloadPermitted',
+          'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(syllabusId) && isAdmin();
+    }
+
+    // --- PHASE 7: AUTOMATICALLY DISCOVERED & REVIEWED STUDY RESOURCES (Admin Review Before Publication) ---
+    match /discoveredStudyResources/{resourceId} {
+      allow get: if isValidId(resourceId) && (existing().reviewStatus == 'APPROVED_PUBLISHED' || isAdmin());
+      allow list: if existing().reviewStatus == 'APPROVED_PUBLISHED' || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(resourceId) &&
+        isAdmin() &&
+        incoming().keys().hasAll([
+          'title', 'sourceWebsite', 'publicationDate', 'subjectKey', 'topic',
+          'category', 'sourceUrl', 'dedupeKey', 'discoveryMethod', 'reviewStatus',
+          'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'title', 'sourceWebsite', 'publicationDate', 'subjectKey', 'topic',
+          'category', 'sourceUrl', 'dedupeKey', 'discoveryMethod', 'reviewStatus',
+          'summary', 'reviewedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidDiscoveredStudyResource(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(resourceId) &&
+        isAdmin() &&
+        incoming().createdAt == existing().createdAt &&
+        isValidDiscoveredStudyResource(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'sourceWebsite', 'publicationDate', 'subjectKey', 'topic',
+          'category', 'sourceUrl', 'reviewStatus', 'summary', 'reviewedBy', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(resourceId) && isAdmin();
     }
   }
 }
