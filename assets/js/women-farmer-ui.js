@@ -14,6 +14,7 @@
 
 import { escapeHtml, formatDateShort, safeUrl } from "./calculators.js";
 import { getAllStatesList } from "./india-mandi-directory.js";
+import { renderSharedCommonModulesSection, renderZoneTopNavBar } from "./ui-public.js";
 import {
   SCHEME_CATEGORIES,
   SCHEME_CATEGORY_MAP,
@@ -730,14 +731,16 @@ export function renderWomenFarmerZoneView(state) {
   ];
 
   return `
-    <div data-module="women-farmer-zone" class="space-y-5">
+    <div data-module="women-farmer-zone" data-zone-dashboard="women-farmer" class="space-y-6">
+      ${renderZoneTopNavBar("women-farmer")}
+
       <!-- Hero Header -->
       <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
         <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
         <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="space-y-1.5">
             <span class="inline-block px-2.5 py-0.5 rounded-full bg-fuchsia-400/25 border border-fuchsia-300/40 text-fuchsia-100 text-[10px] font-extrabold uppercase tracking-wider">
-              ${bn ? "কৃষক জোন • নারী কৃষক ক্ষমতায়ন" : "Farmer Zone • Women Farmer Empowerment"}
+              ${bn ? "স্বতন্ত্র জোন • নারী কৃষক ক্ষমতায়ন" : "Zone 3 • Women Farmer Empowerment"}
             </span>
             <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">
               Women Farmer Zone | নারী কৃষক সহায়তা কেন্দ্র
@@ -775,6 +778,9 @@ export function renderWomenFarmerZoneView(state) {
       ${activeTab === "schemes" ? renderSchemesSubView(state, lang) : ""}
       ${activeTab === "discussion" ? renderDiscussionSubView(state, lang) : ""}
       ${activeTab === "rights" ? renderRightsAndHelplinesSubView(lang) : ""}
+
+      <!-- Shared Common Services (accessible across all 4 Zones) -->
+      ${renderSharedCommonModulesSection(state, "women-farmer")}
     </div>
   `;
 }

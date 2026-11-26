@@ -32,6 +32,11 @@ import {
   mergeSyllabi
 } from "./agri-education-data.js";
 import { renderAgriEducationView } from "./agri-education-ui.js";
+import {
+  WOMEN_FARMER_DASHBOARD_AREAS,
+  filterWomenDiscussions,
+  getWomenFarmerSchemes
+} from "./women-farmer-data.js";
 
 const GREEN_HEAVEN_LOGO_SVG = `
   <span class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-[#DCFCE7] shadow-sm shrink-0" aria-hidden="true">
@@ -68,7 +73,9 @@ const AGRI_ICONS = {
   resources: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
   scheme: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>`,
   rights: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
-  briefcase: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
+  briefcase: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+  women: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/><path d="M18 4a3 3 0 0 1 2 5"/><path d="M6 4a3 3 0 0 0-2 5"/></svg>`,
+  skill: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>`
 };
 
 // Lightweight Precision Agriculture Landscape Background Illustration (Inline SVG — 0 network requests)
@@ -140,9 +147,12 @@ function renderGreenHeavenCompactCard() {
 // ----------------------------------------------------------------------------
 export function renderHomeView(state) {
   const settings = state.appSettings;
-  const publicMaterials = state.studyMaterials.filter((m) => m.published !== false);
+  const publicMaterials = mergeStudyMaterials(state.studyMaterials || [], false);
   const activeNotices = state.announcements.filter((a) => a.active !== false);
   const upcomingMeetings = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m));
+  const womenEligibleSchemesCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "ALL" }).length;
+  const womenDiscussionCount = filterWomenDiscussions(state.communityPosts || [], { category: "ALL" }, Boolean(state.isAdmin)).length;
+  const activeCareersCount = (state.careerOpportunities || []).filter((c) => c.published !== false).length;
   const waDirect = buildWhatsAppDirectUrl(settings.whatsappNumber, "Namaskar Guru Ji Vision Team, I need help regarding agriculture / B.Sc Agriculture.");
   const waGroup = safeUrl(settings.whatsappGroupInviteUrl);
   const isProf = state.facultyIdentity?.isAuthorizedProfessor;
@@ -266,96 +276,184 @@ export function renderHomeView(state) {
         </div>
       </section>
 
-      <!-- ==================== PRIMARY TWO-ZONE DASHBOARD CARDS ==================== -->
+      <!-- ==================== PRIMARY FOUR-ZONE DASHBOARD CARDS ==================== -->
       <section class="space-y-4">
-        <div class="px-1">
-          <h3 class="text-lg sm:text-xl font-extrabold text-[#14532D] tracking-tight">Choose Your Zone</h3>
-          <p class="text-xs sm:text-sm text-[#475569]">Select Student Zone or Farmer Zone to access organized tools, learning resources, and shared community services.</p>
+        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-lg sm:text-xl font-extrabold text-[#14532D] tracking-tight">Choose Your Zone</h3>
+            <p class="text-xs sm:text-sm text-[#475569]">Four independent primary Zones tailored for Agriculture Students, Farmers, Women Farmers, and Skill Development — all connected to 5 unified Common Services.</p>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#BBF7D0] text-[11px] font-extrabold text-[#14532D]">4 Independent Zones</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <!-- CARD 1: STUDENT ZONE -->
-          <button data-nav="student-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-[#15803D] shadow-[0_8px_28px_-12px_rgba(20,83,45,0.18)] hover:shadow-[0_14px_34px_-12px_rgba(20,83,45,0.28)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
+          <!-- ZONE 1: STUDENT ZONE -->
+          <button data-nav="student-zone" data-zone-card="student-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-[#15803D] shadow-[0_8px_28px_-12px_rgba(20,83,45,0.18)] hover:shadow-[0_14px_34px_-12px_rgba(20,83,45,0.28)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
             <div class="h-2 w-full bg-gradient-to-r from-[#14532D] via-[#15803D] to-[#22C55E]"></div>
-            <div class="p-6 sm:p-7 space-y-5 flex-1 flex flex-col justify-between w-full">
-              <div class="space-y-4">
+            <div class="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between w-full">
+              <div class="space-y-3.5">
                 <div class="flex items-start justify-between gap-3">
-                  <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-white flex items-center justify-center shadow-md shrink-0">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
                       <path d="M6 12v5c3 3 9 3 12 0v-5"/>
                     </svg>
                   </div>
                   <div class="flex flex-wrap items-center justify-end gap-1.5">
                     <span data-home-slot="student-unread-badge" class="${unreadDoubts > 0 ? "" : "hidden "}px-2.5 py-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">${unreadDoubts > 0 ? `${unreadDoubts} unread` : ""}</span>
-                    <span class="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#14532D] text-[11px] font-extrabold">B.Sc Agriculture</span>
+                    <span class="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#14532D] text-[11px] font-extrabold">Zone 1 • B.Sc Agriculture</span>
                   </div>
                 </div>
 
-                <div class="space-y-1.5">
+                <div class="space-y-1">
                   <h4 class="font-display text-xl sm:text-2xl font-bold text-[#14532D] group-hover:text-[#15803D] transition-colors">
                     Student Zone | শিক্ষার্থী জোন
                   </h4>
-                  <p class="text-sm text-[#475569] leading-relaxed">
-                    Everything an Agriculture Student Needs in One Place.
+                  <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                    Everything an Agriculture Student needs: Notes, MCQ Practice, Previous Year Questions, ICAR Syllabus, Study Materials &amp; Exam Preparation.
                   </p>
                 </div>
 
-                <div class="flex flex-wrap gap-1.5 pt-1">
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Study Notes</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">MCQs &amp; PYQs</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">ICAR Syllabus</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Career Guidance</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569] text-[11px] font-bold">+ 5 Shared Modules</span>
+                <div class="flex flex-wrap gap-1.5 pt-0.5">
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Agriculture Notes</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">MCQ &amp; PYQs</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Syllabus</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Exam Prep</span>
                 </div>
               </div>
 
-              <div class="pt-4 border-t border-[#E2E8F0] flex items-center justify-between gap-2 w-full">
+              <div class="pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 w-full">
                 <span data-home-slot="student-zone-meta" class="text-xs font-bold text-[#15803D]">${publicMaterials.length} Notes &amp; Study Resources Ready</span>
                 <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
-                  <span>Open Student Zone</span>
+                  <span>Enter Zone</span>
                   <span>→</span>
                 </span>
               </div>
             </div>
           </button>
 
-          <!-- CARD 2: FARMER ZONE -->
-          <button data-nav="farmer-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-[#15803D] shadow-[0_8px_28px_-12px_rgba(20,83,45,0.18)] hover:shadow-[0_14px_34px_-12px_rgba(20,83,45,0.28)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
+          <!-- ZONE 2: FARMER ZONE -->
+          <button data-nav="farmer-zone" data-zone-card="farmer-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-[#15803D] shadow-[0_8px_28px_-12px_rgba(20,83,45,0.18)] hover:shadow-[0_14px_34px_-12px_rgba(20,83,45,0.28)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
             <div class="h-2 w-full bg-gradient-to-r from-[#15803D] via-[#16A34A] to-[#22C55E]"></div>
-            <div class="p-6 sm:p-7 space-y-5 flex-1 flex flex-col justify-between w-full">
-              <div class="space-y-4">
+            <div class="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between w-full">
+              <div class="space-y-3.5">
                 <div class="flex items-start justify-between gap-3">
-                  <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#15803D] to-[#22C55E] text-white flex items-center justify-center shadow-md shrink-0">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#15803D] to-[#22C55E] text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M12 22V8m0 0C12 4 9 2 6 2c0 3 2 6 6 6Zm0 0c0-4 3-6 6-6 0 3-2 6-6 6ZM7 14c-2 0-4 1.5-4 4 3 0 5-1 5-4Zm10 0c2 0 4 1.5 4 4-3 0-5-1-5-4Z"/>
                     </svg>
                   </div>
-                  <span class="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#14532D] text-[11px] font-extrabold">Smart Farming</span>
+                  <span class="px-3 py-1 rounded-full bg-[#DCFCE7] text-[#14532D] text-[11px] font-extrabold">Zone 2 • Smart Farming</span>
                 </div>
 
-                <div class="space-y-1.5">
+                <div class="space-y-1">
                   <h4 class="font-display text-xl sm:text-2xl font-bold text-[#14532D] group-hover:text-[#15803D] transition-colors">
                     Farmer Zone | কৃষক জোন
                   </h4>
-                  <p class="text-sm text-[#475569] leading-relaxed">
-                    Smart Agriculture, Farming Resources and Farmer Support.
+                  <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                    Smart Agriculture, Live Mandi Prices, Weather Forecast, Crop Disease &amp; Pest IPM, Expert Crop Advisory, Govt Schemes &amp; Farmer Support.
                   </p>
                 </div>
 
-                <div class="flex flex-wrap gap-1.5 pt-1">
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Mandi Price (বাজারদর)</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Weather Forecast</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Crop Disease &amp; Advisory</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Govt Schemes (সরকারি প্রকল্প)</span>
-                  <span class="px-2.5 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569] text-[11px] font-bold">+ 5 Shared Modules</span>
+                <div class="flex flex-wrap gap-1.5 pt-0.5">
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Mandi Price</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Crop &amp; Pest IPM</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Govt Schemes</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-[11px] font-bold">Financial Support</span>
                 </div>
               </div>
 
-              <div class="pt-4 border-t border-[#E2E8F0] flex items-center justify-between gap-2 w-full">
+              <div class="pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 w-full">
                 <span data-home-slot="farmer-zone-meta" class="text-xs font-bold text-[#15803D]">28 States &amp; 8 UTs Mandi Directory + Expert Support</span>
                 <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#14532D] to-[#15803D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
-                  <span>Open Farmer Zone</span>
+                  <span>Enter Zone</span>
+                  <span>→</span>
+                </span>
+              </div>
+            </div>
+          </button>
+
+          <!-- ZONE 3: WOMEN FARMER ZONE -->
+          <button data-nav="women-farmer" data-zone-card="women-farmer" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-fuchsia-600 shadow-[0_8px_28px_-12px_rgba(134,25,143,0.16)] hover:shadow-[0_14px_34px_-12px_rgba(134,25,143,0.26)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
+            <div class="h-2 w-full bg-gradient-to-r from-[#86198F] via-[#C026D3] to-[#15803D]"></div>
+            <div class="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between w-full">
+              <div class="space-y-3.5">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#86198F] to-[#A21CAF] text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4"/>
+                      <path d="M5.5 21a6.5 6.5 0 0 1 13 0"/>
+                      <path d="M18 4a3 3 0 0 1 2 5"/>
+                      <path d="M6 4a3 3 0 0 0-2 5"/>
+                    </svg>
+                  </div>
+                  <span class="px-3 py-1 rounded-full bg-fuchsia-100 text-fuchsia-900 text-[11px] font-extrabold">Zone 3 • Women Empowerment</span>
+                </div>
+
+                <div class="space-y-1">
+                  <h4 class="font-display text-xl sm:text-2xl font-bold text-[#14532D] group-hover:text-fuchsia-800 transition-colors">
+                    Women Farmer Zone | নারী কৃষক জোন
+                  </h4>
+                  <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                    Dedicated bilingual hub for Women Farmers: Women-eligible schemes, SHG &amp; Women-led FPOs, horticulture, dairy, fisheries, rights, helplines &amp; discussion board.
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 pt-0.5">
+                  <span class="px-2.5 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-900 text-[11px] font-bold">15 Support Areas</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-900 text-[11px] font-bold">SHG &amp; Women FPO</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-900 text-[11px] font-bold">Discussion Board</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-900 text-[11px] font-bold">Rights &amp; Helplines</span>
+                </div>
+              </div>
+
+              <div class="pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 w-full">
+                <span data-home-slot="women-zone-meta" class="text-xs font-bold text-fuchsia-800">${womenEligibleSchemesCount} Women-Eligible Schemes • ${womenDiscussionCount} Discussions</span>
+                <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#86198F] to-[#14532D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
+                  <span>Enter Zone</span>
+                  <span>→</span>
+                </span>
+              </div>
+            </div>
+          </button>
+
+          <!-- ZONE 4: SKILL ZONE -->
+          <button data-nav="skill-zone" data-zone-card="skill-zone" type="button" class="group text-left rounded-3xl bg-white border-2 border-[#D9EAE0] hover:border-teal-600 shadow-[0_8px_28px_-12px_rgba(15,118,110,0.16)] hover:shadow-[0_14px_34px_-12px_rgba(15,118,110,0.26)] overflow-hidden transition-all duration-200 flex flex-col justify-between">
+            <div class="h-2 w-full bg-gradient-to-r from-[#0F766E] via-[#0D9488] to-[#22C55E]"></div>
+            <div class="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between w-full">
+              <div class="space-y-3.5">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#0F766E] to-[#14532D] text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 2 2 7l10 5 10-5-10-5Z"/>
+                      <path d="m2 17 10 5 10-5"/>
+                      <path d="m2 12 10 5 10-5"/>
+                    </svg>
+                  </div>
+                  <span class="px-3 py-1 rounded-full bg-teal-100 text-teal-900 text-[11px] font-extrabold">Zone 4 • All Learners</span>
+                </div>
+
+                <div class="space-y-1">
+                  <h4 class="font-display text-xl sm:text-2xl font-bold text-[#14532D] group-hover:text-teal-800 transition-colors">
+                    Skill Zone | স্কিল ও প্রশিক্ষণ জোন
+                  </h4>
+                  <p class="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                    Skill development, practical agricultural training, career preparation &amp; hands-on learning pathways for Students, Farmers, and Women Farmers.
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 pt-0.5">
+                  <span class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-[11px] font-bold">Skill Development</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-[11px] font-bold">Agri Training</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-[11px] font-bold">Career Prep</span>
+                  <span class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-[11px] font-bold">Agri-Enterprise</span>
+                </div>
+              </div>
+
+              <div class="pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 w-full">
+                <span data-home-slot="skill-zone-meta" class="text-xs font-bold text-teal-800">${activeCareersCount} Career Listings • Practical &amp; Training Tracks</span>
+                <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0F766E] to-[#14532D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
+                  <span>Enter Zone</span>
                   <span>→</span>
                 </span>
               </div>
@@ -389,8 +487,37 @@ export function renderHomeView(state) {
 }
 
 // ----------------------------------------------------------------------------
-// SHARED ZONE LIST ROW & COMMON MODULES HELPER (ZERO DUPLICATE MODULES)
+// SHARED ZONE NAVIGATION BAR, LIST ROW & COMMON MODULES HELPER (4 INDEPENDENT ZONES)
 // ----------------------------------------------------------------------------
+export function renderZoneTopNavBar(activeZone) {
+  const zones = [
+    { key: "student-zone", label: "Student Zone" },
+    { key: "farmer-zone", label: "Farmer Zone" },
+    { key: "women-farmer", label: "Women Farmer Zone" },
+    { key: "skill-zone", label: "Skill Zone" }
+  ];
+  return `
+    <div data-zone-top-nav="${escapeHtml(activeZone)}" class="flex flex-wrap items-center justify-between gap-2.5">
+      <button data-nav="home" type="button" class="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
+        ${AGRI_ICONS.back}
+        <span>Back to Home</span>
+      </button>
+      <div class="flex flex-wrap items-center gap-1.5" role="navigation" aria-label="Switch primary zone">
+        ${zones.map((z) => {
+          const isCurrent = z.key === activeZone;
+          return `
+            <button data-nav="${z.key}" type="button" ${isCurrent ? 'aria-current="page"' : ""} class="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-extrabold transition-colors ${
+              isCurrent
+                ? "bg-[#14532D] text-white shadow-sm"
+                : "bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#14532D]"
+            }">${escapeHtml(z.label)}</button>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderZoneListRow(item) {
   const extraAttrs = Object.entries(item.attrs || {})
     .map(([k, v]) => ` ${k}="${escapeHtml(String(v))}"`)
@@ -416,18 +543,28 @@ function renderZoneListRow(item) {
   `;
 }
 
-function renderSharedCommonModulesSection(state, zoneKey) {
-  const upcomingMeetings = state.meetings.filter((m) => m.published !== false && isUpcomingMeeting(m)).length;
-  const activePosts = state.communityPosts.filter((p) => p.status === "ACTIVE").length;
-  const isFarmerZone = zoneKey === "farmer-zone";
+export function renderSharedCommonModulesSection(state, zoneKey) {
+  const upcomingMeetings = (state.meetings || []).filter((m) => m.published !== false && isUpcomingMeeting(m)).length;
+  const activePosts = (state.communityPosts || []).filter((p) => p.status === "ACTIVE").length;
+  const isFarmerLikeZone = zoneKey === "farmer-zone" || zoneKey === "women-farmer";
+  const isSkillZone = zoneKey === "skill-zone";
+
+  // Money Management always enforces separate Student and Farmer financial profiles.
+  // Skill Zone lets the active user's own authorized Student or Farmer profile resolve automatically.
+  const moneyAttrs = { "data-from-zone": zoneKey };
+  if (isFarmerLikeZone) {
+    moneyAttrs["data-open-money-scope"] = "FARMER";
+  } else if (zoneKey === "student-zone") {
+    moneyAttrs["data-open-money-scope"] = "STUDENT";
+  }
 
   const commonItems = [
     {
       route: "meeting",
       title: "Meeting (Meeting Zone)",
       subtitle: upcomingMeetings > 0
-        ? `${upcomingMeetings} upcoming Google Meet live sessions & workshops`
-        : "Join live Google Meet classes, agricultural webinars & recorded sessions",
+        ? `${upcomingMeetings} upcoming Google Meet live sessions, training classes & workshops`
+        : "Join live Google Meet classes, agricultural webinars & training sessions",
       icon: AGRI_ICONS.meeting,
       badge: upcomingMeetings > 0 ? `${upcomingMeetings} Upcoming` : "Live Meet",
       attrs: { "data-from-zone": zoneKey }
@@ -435,19 +572,21 @@ function renderSharedCommonModulesSection(state, zoneKey) {
     {
       route: "money",
       title: "Money Management (₹)",
-      subtitle: isFarmerZone
-        ? "100% private Farmer & Student income, expense & budget ledger synced to your Google account"
-        : "100% private Student & Farmer income, expense, hostel & budget ledger synced to your Google account",
+      subtitle: isFarmerLikeZone
+        ? "100% private Farmer financial profile — crop costs, sales, loans, land lease & profit/loss (strictly isolated from Student profile)"
+        : isSkillZone
+          ? "100% private Money Management using your authorized Student or Farmer financial profile (strictly isolated ledgers)"
+          : "100% private Student financial profile — education, scholarship, books, hostel & savings (strictly isolated from Farmer profile)",
       icon: AGRI_ICONS.money,
-      badge: "Private Vault",
-      attrs: { "data-from-zone": zoneKey, "data-open-money-scope": isFarmerZone ? "FARMER" : "STUDENT" }
+      badge: isFarmerLikeZone ? "Farmer Profile" : (isSkillZone ? "Isolated Profiles" : "Student Profile"),
+      attrs: moneyAttrs
     },
     {
       route: "community",
-      title: "Community",
+      title: "Community & Discussion",
       subtitle: activePosts > 0
-        ? `Junior Student • Senior Student • International • Farmer Community (${activePosts} active discussions)`
-        : "Junior Student Community • Senior Student Community • International Community • Farmer Talk",
+        ? `Student, Farmer & International Agriculture Discussions (${activePosts} active posts)`
+        : "Junior Student • Senior Student • International • Farmer Discussion Circles",
       icon: AGRI_ICONS.community,
       badge: "4 Circles",
       attrs: { "data-from-zone": zoneKey, "data-open-comm-sub": "forum" }
@@ -455,7 +594,7 @@ function renderSharedCommonModulesSection(state, zoneKey) {
     {
       route: "ai",
       title: "AI Guru Knowledge Base",
-      subtitle: "Instant search across verified B.Sc Agriculture notes, ICAR crop disease guides & free references",
+      subtitle: "Instant search across verified B.Sc Agriculture notes, ICAR crop disease guides & official references",
       icon: AGRI_ICONS.ai,
       badge: "Source Cited",
       attrs: { "data-from-zone": zoneKey }
@@ -472,13 +611,13 @@ function renderSharedCommonModulesSection(state, zoneKey) {
   ];
 
   return `
-    <section class="space-y-3">
+    <section data-common-services="${escapeHtml(zoneKey)}" class="space-y-3">
       <div class="flex flex-wrap items-end justify-between gap-2 px-1">
         <div>
-          <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Shared Platform Modules</h3>
-          <p class="text-xs text-[#475569]">Unified services shared seamlessly across Student Zone and Farmer Zone with the same live Firebase data.</p>
+          <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Common Services</h3>
+          <p class="text-xs text-[#475569]">Unified services accessible across Student Zone, Farmer Zone, Women Farmer Zone, and Skill Zone with the same live Firebase data.</p>
         </div>
-        <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">5 Shared Services</span>
+        <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">5 Common Services</span>
       </div>
       <div class="space-y-2.5">
         ${commonItems.map(renderZoneListRow).join("")}
@@ -592,17 +731,8 @@ export function renderStudentZoneView(state) {
 
   return `
     <div data-zone-dashboard="student-zone" class="space-y-6">
-      <!-- Top Back Navigation -->
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <button data-nav="home" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-          ${AGRI_ICONS.back}
-          <span>Back to Home</span>
-        </button>
-        <button data-nav="farmer-zone" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">
-          <span>Switch to Farmer Zone</span>
-          <span>→</span>
-        </button>
-      </div>
+      <!-- Top Zone Navigation Bar -->
+      ${renderZoneTopNavBar("student-zone")}
 
       <!-- Student Zone Header Card -->
       <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
@@ -709,37 +839,19 @@ export function renderFarmerZoneView(state) {
       attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "schemes" }
     },
     {
-      route: "women-farmer",
-      title: "Women Farmer Zone | নারী কৃষক সহায়তা কেন্দ্র",
-      subtitle: "Women farmer schemes, training, SHG & women-led FPOs, horticulture, dairy, fisheries, rights, helplines & bilingual discussion board",
-      icon: AGRI_ICONS.community,
-      badge: "15 Areas • Discussion Board",
-      featured: true,
-      attrs: { "data-from-zone": "farmer-zone" }
-    },
-    {
       route: "farmer-finance",
-      title: "Farmer Helplines & Application Help (কৃষক হেল্পলাইন ও সহায়তা)",
-      subtitle: "Toll-free Kisan Call Centre (1800-180-1551 in Bengali), Crop Insurance 14447, Block ADA / Duare Sarkar guidance & free legal aid",
+      title: "Farmer Financial Support, Bank Rate Comparison & Helplines (কৃষক আর্থিক সহায়তা ও হেল্পলাইন)",
+      subtitle: "Verified Bank vs Private Lender interest rate comparison (KCC/SBI/RRB), toll-free Kisan Call Centre (1800-180-1551), Crop Insurance 14447 & legal rights",
       icon: AGRI_ICONS.rights,
-      badge: "Toll-Free Help",
+      badge: "Financial Support & Rights",
       attrs: { "data-from-zone": "farmer-zone", "data-open-ff-sub": "helplines" }
     }
   ];
 
   return `
     <div data-zone-dashboard="farmer-zone" class="space-y-6">
-      <!-- Top Back Navigation -->
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <button data-nav="home" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs sm:text-sm font-extrabold shadow-sm transition-colors">
-          ${AGRI_ICONS.back}
-          <span>Back to Home</span>
-        </button>
-        <button data-nav="student-zone" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#14532D] text-xs font-extrabold transition-colors">
-          <span>Switch to Student Zone</span>
-          <span>→</span>
-        </button>
-      </div>
+      <!-- Top Zone Navigation Bar -->
+      ${renderZoneTopNavBar("farmer-zone")}
 
       <!-- Farmer Zone Header Card -->
       <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
@@ -770,7 +882,7 @@ export function renderFarmerZoneView(state) {
         <div class="flex flex-wrap items-end justify-between gap-2 px-1">
           <div>
             <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Smart Farming, Advisory &amp; Government Support</h3>
-            <p class="text-xs text-[#475569]">Mandi Prices, Weather Alerts, Crop Disease IPM, Expert Advisory, Govt Schemes &amp; Toll-Free Farmer Helplines</p>
+            <p class="text-xs text-[#475569]">Mandi Prices, Weather Forecast, Crop Information, Pest &amp; Disease Management, Crop Advisory, Govt Schemes, Financial Support &amp; Agri Resources</p>
           </div>
           <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">${farmerItems.length} Services</span>
         </div>
@@ -779,8 +891,176 @@ export function renderFarmerZoneView(state) {
         </div>
       </section>
 
-      <!-- 5 Shared Common Features -->
+      <!-- 5 Common Services -->
       ${renderSharedCommonModulesSection(state, "farmer-zone")}
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// 1D. DEDICATED SKILL ZONE DASHBOARD (route: "skill-zone")
+// Independent Zone for Students, Farmers & Women Farmers
+// ----------------------------------------------------------------------------
+export function renderSkillZoneView(state) {
+  const publicMaterials = mergeStudyMaterials(state.studyMaterials || [], false);
+  const practicalCount = publicMaterials.filter((m) => m.category === "PRACTICAL" || m.category === "VIDEO_LECTURE").length;
+  const quizCount = mergeQuizQuestions(state.quizzes || [], false).length;
+  const careerCount = (state.careerOpportunities || []).filter((c) => c.published !== false).length;
+  const upcomingMeetings = (state.meetings || []).filter((m) => m.published !== false && isUpcomingMeeting(m)).length;
+
+  const connectedSkillModules = [
+    {
+      route: "career-guidance",
+      title: "Career Preparation & Faculty Mentorship",
+      subtitle: "1-on-1 guidance for ICAR JRF/SRF, IBPS AFO, NABARD, State AO exams, M.Sc admissions & agriculture career pathways",
+      icon: AGRI_ICONS.career,
+      badge: `${state.professors.length} Mentors`,
+      featured: true,
+      attrs: { "data-from-zone": "skill-zone" }
+    },
+    {
+      route: "community",
+      title: "Agri Careers, Internships, Scholarships & Training Alerts",
+      subtitle: `Explore verified government agriculture job notifications, RAWE internships, fellowships & exam updates (${careerCount} active listings)`,
+      icon: AGRI_ICONS.briefcase,
+      badge: `${careerCount} Active`,
+      attrs: { "data-from-zone": "skill-zone", "data-open-comm-sub": "careers" }
+    },
+    {
+      route: "student",
+      title: "Practical Manuals, Field Guides & Skill Lectures",
+      subtitle: `Hands-on laboratory manuals, crop & soil field identification guides & practical learning resources (${practicalCount} items)`,
+      icon: AGRI_ICONS.resources,
+      badge: "Hands-On Learning",
+      attrs: { "data-from-zone": "skill-zone", "data-open-student-sub": "materials", "data-open-student-cat": "PRACTICAL" }
+    },
+    {
+      route: "student",
+      title: "Competitive Exam MCQ & Mock Practice",
+      subtitle: `Timed mock tests and subject-wise agriculture practice sets with instant explanations (${quizCount} verified questions)`,
+      icon: AGRI_ICONS.quiz,
+      badge: `${quizCount} MCQs`,
+      attrs: { "data-from-zone": "skill-zone", "data-open-student-sub": "quiz" }
+    },
+    {
+      route: "tools",
+      title: "Applied Precision Farming & Agri Input Calculators",
+      subtitle: "Build practical calculation skills for balanced NPK fertilizer dosing (DAP/SSP/Urea/MOP), seed rate & crop spacing across Hectare, Acre & Bigha",
+      icon: AGRI_ICONS.tools,
+      badge: "Applied Tools",
+      attrs: { "data-from-zone": "skill-zone" }
+    },
+    {
+      route: "meeting",
+      title: "Live Training Workshops & Skill Webinars",
+      subtitle: upcomingMeetings > 0
+        ? `${upcomingMeetings} upcoming live Google Meet workshops and interactive skill training sessions`
+        : "Join scheduled Google Meet training workshops, guest faculty seminars & practical Q&A sessions",
+      icon: AGRI_ICONS.meeting,
+      badge: upcomingMeetings > 0 ? `${upcomingMeetings} Live` : "Workshops",
+      attrs: { "data-from-zone": "skill-zone" }
+    }
+  ];
+
+  const roadmapTracks = [
+    {
+      audience: "For Agriculture Students",
+      audienceBn: "শিক্ষার্থীদের জন্য",
+      title: "Agri-Tech, Lab & Competitive Exam Readiness",
+      desc: "Structured skill tracks covering GIS/digital agriculture basics, soil testing interpretation, scientific report writing, interview prep, and ICAR / IBPS AFO readiness.",
+      badge: "Planned Next Phase"
+    },
+    {
+      audience: "For Farmers",
+      audienceBn: "কৃষকদের জন্য",
+      title: "Modern Farming, Soil Health & Value Addition",
+      desc: "Practical step-by-step modules on Integrated Pest Management (IPM), water-saving irrigation, organic composting, post-harvest grading, and direct mandi marketing.",
+      badge: "Planned Next Phase"
+    },
+    {
+      audience: "For Women Farmers",
+      audienceBn: "নারী কৃষকদের জন্য",
+      title: "SHG Leadership, Dairy, Mushroom & Agri-Enterprise",
+      desc: "Hands-on livelihood and entrepreneurship learning paths in mushroom cultivation, vermicomposting, backyard poultry, dairy management, and women-led FPO bookkeeping.",
+      badge: "Planned Next Phase"
+    }
+  ];
+
+  return `
+    <div data-zone-dashboard="skill-zone" class="space-y-6">
+      <!-- Top Zone Navigation Bar -->
+      ${renderZoneTopNavBar("skill-zone")}
+
+      <!-- Skill Zone Header Card -->
+      <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
+        <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 backdrop-blur-sm flex items-center justify-center shrink-0">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2 2 7l10 5 10-5-10-5Z"/>
+                <path d="m2 17 10 5 10-5"/>
+                <path d="m2 12 10 5 10-5"/>
+              </svg>
+            </div>
+            <div class="space-y-1">
+              <span class="inline-block px-2.5 py-0.5 rounded-full bg-teal-300/25 border border-teal-200/40 text-teal-100 text-[10px] font-extrabold uppercase tracking-wider">Skill Development • Training • Career Prep</span>
+              <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">Skill Zone | স্কিল ও প্রশিক্ষণ জোন</h2>
+              <p class="text-xs sm:text-sm text-[#DCFCE7]/95 max-w-2xl">
+                Independent skill development, practical training, and career preparation hub designed for Students, Farmers, and Women Farmers.
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Students</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Farmers</span>
+            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Women Farmers</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Connected Skill & Career Preparation Modules -->
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Available Training, Practice &amp; Career Preparation</h3>
+            <p class="text-xs text-[#475569]">Direct access to live mentorship, practical manuals, exam preparation, precision agri tools &amp; workshops — zero duplicate data.</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-[11px] font-bold text-teal-900">${connectedSkillModules.length} Live Modules</span>
+        </div>
+        <div class="space-y-2.5">
+          ${connectedSkillModules.map(renderZoneListRow).join("")}
+        </div>
+      </section>
+
+      <!-- Upcoming Structured Skill Development Tracks (Informational Preview) -->
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Upcoming Structured Skill Tracks</h3>
+            <p class="text-xs text-[#475569]">Dedicated certification pathways and hands-on training modules planned for upcoming phases across all three learner groups.</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">3 Learner Tracks</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          ${roadmapTracks.map((track) => `
+            <div class="gv-card p-5 space-y-2.5 flex flex-col justify-between">
+              <div class="space-y-2">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-900 text-[10px] font-extrabold">${escapeHtml(track.audience)}</span>
+                  <span class="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-extrabold">${escapeHtml(track.badge)}</span>
+                </div>
+                <h4 class="text-sm sm:text-base font-extrabold text-[#132219] leading-snug">${escapeHtml(track.title)}</h4>
+                <p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(track.desc)}</p>
+              </div>
+              <div class="pt-2 border-t border-[#E2E8F0] text-[11px] font-bold text-[#15803D]">${escapeHtml(track.audienceBn)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+
+      <!-- 5 Common Services -->
+      ${renderSharedCommonModulesSection(state, "skill-zone")}
     </div>
   `;
 }
@@ -885,11 +1165,18 @@ export function patchHomeDashboardInPlace(root, state) {
   }
 
   // Hero stat counters & Zone card metadata
-  setText("stat-materials", String(publicMaterials.length));
+  const mergedMaterials = mergeStudyMaterials(state.studyMaterials || [], false);
+  const womenEligibleSchemesCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "ALL" }).length;
+  const womenDiscussionCount = filterWomenDiscussions(state.communityPosts || [], { category: "ALL" }, Boolean(state.isAdmin)).length;
+  const activeCareersCount = (state.careerOpportunities || []).filter((c) => c.published !== false).length;
+
+  setText("stat-materials", String(mergedMaterials.length));
   setText("stat-professors", String(state.professors.length));
   setText("stat-notices", String(activeNotices.length));
   setText("stat-meetings", String(upcomingMeetings.length));
-  setText("student-zone-meta", `${publicMaterials.length} Notes & Study Resources Ready`);
+  setText("student-zone-meta", `${mergedMaterials.length} Notes & Study Resources Ready`);
+  setText("women-zone-meta", `${womenEligibleSchemesCount} Women-Eligible Schemes • ${womenDiscussionCount} Discussions`);
+  setText("skill-zone-meta", `${activeCareersCount} Career Listings • Practical & Training Tracks`);
 
   const unreadBadge = dash.querySelector("[data-home-slot='student-unread-badge']");
   if (unreadBadge) {

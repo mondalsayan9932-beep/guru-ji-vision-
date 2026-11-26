@@ -177,7 +177,7 @@ export function bindWomenFarmerEvents({
           state.farmerFinance.selectedSchemeId = val;
         }
         unsubscribeAllVisiblePostLikes();
-        state.lastZone = "farmer-zone";
+        state.lastZone = "women-farmer";
         navigateTo("farmer-finance");
       } else if (action === "wf-discussion") {
         wf.subTab = "discussion";
@@ -190,7 +190,7 @@ export function bindWomenFarmerEvents({
         renderActiveView();
       } else if (action === "route" && val) {
         unsubscribeAllVisiblePostLikes();
-        state.lastZone = "farmer-zone";
+        state.lastZone = "women-farmer";
         navigateTo(val);
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -223,7 +223,7 @@ export function bindWomenFarmerEvents({
         }
       }
       unsubscribeAllVisiblePostLikes();
-      state.lastZone = "farmer-zone";
+      state.lastZone = "women-farmer";
       navigateTo("farmer-finance");
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;

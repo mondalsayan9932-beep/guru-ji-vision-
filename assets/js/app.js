@@ -33,6 +33,7 @@ import {
   renderFarmerZoneView,
   renderHomeView,
   renderMarketplaceView,
+  renderSkillZoneView,
   renderStudentView,
   renderStudentZoneView,
   renderToolsView
@@ -94,6 +95,7 @@ const VALID_ROUTES = new Set([
   "student-zone",
   "farmer-zone",
   "women-farmer",
+  "skill-zone",
   "weather",
   "market",
   "marketplace",
@@ -111,6 +113,13 @@ const VALID_ROUTES = new Set([
   "doubt",
   "admin",
   "owner"
+]);
+
+const PRIMARY_ZONE_ROUTES = new Set([
+  "student-zone",
+  "farmer-zone",
+  "women-farmer",
+  "skill-zone"
 ]);
 
 // ----------------------------------------------------------------------------
@@ -475,7 +484,8 @@ async function loadOfficialMandiData(force = false) {
 const ROUTE_DATA_DEPS = {
   home: new Set([
     "appSettings", "studyMaterials", "announcements", "meetings",
-    "professors", "studentDoubtThreads", "professorDoubtThreads", "userProfile"
+    "professors", "studentDoubtThreads", "professorDoubtThreads", "userProfile",
+    "agricultureSchemes", "communityPosts", "careerOpportunities"
   ]),
   "student-zone": new Set([
     "studyMaterials", "quizzes", "universitySyllabi", "careerOpportunities", "meetings",
@@ -485,7 +495,10 @@ const ROUTE_DATA_DEPS = {
     "firestoreMarketPrices", "agricultureSchemes", "meetings", "communityPosts", "professors"
   ]),
   "women-farmer": new Set([
-    "agricultureSchemes", "communityPosts"
+    "agricultureSchemes", "communityPosts", "meetings"
+  ]),
+  "skill-zone": new Set([
+    "studyMaterials", "quizzes", "careerOpportunities", "meetings", "communityPosts", "professors"
   ]),
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
@@ -661,23 +674,28 @@ function renderShellChrome() {
 }
 
 function renderSubpageBackBar(route, lastZone) {
-  if (route === "home" || route === "student-zone" || route === "farmer-zone") return "";
+  if (route === "home" || PRIMARY_ZONE_ROUTES.has(route)) return "";
   const backIcon = `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`;
-  const zoneLabel = lastZone === "farmer-zone"
-    ? "Back to Farmer Zone"
-    : (lastZone === "student-zone" ? "Back to Student Zone" : "");
+  const zoneLabelMap = {
+    "student-zone": "Back to Student Zone",
+    "farmer-zone": "Back to Farmer Zone",
+    "women-farmer": "Back to Women Farmer Zone",
+    "skill-zone": "Back to Skill Zone"
+  };
+  const zoneLabel = zoneLabelMap[lastZone] || "";
+  const safeLastZone = zoneLabel ? lastZone : "";
   return `
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div class="flex flex-wrap items-center gap-2">
-        ${lastZone ? `
-          <button data-nav="${lastZone}" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold shadow-sm transition-colors">
+        ${safeLastZone ? `
+          <button data-nav="${safeLastZone}" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] text-[#14532D] text-xs font-extrabold shadow-sm transition-colors">
             ${backIcon}
             <span>${zoneLabel}</span>
           </button>
         ` : ""}
-        <button data-nav="home" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl ${lastZone ? "bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0]" : "bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] shadow-sm"} text-[#14532D] text-xs font-extrabold transition-colors">
-          ${lastZone ? "" : backIcon}
-          <span>${lastZone ? "Home" : "Back to Home"}</span>
+        <button data-nav="home" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl ${safeLastZone ? "bg-[#ECFDF5] hover:bg-[#DCFCE7] border border-[#BBF7D0]" : "bg-white hover:bg-[#ECFDF5] border border-[#D9EAE0] shadow-sm"} text-[#14532D] text-xs font-extrabold transition-colors">
+          ${safeLastZone ? "" : backIcon}
+          <span>${safeLastZone ? "Home" : "Back to Home"}</span>
         </button>
       </div>
     </div>
@@ -712,6 +730,7 @@ function renderActiveView({ fromLiveUpdate = false } = {}) {
     case "student-zone": html = renderStudentZoneView(state); break;
     case "farmer-zone": html = renderFarmerZoneView(state); break;
     case "women-farmer": html = renderWomenFarmerZoneView(state); break;
+    case "skill-zone": html = renderSkillZoneView(state); break;
     case "weather": html = renderWeatherView(state); break;
     case "market": html = renderMarketPriceView(state); break;
     case "marketplace": html = renderMarketplaceView(state); break;
@@ -767,10 +786,8 @@ function navigateTo(route, updateHash = true) {
   }
   if (cleanRoute === "home") {
     state.lastZone = "";
-  } else if (cleanRoute === "student-zone" || cleanRoute === "farmer-zone") {
+  } else if (PRIMARY_ZONE_ROUTES.has(cleanRoute)) {
     state.lastZone = cleanRoute;
-  } else if (cleanRoute === "women-farmer" && !state.lastZone) {
-    state.lastZone = "farmer-zone";
   }
   state.route = cleanRoute;
   if (updateHash && typeof window !== "undefined") {
@@ -1467,11 +1484,11 @@ function bindGlobalEvents() {
     const target = e.target.closest(selector);
     if (!target) return;
 
-    // Navigation (supports deep-link entry from Student Zone & Farmer Zone into shared/existing modules)
+    // Navigation (supports deep-link entry from all 4 primary Zones into shared/existing modules)
     if (target.dataset.nav) {
       if (target.dataset.fromZone) {
         state.lastZone = target.dataset.fromZone;
-      } else if (target.dataset.nav !== "student-zone" && target.dataset.nav !== "farmer-zone") {
+      } else if (!PRIMARY_ZONE_ROUTES.has(target.dataset.nav)) {
         state.lastZone = "";
       }
       if (target.dataset.openStudentSub) {
