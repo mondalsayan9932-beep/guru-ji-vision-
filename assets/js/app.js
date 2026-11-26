@@ -82,6 +82,12 @@ import {
   loadGuestBookmarks,
   recordContinueLearning
 } from "./agri-education-controller.js";
+import {
+  getAllowedFinancialProfiles,
+  normalizeProfileType,
+  profileTypeToLedgerScope,
+  resolveActiveFinancialProfile
+} from "./money-profile-utils.js";
 
 const VALID_ROUTES = new Set([
   "home",
@@ -164,11 +170,16 @@ const state = {
   marketFilterDistrict: "ALL",
   marketFilterMandi: "ALL",
 
-  // Private Owner-Only Student & Farmer Financial Data (Strictly cleared on logout!)
-  openingBalance: 0,
-  moneyTransactions: [],
-  moneyBudgets: [],
-  moneyLedgerScope: "", // "STUDENT" or "FARMER"
+  // Private Owner-Only Student & Farmer Financial Profiles (Strictly Separated & Cleared on Logout!)
+  studentOpeningBalance: 0,
+  studentMoneyTransactions: [],
+  studentMoneyBudgets: [],
+  farmerOpeningBalance: 0,
+  farmerMoneyTransactions: [],
+  farmerMoneyBudgets: [],
+  moneyLedgerScope: "", // "STUDENT" or "FARMER" (resolved against allowed financial profiles)
+  moneyRequestedUnauthorizedProfile: "",
+  moneyMigrationInfo: null,
   moneyFilter: "ALL",
   moneyFormType: "EXPENSE",
   quizAttempts: [],
@@ -274,14 +285,49 @@ async function withBusySubmit(form, task) {
   }
 }
 
-function openingBalanceKey(uid) {
-  return `gjv_opening_bal_${uid}`;
+function openingBalanceKey(uid, profileType) {
+  const profile = normalizeProfileType(profileType) || "student";
+  return `gjv_opening_bal_${uid}_${profile}`;
 }
 
-function loadOpeningBalanceForUid(uid) {
+function loadOpeningBalanceForUid(uid, profileType) {
   if (!uid) return 0;
-  const val = parseFloat(localStorage.getItem(openingBalanceKey(uid)));
+  const val = parseFloat(localStorage.getItem(openingBalanceKey(uid, profileType)));
   return Number.isFinite(val) ? val : 0;
+}
+
+function getActiveFinancialProfileFromState() {
+  return resolveActiveFinancialProfile(state.moneyLedgerScope, state.userProfile);
+}
+
+function syncUserFinancialProfiles(user, profile) {
+  if (!user?.uid) return;
+  const allowed = getAllowedFinancialProfiles(profile);
+  state.studentOpeningBalance = allowed.includes("student")
+    ? loadOpeningBalanceForUid(user.uid, "student")
+    : 0;
+  state.farmerOpeningBalance = allowed.includes("farmer")
+    ? loadOpeningBalanceForUid(user.uid, "farmer")
+    : 0;
+
+  const resolved = resolveActiveFinancialProfile(state.moneyLedgerScope, profile);
+  state.moneyLedgerScope = profileTypeToLedgerScope(resolved.activeProfile);
+  if (!resolved.deniedRequestedProfile) {
+    state.moneyRequestedUnauthorizedProfile = "";
+  }
+
+  firebaseService.subscribeFinancialProfiles({
+    uid: user.uid,
+    userProfile: profile,
+    onUpdate: handleCollectionUpdate
+  });
+
+  firebaseService.migrateLegacyMoneyRecords(user.uid, profile).then((info) => {
+    if (info && (info.migratedStudentTx > 0 || info.migratedFarmerTx > 0 || info.migratedBudgets > 0)) {
+      state.moneyMigrationInfo = info;
+      if (state.route === "money") scheduleActiveViewRender();
+    }
+  }).catch(() => {});
 }
 
 function clearPrivateStateOnLogout() {
@@ -299,11 +345,16 @@ function clearPrivateStateOnLogout() {
     matchedByAccountLink: false
   };
 
-  // Strictly purge private financial & consultation state from memory
-  state.openingBalance = 0;
-  state.moneyTransactions = [];
-  state.moneyBudgets = [];
+  // Strictly purge ALL private Student & Farmer financial & consultation state from memory
+  state.studentOpeningBalance = 0;
+  state.studentMoneyTransactions = [];
+  state.studentMoneyBudgets = [];
+  state.farmerOpeningBalance = 0;
+  state.farmerMoneyTransactions = [];
+  state.farmerMoneyBudgets = [];
   state.moneyLedgerScope = "";
+  state.moneyRequestedUnauthorizedProfile = "";
+  state.moneyMigrationInfo = null;
   state.quizAttempts = [];
   state.farmerQueries = [];
   state.studentDoubtThreads = [];
@@ -336,9 +387,12 @@ function clearPrivateStateOnLogout() {
       if (
         sigKey === "userProfile" ||
         sigKey === "farmerQueries" ||
-        sigKey === "moneyTransactions" ||
-        sigKey === "moneyBudgets" ||
-        sigKey === "openingBalance" ||
+        sigKey === "studentMoneyTransactions" ||
+        sigKey === "studentMoneyBudgets" ||
+        sigKey === "studentOpeningBalance" ||
+        sigKey === "farmerMoneyTransactions" ||
+        sigKey === "farmerMoneyBudgets" ||
+        sigKey === "farmerOpeningBalance" ||
         sigKey === "quizAttempts" ||
         sigKey === "studyBookmarks" ||
         sigKey === "studentDoubtThreads" ||
@@ -449,7 +503,11 @@ const ROUTE_DATA_DEPS = {
   "farmer-advisor": new Set(["professors", "studentDoubtThreads", "professorDoubtThreads"]),
   professor: new Set(["professors", "professorDoubtThreads", "studentDoubtThreads"]),
   meeting: new Set(["meetings"]),
-  money: new Set(["moneyTransactions", "moneyBudgets", "openingBalance", "userProfile"]),
+  money: new Set([
+    "studentMoneyTransactions", "studentMoneyBudgets", "studentOpeningBalance",
+    "farmerMoneyTransactions", "farmerMoneyBudgets", "farmerOpeningBalance",
+    "userProfile"
+  ]),
   doubt: new Set(["studentDoubtThreads", "professorDoubtThreads", "activeDoubtMessages"]),
   admin: new Set([
     "appSettings", "studyMaterials", "quizzes", "universitySyllabi", "discoveredStudyResources",
@@ -994,9 +1052,12 @@ function handleCollectionUpdate(key, data, isLivePublic = false) {
     nextVal = data.length > 0 ? data : (state.isAdmin ? [] : [...FALLBACK_CAREERS]);
   } else if (key === "announcements") {
     nextVal = data.length > 0 ? data : [...FALLBACK_ANNOUNCEMENTS];
-  } else if (key === "openingBalance") {
+  } else if (key === "studentOpeningBalance") {
     nextVal = Number(data) || 0;
-    if (state.user) localStorage.setItem(openingBalanceKey(state.user.uid), String(nextVal));
+    if (state.user) localStorage.setItem(openingBalanceKey(state.user.uid, "student"), String(nextVal));
+  } else if (key === "farmerOpeningBalance") {
+    nextVal = Number(data) || 0;
+    if (state.user) localStorage.setItem(openingBalanceKey(state.user.uid, "farmer"), String(nextVal));
   } else {
     nextVal = data;
   }
@@ -1075,7 +1136,6 @@ async function handleAuthStateChange(user) {
 
   lastProcessedAuthUid = incomingUid;
   state.user = user;
-  state.openingBalance = loadOpeningBalanceForUid(user.uid);
   const [roles, profileResult] = await Promise.all([
     firebaseService.resolveUserRoles(user),
     firebaseService.ensureGoogleUserProfile(user, state.lang.toUpperCase())
@@ -1093,9 +1153,6 @@ async function handleAuthStateChange(user) {
   if (activeProfile) {
     state.userProfile = activeProfile;
     collectionSignatures.set("userProfile", computeCollectionSignature(activeProfile));
-    if (!state.moneyLedgerScope && activeProfile.role) {
-      state.moneyLedgerScope = activeProfile.role === "FARMER" ? "FARMER" : "STUDENT";
-    }
   }
 
   firebaseService.subscribeUserProfile(user.uid, (profile) => {
@@ -1103,9 +1160,7 @@ async function handleAuthStateChange(user) {
     if (collectionSignatures.get("userProfile") === nextSig) return;
     collectionSignatures.set("userProfile", nextSig);
     state.userProfile = profile;
-    if (!state.moneyLedgerScope && profile?.role) {
-      state.moneyLedgerScope = profile.role === "FARMER" ? "FARMER" : "STUDENT";
-    }
+    syncUserFinancialProfiles(user, profile);
     if (profile?.language) {
       const nextLang = profile.language === "BN" ? "bn" : "en";
       if (state.lang !== nextLang) {
@@ -1124,6 +1179,8 @@ async function handleAuthStateChange(user) {
     uid: user.uid,
     onUpdate: handleCollectionUpdate
   });
+
+  syncUserFinancialProfiles(user, activeProfile);
 
   farmerFinanceService.subscribeFarmerFinance(user.uid, (key, list) => {
     const sigKey = `ff:${key}`;
@@ -1428,7 +1485,13 @@ function bindGlobalEvents() {
         state.farmerFinance.selectedSchemeId = "";
       }
       if (target.dataset.openMoneyScope) {
-        state.moneyLedgerScope = target.dataset.openMoneyScope;
+        const resolved = resolveActiveFinancialProfile(target.dataset.openMoneyScope, state.userProfile);
+        state.moneyLedgerScope = profileTypeToLedgerScope(resolved.activeProfile);
+        state.moneyRequestedUnauthorizedProfile = resolved.deniedRequestedProfile;
+      } else if (target.dataset.nav === "money") {
+        const resolved = resolveActiveFinancialProfile(state.moneyLedgerScope, state.userProfile);
+        state.moneyLedgerScope = profileTypeToLedgerScope(resolved.activeProfile);
+        state.moneyRequestedUnauthorizedProfile = "";
       }
       if (target.dataset.openCommSub) {
         state.communitySubTab = target.dataset.openCommSub;
@@ -1590,15 +1653,33 @@ function bindGlobalEvents() {
           return;
         case "save-opening-balance": {
           if (!state.user) return;
+          const { activeProfile } = getActiveFinancialProfileFromState();
           const val = Math.max(0, parseFloat(document.getElementById("openingBalanceInput")?.value) || 0);
           try {
-            await firebaseService.saveOpeningBalance(state.user.uid, val);
-            state.openingBalance = val;
-            localStorage.setItem(openingBalanceKey(state.user.uid), String(val));
-            showToast("Opening balance synced privately to your Firebase account.");
+            await firebaseService.saveOpeningBalance(state.user.uid, activeProfile, val);
+            if (activeProfile === "farmer") state.farmerOpeningBalance = val;
+            else state.studentOpeningBalance = val;
+            localStorage.setItem(openingBalanceKey(state.user.uid, activeProfile), String(val));
+            showToast(`${activeProfile === "farmer" ? "Farmer" : "Student"} opening balance saved privately.`);
             renderActiveView();
           } catch (err) {
             showToast(err.message || "Failed to save opening balance.", true);
+          }
+          return;
+        }
+        case "enable-dual-financial-profile": {
+          if (!state.user) return;
+          const targetProfile = normalizeProfileType(target.dataset.targetProfile) || "farmer";
+          try {
+            const updatedProfiles = await firebaseService.updateFinancialProfiles(state.user.uid, ["student", "farmer"]);
+            state.userProfile = { ...(state.userProfile || {}), financialProfiles: updatedProfiles };
+            state.moneyLedgerScope = profileTypeToLedgerScope(targetProfile);
+            state.moneyRequestedUnauthorizedProfile = "";
+            syncUserFinancialProfiles(state.user, state.userProfile);
+            showToast("Separate Student & Farmer financial profiles enabled! Records stay 100% isolated.");
+            renderActiveView();
+          } catch (err) {
+            showToast(err.message || "Could not enable separate financial profile.", true);
           }
           return;
         }
@@ -1782,9 +1863,11 @@ function bindGlobalEvents() {
       return;
     }
 
-    // Money & Farm Manager (Owner-Only — Full Edit & Delete)
+    // Money & Farm Manager (Strictly Separated Student & Farmer Financial Profiles)
     if (target.dataset.moneyScope) {
-      state.moneyLedgerScope = target.dataset.moneyScope;
+      const resolved = resolveActiveFinancialProfile(target.dataset.moneyScope, state.userProfile);
+      state.moneyLedgerScope = profileTypeToLedgerScope(resolved.activeProfile);
+      state.moneyRequestedUnauthorizedProfile = resolved.deniedRequestedProfile;
       state.moneyFilter = "ALL";
       renderActiveView();
       return;
@@ -1792,23 +1875,25 @@ function bindGlobalEvents() {
     if (target.dataset.moneyType) { state.moneyFormType = target.dataset.moneyType; renderActiveView(); return; }
     if (target.dataset.moneyFilter) { state.moneyFilter = target.dataset.moneyFilter; renderActiveView(); return; }
     if (target.dataset.editTx) {
-      const tx = state.moneyTransactions.find((x) => x.id === target.dataset.editTx);
+      const { activeProfile } = getActiveFinancialProfileFromState();
+      const txList = activeProfile === "farmer" ? state.farmerMoneyTransactions : state.studentMoneyTransactions;
+      const tx = txList.find((x) => x.id === target.dataset.editTx);
       if (tx) {
         state.moneyFormType = tx.type === "INCOME" ? "INCOME" : "EXPENSE";
-        state.moneyLedgerScope = tx.ledgerScope || "STUDENT";
+        state.moneyLedgerScope = profileTypeToLedgerScope(activeProfile);
         renderActiveView();
         document.getElementById("moneyEditId").value = tx.id;
         document.getElementById("moneyTitle").value = tx.title || "";
         document.getElementById("moneyAmount").value = String(tx.amount || "");
         document.getElementById("moneyDate").value = tx.dateLabel || new Date().toISOString().slice(0, 10);
         const catSel = document.getElementById("moneyCategory");
-        if (catSel) catSel.value = tx.category || "OTHER";
+        if (catSel) catSel.value = tx.category || (activeProfile === "farmer" ? "OTHER_FARM" : "OTHER");
         const sw = document.getElementById("moneySharedWith");
-        if (sw) sw.value = tx.sharedWith || "";
+        if (sw) sw.value = activeProfile === "student" ? (tx.sharedWith || "") : "";
         const ct = document.getElementById("moneyCropTag");
-        if (ct) ct.value = tx.cropTag || "";
+        if (ct) ct.value = activeProfile === "farmer" ? (tx.cropTag || "") : "";
         document.getElementById("moneyNote").value = tx.note || "";
-        document.getElementById("moneyTxFormHeading").textContent = "Edit Private Entry";
+        document.getElementById("moneyTxFormHeading").textContent = activeProfile === "farmer" ? "Edit Farmer Entry" : "Edit Student Entry";
         document.getElementById("cancelMoneyEditBtn")?.classList.remove("hidden");
         document.getElementById("moneyTxForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -1816,8 +1901,9 @@ function bindGlobalEvents() {
     }
     if (target.dataset.delTx) {
       if (!state.user || !confirm("Delete this financial transaction?")) return;
+      const { activeProfile } = getActiveFinancialProfileFromState();
       try {
-        await firebaseService.deleteMoneyTransaction(state.user.uid, target.dataset.delTx);
+        await firebaseService.deleteMoneyTransaction(state.user.uid, activeProfile, target.dataset.delTx);
         showToast("Transaction deleted.");
       } catch (err) {
         showToast(err.message || "Delete failed.", true);
@@ -1825,7 +1911,9 @@ function bindGlobalEvents() {
       return;
     }
     if (target.dataset.editGoal) {
-      const g = state.moneyBudgets.find((x) => x.id === target.dataset.editGoal);
+      const { activeProfile } = getActiveFinancialProfileFromState();
+      const goalList = activeProfile === "farmer" ? state.farmerMoneyBudgets : state.studentMoneyBudgets;
+      const g = goalList.find((x) => x.id === target.dataset.editGoal);
       if (g) {
         document.getElementById("goalEditId").value = g.id;
         document.getElementById("goalName").value = g.name || "";
@@ -1841,8 +1929,9 @@ function bindGlobalEvents() {
     }
     if (target.dataset.delGoal) {
       if (!state.user || !confirm("Delete this budget/goal?")) return;
+      const { activeProfile } = getActiveFinancialProfileFromState();
       try {
-        await firebaseService.deleteFinancialGoal(state.user.uid, target.dataset.delGoal);
+        await firebaseService.deleteFinancialGoal(state.user.uid, activeProfile, target.dataset.delGoal);
         showToast("Budget/goal deleted.");
       } catch (err) {
         showToast(err.message || "Delete failed.", true);
@@ -2547,39 +2636,45 @@ function bindGlobalEvents() {
         return;
       }
 
-      // Private Money Transaction (Student & Farmer — Owner-Only, No Admin Approval)
+      // Private Money Transaction (Strictly Isolated Student vs Farmer Profile)
       if (form.id === "moneyTxForm" && state.user) {
         await withBusySubmit(form, async () => {
           const editId = document.getElementById("moneyEditId")?.value || "";
-          const scope = state.moneyLedgerScope || (state.userProfile?.role === "FARMER" ? "FARMER" : "STUDENT");
+          const { activeProfile } = getActiveFinancialProfileFromState();
           await firebaseService.saveMoneyTransaction(
             state.user.uid,
+            activeProfile,
             {
               title: document.getElementById("moneyTitle").value,
               amount: document.getElementById("moneyAmount").value,
               type: state.moneyFormType,
               category: document.getElementById("moneyCategory").value,
-              ledgerScope: scope,
               dateLabel: document.getElementById("moneyDate").value,
-              sharedWith: document.getElementById("moneySharedWith")?.value || "",
-              cropTag: document.getElementById("moneyCropTag")?.value || "",
+              sharedWith: activeProfile === "student" ? (document.getElementById("moneySharedWith")?.value || "") : "",
+              cropTag: activeProfile === "farmer" ? (document.getElementById("moneyCropTag")?.value || "") : "",
               note: document.getElementById("moneyNote").value
             },
             editId
           );
           form.reset();
           document.getElementById("moneyEditId").value = "";
-          showToast(editId ? "Private financial entry updated!" : "Private entry saved directly to your account.");
+          showToast(
+            editId
+              ? `${activeProfile === "farmer" ? "Farmer" : "Student"} financial entry updated!`
+              : `Saved privately to your ${activeProfile === "farmer" ? "Farmer" : "Student"} Financial Profile.`
+          );
         });
         return;
       }
 
-      // Private Financial Goal (Create & Edit)
+      // Private Financial Goal (Strictly Isolated Student vs Farmer Profile)
       if (form.id === "moneyGoalForm" && state.user) {
         await withBusySubmit(form, async () => {
           const editId = document.getElementById("goalEditId")?.value || "";
+          const { activeProfile } = getActiveFinancialProfileFromState();
           await firebaseService.saveFinancialGoal(
             state.user.uid,
+            activeProfile,
             {
               name: document.getElementById("goalName").value,
               kind: document.getElementById("goalKind").value,
@@ -2591,7 +2686,11 @@ function bindGlobalEvents() {
           );
           form.reset();
           document.getElementById("goalEditId").value = "";
-          showToast(editId ? "Budget / goal updated!" : "Budget / savings goal saved!");
+          showToast(
+            editId
+              ? `${activeProfile === "farmer" ? "Farmer" : "Student"} budget / goal updated!`
+              : `Saved to your ${activeProfile === "farmer" ? "Farmer" : "Student"} Financial Profile!`
+          );
         });
         return;
       }

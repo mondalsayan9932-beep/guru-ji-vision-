@@ -13,6 +13,7 @@ import {
   FARMER_ADVISOR_TOPICS,
   FARMER_EXPENSE_CATEGORIES,
   FARMER_INCOME_CATEGORIES,
+  LEGACY_FARMER_CATEGORY_LABELS,
   MONEY_EXPENSE_CATEGORIES,
   MONEY_INCOME_CATEGORIES
 } from "./config.js";
@@ -24,6 +25,10 @@ import {
   isUpcomingMeeting,
   safeUrl
 } from "./calculators.js";
+import {
+  computeProfileLedgerSummary,
+  resolveActiveFinancialProfile
+} from "./money-profile-utils.js";
 
 function renderEmailStatusBadge(status, errorText = "") {
   if (!status) return "";
@@ -57,37 +62,48 @@ export function renderMoneyManagerView(state) {
     `;
   }
 
-  const scope = state.moneyLedgerScope || (state.userProfile?.role === "FARMER" ? "FARMER" : "STUDENT");
-  const isFarmerLedger = scope === "FARMER";
+  const {
+    activeProfile,
+    allowedProfiles,
+    deniedRequestedProfile
+  } = resolveActiveFinancialProfile(state.moneyLedgerScope, state.userProfile);
+  const isFarmerLedger = activeProfile === "farmer";
+  const hasDualProfiles = allowedProfiles.length === 2;
+  const blockedProfile = state.moneyRequestedUnauthorizedProfile || deniedRequestedProfile || "";
 
-  const allTxs = state.moneyTransactions || [];
-  const scopedTxs = allTxs.filter((t) => {
-    const txScope = t.ledgerScope || "STUDENT";
-    return txScope === scope;
-  });
+  // Strictly isolated profile-specific data slices (never merged across Student & Farmer)
+  const rawProfileTxs = isFarmerLedger
+    ? (state.farmerMoneyTransactions || [])
+    : (state.studentMoneyTransactions || []);
+  const rawProfileGoals = isFarmerLedger
+    ? (state.farmerMoneyBudgets || [])
+    : (state.studentMoneyBudgets || []);
+  const goals = rawProfileGoals.filter((g) => !g.profileType || g.profileType === activeProfile);
+  const rawOpeningBalance = isFarmerLedger
+    ? Number(state.farmerOpeningBalance) || 0
+    : Number(state.studentOpeningBalance) || 0;
 
-  const goals = state.moneyBudgets || [];
-  const openingBalance = Number(state.openingBalance) || 0;
-  const totalIncome = scopedTxs.filter((t) => t.type === "INCOME").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const totalExpense = scopedTxs.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const netBalance = openingBalance + totalIncome - totalExpense;
+  const summary = computeProfileLedgerSummary(rawProfileTxs, rawOpeningBalance, activeProfile);
+  const scopedTxs = summary.transactions;
+  const openingBalance = summary.openingBalance;
+  const totalIncome = summary.totalIncome;
+  const totalExpense = summary.totalExpense;
+  const netProfitLoss = summary.netProfitLoss;
+  const netBalance = summary.netBalance;
 
   const filterMode = state.moneyFilter || "ALL";
   const visibleTxs = scopedTxs.filter((t) => {
     if (filterMode === "INCOME") return t.type === "INCOME";
     if (filterMode === "EXPENSE") return t.type === "EXPENSE";
-    if (filterMode === "SHARED") return t.category === "SHARED" || Boolean(t.sharedWith) || Boolean(t.cropTag);
+    if (filterMode === "SHARED") return isFarmerLedger ? Boolean(t.cropTag) : (t.category === "SHARED" || Boolean(t.sharedWith));
     return true;
   });
 
-  const allCats = [
-    ...MONEY_EXPENSE_CATEGORIES,
-    ...MONEY_INCOME_CATEGORIES,
-    ...FARMER_EXPENSE_CATEGORIES,
-    ...FARMER_INCOME_CATEGORIES
-  ];
+  const allCats = isFarmerLedger
+    ? [...FARMER_EXPENSE_CATEGORIES, ...FARMER_INCOME_CATEGORIES, ...LEGACY_FARMER_CATEGORY_LABELS]
+    : [...MONEY_EXPENSE_CATEGORIES, ...MONEY_INCOME_CATEGORIES];
 
-  // Expense category breakdown
+  // Expense category breakdown (strictly scoped to active financial profile)
   const catTotals = {};
   scopedTxs.filter((t) => t.type === "EXPENSE").forEach((t) => {
     catTotals[t.category] = (catTotals[t.category] || 0) + (Number(t.amount) || 0);
@@ -116,39 +132,68 @@ export function renderMoneyManagerView(state) {
     ? (txType === "INCOME" ? FARMER_INCOME_CATEGORIES : FARMER_EXPENSE_CATEGORIES)
     : (txType === "INCOME" ? MONEY_INCOME_CATEGORIES : MONEY_EXPENSE_CATEGORIES);
 
+  const otherProfileLabel = isFarmerLedger ? "Student" : "Farmer";
+  const otherProfileCode = isFarmerLedger ? "student" : "farmer";
+
   return `
-    <div class="space-y-5 animate-fade-up">
-      <!-- Privacy Header + Student / Farmer Ledger Switcher -->
+    <div class="space-y-5 animate-fade-up" data-money-active-profile="${activeProfile}">
+      <!-- Privacy Header + Isolated Financial Profile Controls -->
       <div class="gv-card p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#14532D] text-[11px] font-extrabold mb-1">
-            🔒 100% Owner-Only • Direct Save (No Admin Approval Needed • Hidden from Admin &amp; Professors)
+          <div class="inline-flex flex-wrap items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#14532D] text-[11px] font-extrabold mb-1">
+            🔒 100% Owner-Only • ${isFarmerLedger ? "Isolated Farmer Financial Profile" : "Isolated Student Financial Profile"} • Enforced by Firestore Rules
           </div>
           <h2 class="font-display text-xl sm:text-2xl font-bold text-[#14532D]">
-            ${isFarmerLedger ? "Farmer Personal Farm Ledger (কৃষি আয়-ব্যয়)" : "Student Money Manager (ছাত্র আয়-ব্যয় হিসাব)"}
+            ${isFarmerLedger ? "Farmer Money Management &amp; Farm Ledger (কৃষি আয়-ব্যয়)" : "Student Money Management (ছাত্র আয়-ব্যয় হিসাব)"}
           </h2>
-          <p class="text-xs text-[#496052]">Formula: Net Balance = Opening Balance + Total Income − Total Expenses • Instant Cloud Sync</p>
+          <p class="text-xs text-[#496052]">
+            ${isFarmerLedger
+              ? "Separate Farmer profile: Crop expenses, seeds, fertilizers, pesticides, labour, irrigation, crop sales, loans, land lease &amp; Profit/Loss."
+              : "Separate Student profile: Education, books, hostel, mess, scholarship, personal expenses &amp; savings."}
+          </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 no-print">
-          <div class="flex gap-1 bg-[#EDF4EE] p-1 rounded-xl">
-            <button type="button" data-money-scope="STUDENT" class="px-3 py-2 rounded-lg text-xs font-extrabold ${!isFarmerLedger ? "bg-[#14532D] text-white shadow-sm" : "text-[#14532D]"}">
-              🎓 Student Ledger
+          ${hasDualProfiles ? `
+            <div class="flex gap-1 bg-[#EDF4EE] p-1 rounded-xl" role="group" aria-label="Switch Financial Profile">
+              <button type="button" data-money-scope="STUDENT" class="px-3 py-2 rounded-lg text-xs font-extrabold ${!isFarmerLedger ? "bg-[#14532D] text-white shadow-sm" : "text-[#14532D]"}">
+                🎓 Student Profile
+              </button>
+              <button type="button" data-money-scope="FARMER" class="px-3 py-2 rounded-lg text-xs font-extrabold ${isFarmerLedger ? "bg-[#14532D] text-white shadow-sm" : "text-[#14532D]"}">
+                🌾 Farmer Profile (কৃষি)
+              </button>
+            </div>
+          ` : `
+            <span class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EDF4EE] border border-[#CDE0D3] text-[#14532D] text-xs font-extrabold">
+              ${isFarmerLedger ? "🌾 Farmer Profile Only" : "🎓 Student Profile Only"}
+            </span>
+            <button type="button" data-action="enable-dual-financial-profile" data-target-profile="${otherProfileCode}" class="px-3 py-2 rounded-xl bg-white hover:bg-[#ECFDF5] border border-[#CDE0D3] text-[#14532D] text-xs font-bold">
+              + Also Use Separate ${otherProfileLabel} Profile
             </button>
-            <button type="button" data-money-scope="FARMER" class="px-3 py-2 rounded-lg text-xs font-extrabold ${isFarmerLedger ? "bg-[#14532D] text-white shadow-sm" : "text-[#14532D]"}">
-              🌾 Farmer Ledger (কৃষি)
-            </button>
-          </div>
+          `}
           <button data-action="export-money-pdf" class="px-3.5 py-2.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">
             📄 Print / PDF
           </button>
         </div>
       </div>
 
-      <!-- KPI Cards + Cloud-Synced Opening Balance Control -->
+      ${blockedProfile ? `
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="text-xs text-amber-950 leading-relaxed">
+            <strong>Strict Profile Isolation Active:</strong> Your account currently uses only the <strong>${isFarmerLedger ? "Farmer" : "Student"} Financial Profile</strong>.
+            ${blockedProfile === "farmer" ? "Farmer" : "Student"} transactions are blocked at the database and Firestore Rules level so records never mix.
+            If you hold both roles, you can activate a completely separate ${blockedProfile === "farmer" ? "Farmer" : "Student"} profile.
+          </div>
+          <button type="button" data-action="enable-dual-financial-profile" data-target-profile="${escapeHtml(blockedProfile)}" class="px-3.5 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold shrink-0">
+            Activate Separate ${blockedProfile === "farmer" ? "Farmer" : "Student"} Profile
+          </button>
+        </div>
+      ` : ""}
+
+      <!-- KPI Cards + Profile-Isolated Cloud-Synced Opening Balance Control -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div class="gv-card p-4">
-          <div class="text-[11px] font-bold uppercase text-[#496052]">Opening Balance</div>
+          <div class="text-[11px] font-bold uppercase text-[#496052]">${isFarmerLedger ? "Farmer Opening Balance" : "Student Opening Balance"}</div>
           <div class="text-lg sm:text-xl font-extrabold text-[#132219] mt-1">${formatInr(openingBalance)}</div>
           <div class="flex gap-1.5 mt-2 no-print">
             <input id="openingBalanceInput" type="number" min="0" step="100" value="${openingBalance}" class="w-full px-2.5 py-1.5 rounded-lg border border-[#CDE0D3] text-xs font-bold" />
@@ -156,19 +201,23 @@ export function renderMoneyManagerView(state) {
           </div>
         </div>
         <div class="gv-card p-4">
-          <div class="text-[11px] font-bold uppercase text-emerald-700">${isFarmerLedger ? "Total Farm Income / আয়" : "Total Income"}</div>
+          <div class="text-[11px] font-bold uppercase text-emerald-700">${isFarmerLedger ? "Total Farm Income / আয়" : "Total Student Income"}</div>
           <div class="text-lg sm:text-xl font-extrabold text-emerald-800 mt-1">${formatInr(totalIncome)}</div>
-          <div class="text-[11px] text-[#496052] mt-1">${isFarmerLedger ? "Crop sales, dairy &amp; subsidy" : "Allowance, scholarship &amp; work"}</div>
+          <div class="text-[11px] text-[#496052] mt-1">${isFarmerLedger ? "Crop sales, loans, subsidy &amp; dairy" : "Scholarship, allowance &amp; savings"}</div>
         </div>
         <div class="gv-card p-4">
-          <div class="text-[11px] font-bold uppercase text-rose-700">${isFarmerLedger ? "Total Farm Cost / খরচ" : "Total Expenses"}</div>
+          <div class="text-[11px] font-bold uppercase text-rose-700">${isFarmerLedger ? "Total Farm Cost / খরচ" : "Total Student Expenses"}</div>
           <div class="text-lg sm:text-xl font-extrabold text-rose-700 mt-1">${formatInr(totalExpense)}</div>
-          <div class="text-[11px] text-[#496052] mt-1">${isFarmerLedger ? "Seeds, fertilizer, labour &amp; water" : "Mess, rent, books &amp; daily"}</div>
+          <div class="text-[11px] text-[#496052] mt-1">${isFarmerLedger ? "Seeds, fertilizer, pesticides, labour, lease" : "Education, books, hostel, mess &amp; personal"}</div>
         </div>
         <div class="rounded-3xl bg-gradient-to-br from-[#14532D] to-[#1E7E45] text-white p-4 shadow-sm">
-          <div class="text-[11px] font-bold uppercase text-emerald-100">${isFarmerLedger ? "Net Farm Balance" : "Net Balance"}</div>
+          <div class="text-[11px] font-bold uppercase text-emerald-100">${isFarmerLedger ? "Farm Balance &amp; Profit / Loss" : "Student Net Balance"}</div>
           <div class="text-xl sm:text-2xl font-extrabold mt-1">${formatInr(netBalance)}</div>
-          <div class="text-[11px] text-emerald-100 mt-1">${netBalance >= 0 ? "Positive balance" : "Over budget"}</div>
+          <div class="text-[11px] text-emerald-100 mt-1">
+            ${isFarmerLedger
+              ? `${netProfitLoss >= 0 ? "Farm Profit" : "Farm Loss"}: ${netProfitLoss >= 0 ? "+" : "-"}${formatInr(Math.abs(netProfitLoss))}`
+              : (netBalance >= 0 ? "Positive balance" : "Over budget")}
+          </div>
         </div>
       </div>
 
@@ -177,11 +226,12 @@ export function renderMoneyManagerView(state) {
         <form id="moneyTxForm" class="lg:col-span-5 gv-card p-5 space-y-3 h-fit no-print">
           <div class="flex items-center justify-between">
             <h3 id="moneyTxFormHeading" class="text-base font-extrabold text-[#14532D]">
-              ${isFarmerLedger ? "Add Farm Income / Expense" : "Add Income / Expense"}
+              ${isFarmerLedger ? "Add Farm Income / Expense" : "Add Student Income / Expense"}
             </h3>
             <button id="cancelMoneyEditBtn" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
           </div>
           <input id="moneyEditId" type="hidden" value="" />
+          <input id="moneyProfileType" type="hidden" value="${activeProfile}" />
 
           <div class="grid grid-cols-2 gap-2">
             <button type="button" data-money-type="EXPENSE" class="py-2.5 rounded-xl text-xs font-extrabold border ${
@@ -194,7 +244,7 @@ export function renderMoneyManagerView(state) {
 
           <label class="block">
             <span class="text-xs font-bold">Title / বিবরণ *</span>
-            <input id="moneyTitle" type="text" required maxlength="100" placeholder="${isFarmerLedger ? "e.g. DAP 2 Bags, Paddy Harvest Sale" : "e.g. Hostel Mess Bill, Home Transfer"}" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
+            <input id="moneyTitle" type="text" required maxlength="100" placeholder="${isFarmerLedger ? "e.g. Paddy Seeds, DAP Fertilizer, Land Lease" : "e.g. Hostel Mess Bill, B.Sc Books, Scholarship"}" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-[#CDE0D3] text-sm" />
           </label>
 
           <div class="grid grid-cols-2 gap-2.5">
@@ -272,8 +322,8 @@ export function renderMoneyManagerView(state) {
                     <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                       <span class="text-sm font-extrabold ${isInc ? "text-emerald-700" : "text-rose-700"}">${isInc ? "+" : "-"}${formatInr(tx.amount)}</span>
                       <div class="flex gap-1 no-print">
-                        <button type="button" data-edit-tx="${escapeHtml(tx.id)}" class="px-2.5 py-1.5 rounded-lg bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-[11px] font-bold">Edit</button>
-                        <button type="button" data-del-tx="${escapeHtml(tx.id)}" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold">Delete</button>
+                        <button type="button" data-edit-tx="${escapeHtml(tx.id)}" data-tx-profile="${activeProfile}" class="px-2.5 py-1.5 rounded-lg bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-[11px] font-bold">Edit</button>
+                        <button type="button" data-del-tx="${escapeHtml(tx.id)}" data-tx-profile="${activeProfile}" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold">Delete</button>
                       </div>
                     </div>
                   </div>
@@ -310,7 +360,7 @@ export function renderMoneyManagerView(state) {
               <div class="overflow-x-auto">
                 <table class="w-full text-xs text-left">
                   <thead class="text-[#496052] border-b border-[#CDE0D3]">
-                    <tr><th class="py-1.5">Month</th><th class="py-1.5">Income</th><th class="py-1.5">Expense</th><th class="py-1.5">Net</th></tr>
+                    <tr><th class="py-1.5">Month</th><th class="py-1.5">Income</th><th class="py-1.5">Expense</th><th class="py-1.5">${isFarmerLedger ? "Profit / Loss" : "Net"}</th></tr>
                   </thead>
                   <tbody>
                     ${monthlyRows.map((m) => `
@@ -318,7 +368,7 @@ export function renderMoneyManagerView(state) {
                         <td class="py-2 font-bold">${escapeHtml(m.month)}</td>
                         <td class="py-2 text-emerald-700 font-semibold">${formatInr(m.income)}</td>
                         <td class="py-2 text-rose-700 font-semibold">${formatInr(m.expense)}</td>
-                        <td class="py-2 font-extrabold">${formatInr(m.income - m.expense)}</td>
+                        <td class="py-2 font-extrabold ${m.income - m.expense >= 0 ? "text-emerald-800" : "text-rose-700"}">${formatInr(m.income - m.expense)}</td>
                       </tr>
                     `).join("")}
                   </tbody>
@@ -358,8 +408,8 @@ export function renderMoneyManagerView(state) {
                       <span class="ml-1.5 px-2 py-0.5 rounded bg-emerald-100 text-[#14532D] text-[10px] font-bold">${g.kind === "SAVINGS_GOAL" ? "Savings" : "Budget"} • ${escapeHtml(g.monthKey)}</span>
                     </div>
                     <div class="flex gap-1.5 no-print shrink-0">
-                      <button type="button" data-edit-goal="${escapeHtml(g.id)}" class="px-2 py-1 rounded-lg bg-[#EDF4EE] text-[#14532D] text-[11px] font-bold">Edit</button>
-                      <button type="button" data-del-goal="${escapeHtml(g.id)}" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-bold">Delete</button>
+                      <button type="button" data-edit-goal="${escapeHtml(g.id)}" data-goal-profile="${activeProfile}" class="px-2 py-1 rounded-lg bg-[#EDF4EE] text-[#14532D] text-[11px] font-bold">Edit</button>
+                      <button type="button" data-del-goal="${escapeHtml(g.id)}" data-goal-profile="${activeProfile}" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-bold">Delete</button>
                     </div>
                   </div>
                   <div class="flex justify-between text-[11px] font-bold text-[#496052]">

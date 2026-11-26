@@ -1697,6 +1697,324 @@ test("Farmer Bank vs Private Interest Comparisons: strictly owner-only create/re
   await assertFails(farmerADb.collection("farmer_interest_comparisons").doc("comp_1").delete());
 });
 
+test("Strictly Isolated Student & Farmer Financial Profiles: Role-gated collections, category enforcement, dual-role isolation & cross-profile blocking", async () => {
+  const DUAL_UID = "dual_role_user_707";
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, {
+    email: "alice@agri.edu.in",
+    email_verified: true,
+  }).firestore();
+  const farmerDb = testEnv.authenticatedContext(FARMER_UID, {
+    email: "rahul@farm.in",
+    email_verified: true,
+  }).firestore();
+  const dualDb = testEnv.authenticatedContext(DUAL_UID, {
+    email: "dual@agri.in",
+    email_verified: true,
+  }).firestore();
+  const superAdminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const ts = pastTime(5000);
+
+  // 1. Seed user profile documents for Student-only, Farmer-only, and Dual-role accounts
+  await assertSucceeds(
+    studentDb.collection("users").doc(STUDENT_UID).set({
+      userId: STUDENT_UID,
+      displayName: "Alice Sen",
+      email: "alice@agri.edu.in",
+      role: "STUDENT",
+      institutionOrVillage: "BCKV Nadia",
+      district: "Nadia",
+      semester: 4,
+      language: "EN",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    farmerDb.collection("users").doc(FARMER_UID).set({
+      userId: FARMER_UID,
+      displayName: "Rahul Das",
+      email: "rahul@farm.in",
+      role: "FARMER",
+      institutionOrVillage: "Memari",
+      district: "Purba Bardhaman",
+      semester: 0,
+      language: "BN",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    dualDb.collection("users").doc(DUAL_UID).set({
+      userId: DUAL_UID,
+      displayName: "Suman Roy",
+      email: "dual@agri.in",
+      role: "STUDENT",
+      financialProfiles: ["student", "farmer"],
+      institutionOrVillage: "UBKV Cooch Behar",
+      district: "Cooch Behar",
+      semester: 6,
+      language: "BN",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 2. Student-only account CAN create/read/update/delete Student financial records
+  const studentTxRef = studentDb.collection("users").doc(STUDENT_UID).collection("studentFinancialTransactions").doc("stx_1");
+  await assertSucceeds(
+    studentTxRef.set({
+      userId: STUDENT_UID,
+      profileType: "student",
+      ledgerScope: "STUDENT",
+      title: "Agronomy Textbook & Lab Manual",
+      amount: 850,
+      type: "EXPENSE",
+      category: "BOOKS_STATIONERY",
+      note: "Semester 4 reference books",
+      dateLabel: "2026-11-24",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    studentDb.collection("users").doc(STUDENT_UID).collection("studentFinancialTransactions")
+      .where("userId", "==", STUDENT_UID)
+      .where("profileType", "==", "student")
+      .get()
+  );
+  await assertSucceeds(
+    studentDb.collection("users").doc(STUDENT_UID).collection("studentFinancialBudgets").doc("opening_balance").set({
+      userId: STUDENT_UID,
+      profileType: "student",
+      ledgerScope: "STUDENT",
+      name: "Opening Balance",
+      kind: "OPENING_BALANCE",
+      targetAmount: 6000,
+      savedAmount: 6000,
+      monthKey: "GLOBAL",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Student CANNOT write Farmer categories into Student collection
+  await assertFails(
+    studentDb.collection("users").doc(STUDENT_UID).collection("studentFinancialTransactions").doc("stx_bad_cat").set({
+      userId: STUDENT_UID,
+      profileType: "student",
+      ledgerScope: "STUDENT",
+      title: "Paddy Seeds",
+      amount: 1200,
+      type: "EXPENSE",
+      category: "SEEDS",
+      note: "Wrong profile category",
+      dateLabel: "2026-11-24",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Student CANNOT mutate profileType or userId on update
+  await assertFails(
+    studentTxRef.update({
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      updatedAt: pastTime(500),
+    })
+  );
+
+  // CRITICAL ISOLATION: Student-only account CANNOT read or write Farmer financial collections!
+  await assertFails(
+    studentDb.collection("users").doc(STUDENT_UID).collection("farmerFinancialTransactions").get()
+  );
+  await assertFails(
+    studentDb.collection("users").doc(STUDENT_UID).collection("farmerFinancialBudgets").get()
+  );
+  await assertFails(
+    studentDb.collection("users").doc(STUDENT_UID).collection("farmerFinancialTransactions").doc("ftx_unauth").set({
+      userId: STUDENT_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      title: "Unauthorized Farm Entry",
+      amount: 500,
+      type: "EXPENSE",
+      category: "SEEDS",
+      note: "",
+      dateLabel: "2026-11-24",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 3. Farmer-only account CAN create/read/update/delete Farmer financial records
+  const farmerTxRef = farmerDb.collection("users").doc(FARMER_UID).collection("farmerFinancialTransactions").doc("ftx_1");
+  await assertSucceeds(
+    farmerTxRef.set({
+      userId: FARMER_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      title: "Boro Paddy Certified Seeds & Urea",
+      amount: 4200,
+      type: "EXPENSE",
+      category: "SEEDS",
+      cropTag: "Boro Paddy",
+      note: "2.5 bigha plot",
+      dateLabel: "2026-11-24",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    farmerDb.collection("users").doc(FARMER_UID).collection("farmerFinancialTransactions").doc("ftx_sale").set({
+      userId: FARMER_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      title: "Memari Mandi Paddy Sale",
+      amount: 28500,
+      type: "INCOME",
+      category: "CROP_SALES",
+      cropTag: "Aman Paddy",
+      note: "Sold 12 quintals",
+      dateLabel: "2026-11-25",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    farmerDb.collection("users").doc(FARMER_UID).collection("farmerFinancialBudgets").doc("opening_balance").set({
+      userId: FARMER_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      name: "Opening Balance",
+      kind: "OPENING_BALANCE",
+      targetAmount: 18000,
+      savedAmount: 18000,
+      monthKey: "GLOBAL",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Farmer CANNOT write Student categories into Farmer collection
+  await assertFails(
+    farmerDb.collection("users").doc(FARMER_UID).collection("farmerFinancialTransactions").doc("ftx_bad_cat").set({
+      userId: FARMER_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      title: "Hostel Rent",
+      amount: 3000,
+      type: "EXPENSE",
+      category: "HOSTEL_RENT",
+      note: "Wrong profile category",
+      dateLabel: "2026-11-24",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // CRITICAL ISOLATION: Farmer-only account CANNOT read or write Student financial collections!
+  await assertFails(
+    farmerDb.collection("users").doc(FARMER_UID).collection("studentFinancialTransactions").get()
+  );
+  await assertFails(
+    farmerDb.collection("users").doc(FARMER_UID).collection("studentFinancialBudgets").get()
+  );
+  await assertFails(
+    farmerDb.collection("users").doc(FARMER_UID).collection("studentFinancialTransactions").doc("stx_unauth").set({
+      userId: FARMER_UID,
+      profileType: "student",
+      ledgerScope: "STUDENT",
+      title: "Unauthorized Student Entry",
+      amount: 400,
+      type: "EXPENSE",
+      category: "EDUCATION",
+      note: "",
+      dateLabel: "2026-11-24",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 4. Dual-role user maintains TWO strictly isolated financial profiles
+  await assertSucceeds(
+    dualDb.collection("users").doc(DUAL_UID).collection("studentFinancialTransactions").doc("dual_stx_1").set({
+      userId: DUAL_UID,
+      profileType: "student",
+      ledgerScope: "STUDENT",
+      title: "Hostel Mess Fee",
+      amount: 2600,
+      type: "EXPENSE",
+      category: "HOSTEL_RENT",
+      note: "November hostel bill",
+      dateLabel: "2026-11-20",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    dualDb.collection("users").doc(DUAL_UID).collection("farmerFinancialTransactions").doc("dual_ftx_1").set({
+      userId: DUAL_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      title: "Potato Land Lease",
+      amount: 12000,
+      type: "EXPENSE",
+      category: "LAND_LEASE",
+      cropTag: "Potato",
+      note: "Rabi lease advance",
+      dateLabel: "2026-11-21",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    dualDb.collection("users").doc(DUAL_UID).collection("studentFinancialBudgets").doc("opening_balance").set({
+      userId: DUAL_UID,
+      profileType: "student",
+      ledgerScope: "STUDENT",
+      name: "Opening Balance",
+      kind: "OPENING_BALANCE",
+      targetAmount: 4500,
+      savedAmount: 4500,
+      monthKey: "GLOBAL",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    dualDb.collection("users").doc(DUAL_UID).collection("farmerFinancialBudgets").doc("opening_balance").set({
+      userId: DUAL_UID,
+      profileType: "farmer",
+      ledgerScope: "FARMER",
+      name: "Opening Balance",
+      kind: "OPENING_BALANCE",
+      targetAmount: 35000,
+      savedAmount: 35000,
+      monthKey: "GLOBAL",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 5. Cross-user, Guest, and Super Admin access strictly DENIED on all isolated financial collections
+  await assertFails(farmerDb.collection("users").doc(STUDENT_UID).collection("studentFinancialTransactions").get());
+  await assertFails(studentDb.collection("users").doc(FARMER_UID).collection("farmerFinancialTransactions").get());
+  await assertFails(superAdminDb.collection("users").doc(STUDENT_UID).collection("studentFinancialTransactions").get());
+  await assertFails(superAdminDb.collection("users").doc(FARMER_UID).collection("farmerFinancialTransactions").get());
+  await assertFails(guestDb.collection("users").doc(STUDENT_UID).collection("studentFinancialTransactions").get());
+  await assertFails(guestDb.collection("users").doc(FARMER_UID).collection("farmerFinancialBudgets").get());
+
+  // Valid owner update & delete succeed
+  await assertSucceeds(studentTxRef.update({ amount: 900, updatedAt: pastTime(600) }));
+  await assertSucceeds(farmerTxRef.update({ amount: 4350, updatedAt: pastTime(600) }));
+  await assertSucceeds(studentTxRef.delete());
+  await assertSucceeds(farmerTxRef.delete());
+});
+
 
 
 

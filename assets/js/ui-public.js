@@ -975,7 +975,7 @@ export function renderFarmerView(state) {
           <button data-nav="market" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">📊 বাজারদর / Mandi Price</button>
           <button data-nav="marketplace" class="px-3 py-2.5 rounded-xl bg-amber-400/95 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold text-left">🌿 Green Heaven Store</button>
           <button data-nav="farmer-advisor" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">👨‍🌾 বিশেষজ্ঞ পরামর্শ</button>
-          <button data-nav="money" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">🔒 কৃষি আয়-ব্যয় হিসাব</button>
+          <button data-nav="money" data-from-zone="farmer-zone" data-open-money-scope="FARMER" class="px-3 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold text-left">🔒 কৃষি আয়-ব্যয় হিসাব</button>
         </div>
       </div>
 

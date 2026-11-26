@@ -117,7 +117,100 @@ service cloud.firestore {
         (!('requestedRole' in data) || data.requestedRole in ['STUDENT', 'FARMER', 'PROFESSOR']) &&
         (!('professorApprovalStatus' in data) || data.professorApprovalStatus in ['NONE', 'PENDING', 'APPROVED', 'REJECTED']) &&
         (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+        (!('financialProfiles' in data) || (
+          data.financialProfiles is list &&
+          data.financialProfiles.size() >= 1 &&
+          data.financialProfiles.size() <= 2 &&
+          data.financialProfiles.hasOnly(['student', 'farmer'])
+        )) &&
         (!('lastActiveAt' in data) || isValidTimestamp(data.lastActiveAt)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function userDocExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userRoleOf(uid) {
+      return userDocExists(uid) ? get(/databases/$(database)/documents/users/$(uid)).data.role : '';
+    }
+
+    function userFinancialProfilesOf(uid) {
+      return (
+        userDocExists(uid) &&
+        ('financialProfiles' in get(/databases/$(database)/documents/users/$(uid)).data) &&
+        get(/databases/$(database)/documents/users/$(uid)).data.financialProfiles is list
+      ) ? get(/databases/$(database)/documents/users/$(uid)).data.financialProfiles : [];
+    }
+
+    function hasStudentFinancialAccess(uid) {
+      return isOwner(uid) && (
+        userRoleOf(uid) in ['STUDENT', 'PROFESSOR'] ||
+        'student' in userFinancialProfilesOf(uid)
+      );
+    }
+
+    function hasFarmerFinancialAccess(uid) {
+      return isOwner(uid) && (
+        userRoleOf(uid) == 'FARMER' ||
+        'farmer' in userFinancialProfilesOf(uid)
+      );
+    }
+
+    function isValidStudentFinancialTransaction(data, uid) {
+      return data.userId is string && data.userId == uid &&
+        data.profileType == 'student' &&
+        data.ledgerScope == 'STUDENT' &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+        data.amount is number && data.amount > 0 && data.amount <= 10000000 &&
+        data.type in ['INCOME', 'EXPENSE'] &&
+        data.category in [
+          'EDUCATION', 'BOOKS_STATIONERY', 'HOSTEL_RENT', 'FOOD_MESS',
+          'PERSONAL_EXPENSE', 'TRAVEL_RECHARGE', 'SHARED', 'SAVINGS',
+          'ALLOWANCE', 'SCHOLARSHIP', 'SAVINGS_RETURN', 'OTHER'
+        ] &&
+        data.note is string && data.note.size() <= 300 &&
+        data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 30 &&
+        (!('sharedWith' in data) || (data.sharedWith is string && data.sharedWith.size() <= 100)) &&
+        (!('migratedFromLegacyId' in data) || (data.migratedFromLegacyId is string && data.migratedFromLegacyId.size() <= 128)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFarmerFinancialTransaction(data, uid) {
+      return data.userId is string && data.userId == uid &&
+        data.profileType == 'farmer' &&
+        data.ledgerScope == 'FARMER' &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+        data.amount is number && data.amount > 0 && data.amount <= 10000000 &&
+        data.type in ['INCOME', 'EXPENSE'] &&
+        data.category in [
+          'CROP_EXPENSE', 'SEEDS', 'FERTILIZERS', 'PESTICIDES', 'LABOUR_COSTS',
+          'IRRIGATION', 'LAND_LEASE', 'FARM_LOAN_REPAYMENT', 'MACHINERY_TRANSPORT',
+          'LIVESTOCK_DAIRY', 'CROP_SALES', 'FARM_LOAN_RECEIVED', 'GOVT_SUBSIDY',
+          'LAND_LEASE_INCOME', 'OTHER_FARM',
+          'SEEDS_FERTILIZER', 'IRRIGATION_PESTICIDE', 'LABOUR_MACHINERY', 'HARVEST_SALE'
+        ] &&
+        data.note is string && data.note.size() <= 300 &&
+        data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 30 &&
+        (!('cropTag' in data) || (data.cropTag is string && data.cropTag.size() <= 60)) &&
+        (!('migratedFromLegacyId' in data) || (data.migratedFromLegacyId is string && data.migratedFromLegacyId.size() <= 128)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidScopedFinancialBudget(data, uid, expectedProfile, expectedScope) {
+      return data.userId is string && data.userId == uid &&
+        data.profileType == expectedProfile &&
+        data.ledgerScope == expectedScope &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        data.kind in ['MONTHLY_BUDGET', 'SAVINGS_GOAL', 'OPENING_BALANCE'] &&
+        data.targetAmount is number && data.targetAmount >= 0 && data.targetAmount <= 10000000 &&
+        (data.kind == 'OPENING_BALANCE' || data.targetAmount > 0) &&
+        data.savedAmount is number && data.savedAmount >= 0 && data.savedAmount <= 10000000 &&
+        data.monthKey is string && data.monthKey.size() >= 4 && data.monthKey.size() <= 20 &&
+        (!('migratedFromLegacyId' in data) || (data.migratedFromLegacyId is string && data.migratedFromLegacyId.size() <= 128)) &&
         isValidTimestamp(data.createdAt) &&
         isValidTimestamp(data.updatedAt);
     }
@@ -576,7 +669,7 @@ service cloud.firestore {
         incoming().keys().hasOnly([
           'userId', 'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language',
           'phoneNumber', 'state', 'department', 'subjectSpecialization', 'requestedRole', 'professorApprovalStatus',
-          'photoUrl', 'lastActiveAt', 'createdAt', 'updatedAt'
+          'photoUrl', 'financialProfiles', 'lastActiveAt', 'createdAt', 'updatedAt'
         ]) &&
         isValidUserProfile(incoming());
 
@@ -597,7 +690,7 @@ service cloud.firestore {
             incoming().diff(existing()).affectedKeys().hasOnly([
               'displayName', 'email', 'role', 'institutionOrVillage', 'district', 'semester', 'language',
               'phoneNumber', 'state', 'department', 'subjectSpecialization', 'requestedRole', 'professorApprovalStatus',
-              'photoUrl', 'lastActiveAt', 'updatedAt'
+              'photoUrl', 'financialProfiles', 'lastActiveAt', 'updatedAt'
             ])
           ) ||
           (
@@ -605,14 +698,122 @@ service cloud.firestore {
             incoming().diff(existing()).affectedKeys().hasOnly([
               'displayName', 'role', 'institutionOrVillage', 'district', 'semester', 'language',
               'phoneNumber', 'state', 'department', 'subjectSpecialization', 'requestedRole', 'professorApprovalStatus',
-              'updatedAt'
+              'financialProfiles', 'updatedAt'
             ])
           )
         );
 
       allow delete: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
 
-      // Private Student Money Manager & Farmer Farm Ledger Transactions (Owner ONLY — ZERO Admin approval, NEVER exposed to Admin or Professors)
+      // STRICTLY ISOLATED STUDENT FINANCIAL PROFILE (Owner + Student/Dual Profile ONLY)
+      // A Farmer-only account CANNOT read or write Student financial records!
+      match /studentFinancialTransactions/{transactionId} {
+        allow get: if isValidId(userId) && isValidId(transactionId) && hasStudentFinancialAccess(userId);
+        allow list: if isValidId(userId) && hasStudentFinancialAccess(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(transactionId) &&
+          hasStudentFinancialAccess(userId) &&
+          incoming().keys().hasAll(['userId', 'profileType', 'ledgerScope', 'title', 'amount', 'type', 'category', 'note', 'dateLabel', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'profileType', 'ledgerScope', 'title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'migratedFromLegacyId', 'createdAt', 'updatedAt']) &&
+          isValidStudentFinancialTransaction(incoming(), userId);
+
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(transactionId) &&
+          hasStudentFinancialAccess(userId) &&
+          isValidStudentFinancialTransaction(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().profileType == existing().profileType &&
+          incoming().ledgerScope == existing().ledgerScope &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(transactionId) && hasStudentFinancialAccess(userId);
+      }
+
+      match /studentFinancialBudgets/{budgetId} {
+        allow get: if isValidId(userId) && isValidId(budgetId) && hasStudentFinancialAccess(userId);
+        allow list: if isValidId(userId) && hasStudentFinancialAccess(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(budgetId) &&
+          hasStudentFinancialAccess(userId) &&
+          incoming().keys().hasAll(['userId', 'profileType', 'ledgerScope', 'name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'profileType', 'ledgerScope', 'name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'migratedFromLegacyId', 'createdAt', 'updatedAt']) &&
+          isValidScopedFinancialBudget(incoming(), userId, 'student', 'STUDENT');
+
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(budgetId) &&
+          hasStudentFinancialAccess(userId) &&
+          isValidScopedFinancialBudget(incoming(), userId, 'student', 'STUDENT') &&
+          incoming().userId == existing().userId &&
+          incoming().profileType == existing().profileType &&
+          incoming().ledgerScope == existing().ledgerScope &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(budgetId) && hasStudentFinancialAccess(userId);
+      }
+
+      // STRICTLY ISOLATED FARMER FINANCIAL PROFILE (Owner + Farmer/Dual Profile ONLY)
+      // A Student-only account CANNOT read or write Farmer financial records!
+      match /farmerFinancialTransactions/{transactionId} {
+        allow get: if isValidId(userId) && isValidId(transactionId) && hasFarmerFinancialAccess(userId);
+        allow list: if isValidId(userId) && hasFarmerFinancialAccess(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(transactionId) &&
+          hasFarmerFinancialAccess(userId) &&
+          incoming().keys().hasAll(['userId', 'profileType', 'ledgerScope', 'title', 'amount', 'type', 'category', 'note', 'dateLabel', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'profileType', 'ledgerScope', 'title', 'amount', 'type', 'category', 'note', 'dateLabel', 'cropTag', 'migratedFromLegacyId', 'createdAt', 'updatedAt']) &&
+          isValidFarmerFinancialTransaction(incoming(), userId);
+
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(transactionId) &&
+          hasFarmerFinancialAccess(userId) &&
+          isValidFarmerFinancialTransaction(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().profileType == existing().profileType &&
+          incoming().ledgerScope == existing().ledgerScope &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'cropTag', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(transactionId) && hasFarmerFinancialAccess(userId);
+      }
+
+      match /farmerFinancialBudgets/{budgetId} {
+        allow get: if isValidId(userId) && isValidId(budgetId) && hasFarmerFinancialAccess(userId);
+        allow list: if isValidId(userId) && hasFarmerFinancialAccess(userId);
+
+        allow create: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(budgetId) &&
+          hasFarmerFinancialAccess(userId) &&
+          incoming().keys().hasAll(['userId', 'profileType', 'ledgerScope', 'name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'profileType', 'ledgerScope', 'name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'migratedFromLegacyId', 'createdAt', 'updatedAt']) &&
+          isValidScopedFinancialBudget(incoming(), userId, 'farmer', 'FARMER');
+
+        allow update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(budgetId) &&
+          hasFarmerFinancialAccess(userId) &&
+          isValidScopedFinancialBudget(incoming(), userId, 'farmer', 'FARMER') &&
+          incoming().userId == existing().userId &&
+          incoming().profileType == existing().profileType &&
+          incoming().ledgerScope == existing().ledgerScope &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'kind', 'targetAmount', 'savedAmount', 'monthKey', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(budgetId) && hasFarmerFinancialAccess(userId);
+      }
+
+      // Legacy Private Financial Transactions (Preserved for non-destructive migration & compatibility; scope cannot be flipped on update)
       match /transactions/{transactionId} {
         allow get: if isValidId(userId) && isValidId(transactionId) && isOwner(userId);
         allow list: if isOwner(userId);
@@ -631,12 +832,13 @@ service cloud.firestore {
           isValidMoneyTransaction(incoming()) &&
           isOwner(userId) &&
           incoming().createdAt == existing().createdAt &&
+          (!('ledgerScope' in existing()) || incoming().ledgerScope == existing().ledgerScope) &&
           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'type', 'category', 'note', 'dateLabel', 'sharedWith', 'ledgerScope', 'cropTag', 'updatedAt']);
 
         allow delete: if isValidId(userId) && isValidId(transactionId) && isOwner(userId);
       }
 
-      // Private Student Budgets & Savings Goals (Owner ONLY — NEVER exposed to Super Admin or Staff)
+      // Legacy Private Budgets & Savings Goals (Preserved for non-destructive migration & compatibility)
       match /budgets/{budgetId} {
         allow get: if isValidId(userId) && isValidId(budgetId) && isOwner(userId);
         allow list: if isOwner(userId);
@@ -1830,7 +2032,7 @@ service cloud.firestore {
       return url is string && (url == '' || (url.size() >= 8 && url.size() <= 400 && url.matches('^https?://.*')));
     }
 
-    function isValidAgricultureScheme(data) {
+    function isValidAgricultureSchemeCore(data) {
       return data.schemeSlug is string && data.schemeSlug.size() >= 2 && data.schemeSlug.size() <= 80 &&
         data.name is string && data.name.size() >= 2 && data.name.size() <= 200 &&
         data.nameBn is string && data.nameBn.size() <= 220 &&
@@ -1852,8 +2054,11 @@ service cloud.firestore {
         data.purpose is string && data.purpose.size() >= 2 && data.purpose.size() <= 1200 &&
         data.purposeBn is string && data.purposeBn.size() <= 1400 &&
         data.benefits is string && data.benefits.size() >= 2 && data.benefits.size() <= 1500 &&
-        data.benefitsBn is string && data.benefitsBn.size() <= 1700 &&
-        data.eligibleCategories is string && data.eligibleCategories.size() <= 600 &&
+        data.benefitsBn is string && data.benefitsBn.size() <= 1700;
+    }
+
+    function isValidAgricultureSchemeEligibility(data) {
+      return data.eligibleCategories is string && data.eligibleCategories.size() <= 600 &&
         data.eligibleCategoriesBn is string && data.eligibleCategoriesBn.size() <= 700 &&
         data.landholding is string && data.landholding.size() <= 500 &&
         data.landholdingBn is string && data.landholdingBn.size() <= 600 &&
@@ -1871,8 +2076,11 @@ service cloud.firestore {
         data.whoCanApplyBn is list && data.whoCanApplyBn.size() <= 20 &&
         data.whoCannotApply is list && data.whoCannotApply.size() <= 20 &&
         data.whoCannotApplyBn is list && data.whoCannotApplyBn.size() <= 20 &&
-        data.requiredDocuments is list && data.requiredDocuments.size() <= 20 &&
-        data.applicationProcess is string && data.applicationProcess.size() <= 1500 &&
+        data.requiredDocuments is list && data.requiredDocuments.size() <= 20;
+    }
+
+    function isValidAgricultureSchemeMeta(data) {
+      return data.applicationProcess is string && data.applicationProcess.size() <= 1500 &&
         data.applicationProcessBn is string && data.applicationProcessBn.size() <= 1700 &&
         isValidSchemeUrlOrEmpty(data.officialPortalUrl) &&
         data.offlineProcess is string && data.offlineProcess.size() <= 1200 &&
@@ -1894,6 +2102,12 @@ service cloud.firestore {
         data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
         isValidTimestamp(data.createdAt) &&
         isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAgricultureScheme(data) {
+      return isValidAgricultureSchemeCore(data) &&
+        isValidAgricultureSchemeEligibility(data) &&
+        isValidAgricultureSchemeMeta(data);
     }
 
     function isValidAgricultureSchemeHistory(data) {

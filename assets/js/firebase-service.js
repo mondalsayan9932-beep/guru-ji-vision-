@@ -13,6 +13,16 @@ import {
   DEFAULT_APP_SETTINGS
 } from "./config.js";
 import { buildDoubtChatId, getTimestampMs, isValidGoogleMeetUrl, parseMeetingEpochMs } from "./calculators.js";
+import {
+  buildScopedBudgetPayload,
+  buildScopedTransactionPayload,
+  classifyLegacyBudget,
+  classifyLegacyTransaction,
+  getAllowedFinancialProfiles,
+  getBudgetCollectionName,
+  getTransactionCollectionName,
+  normalizeProfileType
+} from "./money-profile-utils.js";
 
 const FB_CDN = "https://www.gstatic.com/firebasejs/10.14.1";
 
@@ -35,6 +45,8 @@ class FirebaseService {
     this.authUnsub = null;
     this.publicSubScopeKey = null;
     this.privateSubKey = null;
+    this.financialProfileSubKey = null;
+    this.migratedFinancialScopeKeys = new Set();
     this.profileSubUid = null;
     this.doubtSubKey = null;
     this.ownerTelemetrySubscribed = false;
@@ -438,6 +450,8 @@ class FirebaseService {
       }
     }
     this.privateSubKey = null;
+    this.financialProfileSubKey = null;
+    this.migratedFinancialScopeKeys.clear();
     this.profileSubUid = null;
     this.doubtSubKey = null;
     this.ownerTelemetrySubscribed = false;
@@ -450,6 +464,8 @@ class FirebaseService {
     this.activeUnsubs.clear();
     this.publicSubScopeKey = null;
     this.privateSubKey = null;
+    this.financialProfileSubKey = null;
+    this.migratedFinancialScopeKeys.clear();
     this.profileSubUid = null;
     this.doubtSubKey = null;
     this.ownerTelemetrySubscribed = false;
@@ -792,7 +808,7 @@ class FirebaseService {
     this.subscribePublicCollections({ isAdmin, isSuperAdmin, isAuthorizedMeetingHost, onUpdate });
 
     const privKey = `${uid}|${Boolean(isAdmin)}`;
-    const requiredPrivateKeys = ["farmerQueries", "moneyTransactions", "moneyBudgets", "quizAttempts", "studyBookmarks"];
+    const requiredPrivateKeys = ["farmerQueries", "quizAttempts", "studyBookmarks"];
     if (this.privateSubKey === privKey && requiredPrivateKeys.every((k) => this.activeUnsubs.has(k))) {
       return;
     }
@@ -806,24 +822,6 @@ class FirebaseService {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }))
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       onUpdate("farmerQueries", list);
-    }, () => {}));
-
-    // PRIVATE OWNER-ONLY: Student Money Manager & Farmer Farm Ledger
-    // Strictly scoped ONLY to request.auth.uid — ZERO Admin approval, NEVER exposed to Admin/Professors!
-    this.setSub("moneyTransactions", onSnapshot(query(collection(this.db, "users", uid, "transactions"), limit(400)), (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAtMs: getTimestampMs(d.data().createdAt) }))
-        .sort((a, b) => (b.dateLabel || "").localeCompare(a.dateLabel || "") || b.createdAtMs - a.createdAtMs);
-      onUpdate("moneyTransactions", list);
-    }, () => {}));
-
-    this.setSub("moneyBudgets", onSnapshot(query(collection(this.db, "users", uid, "budgets"), limit(100)), (snap) => {
-      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const openingDoc = all.find((d) => d.kind === "OPENING_BALANCE" || d.id === "opening_balance");
-      const goals = all.filter((d) => d.kind !== "OPENING_BALANCE" && d.id !== "opening_balance");
-      onUpdate("moneyBudgets", goals);
-      if (openingDoc) {
-        onUpdate("openingBalance", Number(openingDoc.targetAmount) || 0);
-      }
     }, () => {}));
 
     // PRIVATE OWNER-ONLY: Quiz Attempts
@@ -845,44 +843,249 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // 3. PRIVATE STUDENT MONEY MANAGER & FARMER FARM LEDGER CRUD (Owner-ONLY, NO Admin Approval)
+  // 2C. STRICTLY ISOLATED STUDENT & FARMER FINANCIAL PROFILE SUBSCRIPTIONS
+  // Enforced at query, subcollection, and Firestore Security Rules layers!
   // --------------------------------------------------------------------------
-  async saveMoneyTransaction(uid, tx, editId = "") {
-    if (!this.ready || !uid) throw new Error("Sign in required to save personal financial entries.");
-    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
-    const base = {
-      title: String(tx.title || "").trim().slice(0, 100),
-      amount: Math.max(0.01, Math.min(10000000, Number(tx.amount) || 0)),
-      type: tx.type === "INCOME" ? "INCOME" : "EXPENSE",
-      category: tx.category || "OTHER",
-      ledgerScope: tx.ledgerScope === "FARMER" ? "FARMER" : "STUDENT",
-      note: String(tx.note || "").trim().slice(0, 300),
-      dateLabel: String(tx.dateLabel || new Date().toISOString().slice(0, 10)).trim().slice(0, 30),
-      updatedAt: serverTimestamp()
-    };
-    const shared = String(tx.sharedWith || "").trim().slice(0, 100);
-    if (shared) base.sharedWith = shared;
-    const cropTag = String(tx.cropTag || "").trim().slice(0, 60);
-    if (cropTag) base.cropTag = cropTag;
+  subscribeFinancialProfiles({ uid, userProfile, onUpdate }) {
+    if (!this.ready || !uid) return;
+    const { collection, query, where, limit, onSnapshot } = this.mods.fsMod;
+    const allowedProfiles = getAllowedFinancialProfiles(userProfile);
+    const hasStudent = allowedProfiles.includes("student");
+    const hasFarmer = allowedProfiles.includes("farmer");
+    const scopeKey = `${uid}|${allowedProfiles.slice().sort().join(",")}`;
 
-    if (editId) {
-      await updateDoc(doc(this.db, "users", uid, "transactions", editId), base);
+    const expectedKeys = [
+      ...(hasStudent ? ["studentMoneyTransactions", "studentMoneyBudgets"] : []),
+      ...(hasFarmer ? ["farmerMoneyTransactions", "farmerMoneyBudgets"] : [])
+    ];
+    if (this.financialProfileSubKey === scopeKey && expectedKeys.every((k) => this.activeUnsubs.has(k))) {
+      return;
+    }
+    this.financialProfileSubKey = scopeKey;
+
+    // 1. STUDENT FINANCIAL PROFILE (Subscribed ONLY if user has Student / Dual access)
+    if (hasStudent) {
+      const studentTxQ = query(
+        collection(this.db, "users", uid, "studentFinancialTransactions"),
+        where("userId", "==", uid),
+        where("profileType", "==", "student"),
+        limit(400)
+      );
+      this.setSub("studentMoneyTransactions", onSnapshot(studentTxQ, (snap) => {
+        const list = snap.docs
+          .map((d) => ({ id: d.id, ...d.data(), createdAtMs: getTimestampMs(d.data().createdAt) }))
+          .filter((d) => d.userId === uid && d.profileType === "student")
+          .sort((a, b) => (b.dateLabel || "").localeCompare(a.dateLabel || "") || b.createdAtMs - a.createdAtMs);
+        onUpdate("studentMoneyTransactions", list);
+      }, () => {}));
+
+      const studentBudgetsQ = query(
+        collection(this.db, "users", uid, "studentFinancialBudgets"),
+        where("userId", "==", uid),
+        where("profileType", "==", "student"),
+        limit(100)
+      );
+      this.setSub("studentMoneyBudgets", onSnapshot(studentBudgetsQ, (snap) => {
+        const all = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((d) => d.userId === uid && d.profileType === "student");
+        const openingDoc = all.find((d) => d.kind === "OPENING_BALANCE" || d.id === "opening_balance");
+        const goals = all.filter((d) => d.kind !== "OPENING_BALANCE" && d.id !== "opening_balance");
+        onUpdate("studentMoneyBudgets", goals);
+        if (openingDoc) {
+          onUpdate("studentOpeningBalance", Number(openingDoc.targetAmount) || 0);
+        }
+      }, () => {}));
     } else {
-      await addDoc(collection(this.db, "users", uid, "transactions"), { ...base, createdAt: serverTimestamp() });
+      this.setSub("studentMoneyTransactions", null);
+      this.setSub("studentMoneyBudgets", null);
+      onUpdate("studentMoneyTransactions", []);
+      onUpdate("studentMoneyBudgets", []);
+      onUpdate("studentOpeningBalance", 0);
+    }
+
+    // 2. FARMER FINANCIAL PROFILE (Subscribed ONLY if user has Farmer / Dual access)
+    if (hasFarmer) {
+      const farmerTxQ = query(
+        collection(this.db, "users", uid, "farmerFinancialTransactions"),
+        where("userId", "==", uid),
+        where("profileType", "==", "farmer"),
+        limit(400)
+      );
+      this.setSub("farmerMoneyTransactions", onSnapshot(farmerTxQ, (snap) => {
+        const list = snap.docs
+          .map((d) => ({ id: d.id, ...d.data(), createdAtMs: getTimestampMs(d.data().createdAt) }))
+          .filter((d) => d.userId === uid && d.profileType === "farmer")
+          .sort((a, b) => (b.dateLabel || "").localeCompare(a.dateLabel || "") || b.createdAtMs - a.createdAtMs);
+        onUpdate("farmerMoneyTransactions", list);
+      }, () => {}));
+
+      const farmerBudgetsQ = query(
+        collection(this.db, "users", uid, "farmerFinancialBudgets"),
+        where("userId", "==", uid),
+        where("profileType", "==", "farmer"),
+        limit(100)
+      );
+      this.setSub("farmerMoneyBudgets", onSnapshot(farmerBudgetsQ, (snap) => {
+        const all = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((d) => d.userId === uid && d.profileType === "farmer");
+        const openingDoc = all.find((d) => d.kind === "OPENING_BALANCE" || d.id === "opening_balance");
+        const goals = all.filter((d) => d.kind !== "OPENING_BALANCE" && d.id !== "opening_balance");
+        onUpdate("farmerMoneyBudgets", goals);
+        if (openingDoc) {
+          onUpdate("farmerOpeningBalance", Number(openingDoc.targetAmount) || 0);
+        }
+      }, () => {}));
+    } else {
+      this.setSub("farmerMoneyTransactions", null);
+      this.setSub("farmerMoneyBudgets", null);
+      onUpdate("farmerMoneyTransactions", []);
+      onUpdate("farmerMoneyBudgets", []);
+      onUpdate("farmerOpeningBalance", 0);
     }
   }
 
-  async deleteMoneyTransaction(uid, txId) {
-    if (!this.ready || !uid) throw new Error("Sign in required.");
-    const { doc, deleteDoc } = this.mods.fsMod;
-    await deleteDoc(doc(this.db, "users", uid, "transactions", txId));
+  // Safe, idempotent, non-destructive classification & migration of legacy
+  // users/{uid}/transactions and users/{uid}/budgets into isolated Student / Farmer profiles.
+  // NEVER deletes or modifies legacy documents!
+  async migrateLegacyMoneyRecords(uid, userProfile) {
+    if (!this.ready || !uid) return null;
+    const allowedProfiles = getAllowedFinancialProfiles(userProfile);
+    const scopeKey = `${uid}|${allowedProfiles.slice().sort().join(",")}`;
+    if (this.migratedFinancialScopeKeys.has(scopeKey)) return null;
+    this.migratedFinancialScopeKeys.add(scopeKey);
+
+    const { collection, doc, getDoc, getDocs, setDoc, query, limit, serverTimestamp } = this.mods.fsMod;
+    const result = {
+      migratedStudentTx: 0,
+      migratedFarmerTx: 0,
+      migratedBudgets: 0,
+      otherProfileLegacyCount: 0
+    };
+
+    try {
+      const legacyTxSnap = await getDocs(query(collection(this.db, "users", uid, "transactions"), limit(400)));
+      for (const d of legacyTxSnap.docs) {
+        const raw = d.data();
+        const targetProfile = classifyLegacyTransaction(raw, userProfile?.role);
+        if (!allowedProfiles.includes(targetProfile)) {
+          result.otherProfileLegacyCount += 1;
+          continue;
+        }
+        const targetCol = getTransactionCollectionName(targetProfile);
+        const migratedId = `legacy_${d.id}`.slice(0, 128);
+        const targetRef = doc(this.db, "users", uid, targetCol, migratedId);
+        const existingSnap = await getDoc(targetRef);
+        if (existingSnap.exists()) continue;
+
+        const payload = buildScopedTransactionPayload({
+          uid,
+          profileType: targetProfile,
+          tx: raw,
+          createdAtValue: raw.createdAt || serverTimestamp(),
+          updatedAtValue: raw.updatedAt || serverTimestamp(),
+          migratedFromLegacyId: d.id
+        });
+        await setDoc(targetRef, payload);
+        if (targetProfile === "farmer") result.migratedFarmerTx += 1;
+        else result.migratedStudentTx += 1;
+      }
+
+      const legacyBudgetSnap = await getDocs(query(collection(this.db, "users", uid, "budgets"), limit(100)));
+      for (const d of legacyBudgetSnap.docs) {
+        const raw = d.data();
+        const targetProfile = classifyLegacyBudget({ id: d.id, ...raw }, userProfile?.role);
+        if (!allowedProfiles.includes(targetProfile)) {
+          result.otherProfileLegacyCount += 1;
+          continue;
+        }
+        const targetCol = getBudgetCollectionName(targetProfile);
+        const isOpening = raw.kind === "OPENING_BALANCE" || d.id === "opening_balance";
+        const migratedId = isOpening ? "opening_balance" : `legacy_${d.id}`.slice(0, 128);
+        const targetRef = doc(this.db, "users", uid, targetCol, migratedId);
+        const existingSnap = await getDoc(targetRef);
+        if (existingSnap.exists()) continue;
+
+        const payload = buildScopedBudgetPayload({
+          uid,
+          profileType: targetProfile,
+          goal: raw,
+          createdAtValue: raw.createdAt || serverTimestamp(),
+          updatedAtValue: raw.updatedAt || serverTimestamp(),
+          migratedFromLegacyId: d.id
+        });
+        await setDoc(targetRef, payload);
+        result.migratedBudgets += 1;
+      }
+    } catch (_) {
+      // Allow retry if a transient network error occurred
+      this.migratedFinancialScopeKeys.delete(scopeKey);
+    }
+
+    return result;
   }
 
-  async saveOpeningBalance(uid, amount) {
+  async updateFinancialProfiles(uid, profiles) {
     if (!this.ready || !uid) throw new Error("Sign in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const clean = Array.from(new Set((profiles || []).map((p) => normalizeProfileType(p)).filter(Boolean))).slice(0, 2);
+    if (clean.length === 0) throw new Error("At least one financial profile is required.");
+    await updateDoc(doc(this.db, "users", uid), {
+      financialProfiles: clean,
+      updatedAt: serverTimestamp()
+    });
+    return clean;
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. PRIVATE STUDENT & FARMER FINANCIAL PROFILE CRUD (Strictly Isolated)
+  // --------------------------------------------------------------------------
+  async saveMoneyTransaction(uid, profileType, tx, editId = "") {
+    if (!this.ready || !uid) throw new Error("Sign in required to save personal financial entries.");
+    const profile = normalizeProfileType(profileType);
+    if (!profile) throw new Error("A valid financial profile ('student' or 'farmer') is required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const colName = getTransactionCollectionName(profile);
+
+    if (editId) {
+      const fullPayload = buildScopedTransactionPayload({
+        uid,
+        profileType: profile,
+        tx,
+        updatedAtValue: serverTimestamp()
+      });
+      // Omit immutable ownership & profile fields on updateDoc (enforced by firestore.rules)
+      const { userId: _u, profileType: _p, ledgerScope: _l, migratedFromLegacyId: _m, ...mutableFields } = fullPayload;
+      await updateDoc(doc(this.db, "users", uid, colName, editId), mutableFields);
+    } else {
+      const createPayload = buildScopedTransactionPayload({
+        uid,
+        profileType: profile,
+        tx,
+        createdAtValue: serverTimestamp(),
+        updatedAtValue: serverTimestamp()
+      });
+      await addDoc(collection(this.db, "users", uid, colName), createPayload);
+    }
+  }
+
+  async deleteMoneyTransaction(uid, profileType, txId) {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    const profile = normalizeProfileType(profileType);
+    if (!profile) throw new Error("A valid financial profile ('student' or 'farmer') is required.");
+    const { doc, deleteDoc } = this.mods.fsMod;
+    await deleteDoc(doc(this.db, "users", uid, getTransactionCollectionName(profile), txId));
+  }
+
+  async saveOpeningBalance(uid, profileType, amount) {
+    if (!this.ready || !uid) throw new Error("Sign in required.");
+    const profile = normalizeProfileType(profileType);
+    if (!profile) throw new Error("A valid financial profile ('student' or 'farmer') is required.");
     const { doc, getDoc, setDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const cleanAmt = Math.max(0, Math.min(10000000, Number(amount) || 0));
-    const ref = doc(this.db, "users", uid, "budgets", "opening_balance");
+    const colName = getBudgetCollectionName(profile);
+    const ref = doc(this.db, "users", uid, colName, "opening_balance");
     const snap = await getDoc(ref);
     if (snap.exists()) {
       await updateDoc(ref, {
@@ -894,40 +1097,57 @@ class FirebaseService {
         updatedAt: serverTimestamp()
       });
     } else {
-      await setDoc(ref, {
-        name: "Opening Balance",
-        kind: "OPENING_BALANCE",
-        targetAmount: cleanAmt,
-        savedAmount: cleanAmt,
-        monthKey: "GLOBAL",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+      const createPayload = buildScopedBudgetPayload({
+        uid,
+        profileType: profile,
+        goal: {
+          name: "Opening Balance",
+          kind: "OPENING_BALANCE",
+          targetAmount: cleanAmt,
+          savedAmount: cleanAmt,
+          monthKey: "GLOBAL"
+        },
+        createdAtValue: serverTimestamp(),
+        updatedAtValue: serverTimestamp()
       });
+      await setDoc(ref, createPayload);
     }
   }
 
-  async saveFinancialGoal(uid, goal, editId = "") {
+  async saveFinancialGoal(uid, profileType, goal, editId = "") {
     if (!this.ready || !uid) throw new Error("Sign in required.");
+    const profile = normalizeProfileType(profileType);
+    if (!profile) throw new Error("A valid financial profile ('student' or 'farmer') is required.");
     const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
-    const base = {
-      name: String(goal.name || "").trim().slice(0, 80),
-      kind: goal.kind === "SAVINGS_GOAL" ? "SAVINGS_GOAL" : "MONTHLY_BUDGET",
-      targetAmount: Math.max(1, Math.min(10000000, Number(goal.targetAmount) || 0)),
-      savedAmount: Math.max(0, Math.min(10000000, Number(goal.savedAmount) || 0)),
-      monthKey: String(goal.monthKey || new Date().toISOString().slice(0, 7)).trim().slice(0, 20),
-      updatedAt: serverTimestamp()
-    };
+    const colName = getBudgetCollectionName(profile);
+
     if (editId) {
-      await updateDoc(doc(this.db, "users", uid, "budgets", editId), base);
+      const fullPayload = buildScopedBudgetPayload({
+        uid,
+        profileType: profile,
+        goal,
+        updatedAtValue: serverTimestamp()
+      });
+      const { userId: _u, profileType: _p, ledgerScope: _l, migratedFromLegacyId: _m, ...mutableFields } = fullPayload;
+      await updateDoc(doc(this.db, "users", uid, colName, editId), mutableFields);
     } else {
-      await addDoc(collection(this.db, "users", uid, "budgets"), { ...base, createdAt: serverTimestamp() });
+      const createPayload = buildScopedBudgetPayload({
+        uid,
+        profileType: profile,
+        goal,
+        createdAtValue: serverTimestamp(),
+        updatedAtValue: serverTimestamp()
+      });
+      await addDoc(collection(this.db, "users", uid, colName), createPayload);
     }
   }
 
-  async deleteFinancialGoal(uid, goalId) {
+  async deleteFinancialGoal(uid, profileType, goalId) {
     if (!this.ready || !uid) throw new Error("Sign in required.");
+    const profile = normalizeProfileType(profileType);
+    if (!profile) throw new Error("A valid financial profile ('student' or 'farmer') is required.");
     const { doc, deleteDoc } = this.mods.fsMod;
-    await deleteDoc(doc(this.db, "users", uid, "budgets", goalId));
+    await deleteDoc(doc(this.db, "users", uid, getBudgetCollectionName(profile), goalId));
   }
 
   // --------------------------------------------------------------------------

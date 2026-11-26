@@ -271,35 +271,53 @@ export const AREA_UNITS = {
 };
 
 export const MONEY_EXPENSE_CATEGORIES = [
+  { id: "EDUCATION", labelEn: "Education & Tuition Fees", labelBn: "শিক্ষা ও কলেজ ফি" },
+  { id: "BOOKS_STATIONERY", labelEn: "Books & Study Materials", labelBn: "বই ও স্টেশনারি" },
+  { id: "HOSTEL_RENT", labelEn: "Hostel & Room Rent", labelBn: "হোস্টেল ও ঘর ভাড়া" },
   { id: "FOOD_MESS", labelEn: "Food & Mess", labelBn: "খাবার ও মেস" },
-  { id: "HOSTEL_RENT", labelEn: "Hostel & Rent", labelBn: "হোস্টেল ও ভাড়া" },
-  { id: "EDUCATION", labelEn: "College Fees & Books", labelBn: "কলেজ ফি ও বই" },
-  { id: "TRAVEL_RECHARGE", labelEn: "Travel & Recharge", labelBn: "যাতায়াত ও রিচার্জ" },
+  { id: "PERSONAL_EXPENSE", labelEn: "Personal Expenses", labelBn: "ব্যক্তিগত খরচ" },
+  { id: "TRAVEL_RECHARGE", labelEn: "Travel & Mobile Recharge", labelBn: "যাতায়াত ও রিচার্জ" },
   { id: "SHARED", labelEn: "Mess / Shared Expense", labelBn: "শেয়ার্ড মেস হিসাব" },
   { id: "SAVINGS", labelEn: "Savings Deposit", labelBn: "সঞ্চয়" },
-  { id: "OTHER", labelEn: "Personal / Other", labelBn: "ব্যক্তিগত / অন্যান্য" }
+  { id: "OTHER", labelEn: "Other Student Expense", labelBn: "অন্যান্য ছাত্র খরচ" }
 ];
 
 export const MONEY_INCOME_CATEGORIES = [
+  { id: "SCHOLARSHIP", labelEn: "Scholarship / Fellowship", labelBn: "স্কলারশিপ / বৃত্তি" },
   { id: "ALLOWANCE", labelEn: "Home Allowance", labelBn: "বাড়ি থেকে প্রাপ্ত" },
-  { id: "SCHOLARSHIP", labelEn: "Scholarship", labelBn: "স্কলারশিপ" },
-  { id: "OTHER", labelEn: "Part-time / Other Income", labelBn: "পার্ট-টাইম / অন্যান্য আয়" }
+  { id: "SAVINGS_RETURN", labelEn: "Savings Withdrawal / Interest", labelBn: "সঞ্চয় ফেরত / সুদ" },
+  { id: "OTHER", labelEn: "Part-time / Other Student Income", labelBn: "পার্ট-টাইম / অন্যান্য ছাত্র আয়" }
 ];
 
 export const FARMER_EXPENSE_CATEGORIES = [
-  { id: "SEEDS_FERTILIZER", labelEn: "Seeds & Fertilizers", labelBn: "বীজ ও সার" },
-  { id: "IRRIGATION_PESTICIDE", labelEn: "Irrigation & Pesticides", labelBn: "সেচ ও কীটনাশক" },
-  { id: "LABOUR_MACHINERY", labelEn: "Labour & Tractor/Machinery", labelBn: "শ্রমিক ও যন্ত্রপাতি" },
+  { id: "CROP_EXPENSE", labelEn: "Crop Cultivation Expenses", labelBn: "ফসল চাষ খরচ" },
+  { id: "SEEDS", labelEn: "Seeds", labelBn: "বীজ" },
+  { id: "FERTILIZERS", labelEn: "Fertilizers & Manures", labelBn: "সার ও জৈব সার" },
+  { id: "PESTICIDES", labelEn: "Pesticides & Crop Protection", labelBn: "কীটনাশক ও ফসল সুরক্ষা" },
+  { id: "LABOUR_COSTS", labelEn: "Labour Costs", labelBn: "শ্রমিক মজুরি" },
+  { id: "IRRIGATION", labelEn: "Irrigation & Water", labelBn: "সেচ ও জল খরচ" },
+  { id: "LAND_LEASE", labelEn: "Land Lease / Rent", labelBn: "জমি লিজ / ভাড়া" },
+  { id: "FARM_LOAN_REPAYMENT", labelEn: "Agricultural Loan / EMI Repayment", labelBn: "কৃষি ঋণ / কিস্তি পরিশোধ" },
+  { id: "MACHINERY_TRANSPORT", labelEn: "Tractor, Machinery & Mandi Freight", labelBn: "ট্রাক্টর, যন্ত্রপাতি ও পরিবহন" },
   { id: "LIVESTOCK_DAIRY", labelEn: "Livestock & Dairy Feed", labelBn: "পশুপালন ও খাদ্য" },
-  { id: "TRAVEL_RECHARGE", labelEn: "Transport & Mandi Freight", labelBn: "পরিবহন ও বাজার ভাড়া" },
-  { id: "OTHER", labelEn: "Other Farm Cost", labelBn: "অন্যান্য কৃষি খরচ" }
+  { id: "OTHER_FARM", labelEn: "Other Farm Expense", labelBn: "অন্যান্য কৃষি খরচ" }
 ];
 
 export const FARMER_INCOME_CATEGORIES = [
-  { id: "HARVEST_SALE", labelEn: "Crop / Harvest Sale", labelBn: "ফসল বিক্রি আয়" },
-  { id: "LIVESTOCK_DAIRY", labelEn: "Milk / Poultry / Fish Sale", labelBn: "দুধ / মাছ / পশু বিক্রি" },
+  { id: "CROP_SALES", labelEn: "Crop Sales", labelBn: "ফসল বিক্রি আয়" },
   { id: "GOVT_SUBSIDY", labelEn: "Govt Scheme / PM-KISAN / Subsidy", labelBn: "সরকারি ভর্তুকি / অনুদান" },
-  { id: "OTHER", labelEn: "Other Farm Income", labelBn: "অন্যান্য আয়" }
+  { id: "FARM_LOAN_RECEIVED", labelEn: "Agricultural Loan / KCC Received", labelBn: "কৃষি ঋণ / KCC প্রাপ্তি" },
+  { id: "LIVESTOCK_DAIRY", labelEn: "Dairy, Poultry & Fisheries Sale", labelBn: "দুধ, মাছ ও পশুপালন আয়" },
+  { id: "LAND_LEASE_INCOME", labelEn: "Land Lease Income", labelBn: "জমি লিজ আয়" },
+  { id: "OTHER_FARM", labelEn: "Other Farm Income", labelBn: "অন্যান্য কৃষি আয়" }
+];
+
+// Preserved display labels for migrated legacy Farmer records
+export const LEGACY_FARMER_CATEGORY_LABELS = [
+  { id: "SEEDS_FERTILIZER", labelEn: "Seeds & Fertilizers (Legacy)", labelBn: "বীজ ও সার" },
+  { id: "IRRIGATION_PESTICIDE", labelEn: "Irrigation & Pesticides (Legacy)", labelBn: "সেচ ও কীটনাশক" },
+  { id: "LABOUR_MACHINERY", labelEn: "Labour & Machinery (Legacy)", labelBn: "শ্রমিক ও যন্ত্রপাতি" },
+  { id: "HARVEST_SALE", labelEn: "Crop / Harvest Sale (Legacy)", labelBn: "ফসল বিক্রি আয়" }
 ];
 
 export const CAREER_GUIDANCE_TOPICS = [
