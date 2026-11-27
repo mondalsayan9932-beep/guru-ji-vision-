@@ -84,6 +84,14 @@ import {
   recordContinueLearning
 } from "./agri-education-controller.js";
 import {
+  bindEduCmsEvents,
+  createInitialEduCmsState
+} from "./edu-cms-controller.js";
+import {
+  resolveMockTestQuestions,
+  validateStudyDocumentFile
+} from "./edu-cms-utils.js";
+import {
   getAllowedFinancialProfiles,
   normalizeProfileType,
   profileTypeToLedgerScope,
@@ -199,11 +207,13 @@ const state = {
   // Women Farmer Zone & Discussion Board State (Phase 6)
   womenFarmer: createInitialWomenFarmerState(),
 
-  // Agriculture Education Hub State (Phase 7: Notes, MCQs, University Syllabus, Discovery & Bookmarks)
+  // Agriculture Education Hub & Phase 3 CMS State (Notes, Videos, MCQs, Mock Tests, PYQs, Syllabus, Resources & Bookmarks)
   universitySyllabi: [],
   discoveredStudyResources: [],
+  mockTests: [],
   studyBookmarks: loadGuestBookmarks(),
   edu: createInitialEduState(),
+  eduCms: createInitialEduCmsState(),
 
   // Student Career Guidance / Farmer Advisor / Professor Dashboard Threads
   studentDoubtThreads: [],
@@ -242,7 +252,7 @@ const state = {
   communityCircle: "ALL",
   careerCategory: "ALL",
   professorSearch: "",
-  adminSubTab: "materials",
+  adminSubTab: "edu-cms",
 
   // Agri Calculator Inputs
   fertInput: { areaValue: 1, unitKey: "HECTARE", nPerHa: 120, pPerHa: 60, kPerHa: 60 },
@@ -488,8 +498,9 @@ const ROUTE_DATA_DEPS = {
     "agricultureSchemes", "communityPosts", "careerOpportunities"
   ]),
   "student-zone": new Set([
-    "studyMaterials", "quizzes", "universitySyllabi", "careerOpportunities", "meetings",
-    "communityPosts", "professors", "studentDoubtThreads", "professorDoubtThreads"
+    "studyMaterials", "quizzes", "mockTests", "universitySyllabi", "discoveredStudyResources",
+    "careerOpportunities", "meetings", "communityPosts", "professors",
+    "studentDoubtThreads", "professorDoubtThreads"
   ]),
   "farmer-zone": new Set([
     "firestoreMarketPrices", "agricultureSchemes", "meetings", "communityPosts", "professors"
@@ -498,13 +509,13 @@ const ROUTE_DATA_DEPS = {
     "agricultureSchemes", "communityPosts", "meetings"
   ]),
   "skill-zone": new Set([
-    "studyMaterials", "quizzes", "careerOpportunities", "meetings", "communityPosts", "professors"
+    "studyMaterials", "quizzes", "mockTests", "careerOpportunities", "meetings", "communityPosts", "professors"
   ]),
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
   marketplace: new Set([]),
   student: new Set([
-    "studyMaterials", "quizzes", "quizAttempts",
+    "studyMaterials", "quizzes", "mockTests", "quizAttempts",
     "universitySyllabi", "discoveredStudyResources", "studyBookmarks"
   ]),
   farmer: new Set(["appSettings", "farmerQueries"]),
@@ -523,7 +534,7 @@ const ROUTE_DATA_DEPS = {
   ]),
   doubt: new Set(["studentDoubtThreads", "professorDoubtThreads", "activeDoubtMessages"]),
   admin: new Set([
-    "appSettings", "studyMaterials", "quizzes", "universitySyllabi", "discoveredStudyResources",
+    "appSettings", "studyMaterials", "quizzes", "mockTests", "universitySyllabi", "discoveredStudyResources",
     "announcements", "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
     "agricultureSchemes", "agricultureSchemeHistory", "communityPosts"
   ]),
@@ -1513,6 +1524,9 @@ function bindGlobalEvents() {
       if (target.dataset.openCommSub) {
         state.communitySubTab = target.dataset.openCommSub;
       }
+      if (target.dataset.openAdminSub) {
+        state.adminSubTab = target.dataset.openAdminSub;
+      }
       navigateTo(target.dataset.nav);
       return;
     }
@@ -1624,23 +1638,32 @@ function bindGlobalEvents() {
           return;
         case "submit-quiz": {
           const edu = state.edu || {};
-          const mode = edu.quizMode || "PRACTICE";
+          const publishedTests = (state.mockTests || []).filter((t) => t.published !== false);
+          const activeTest = edu.activeMockTestId
+            ? publishedTests.find((t) => t.id === edu.activeMockTestId) || null
+            : null;
+          const mode = activeTest
+            ? (activeTest.testType === "MOCK_TEST" ? "MOCK_TEST" : "PRACTICE")
+            : (edu.quizMode || "PRACTICE");
           const savedMcqIds = new Set(
             (state.studyBookmarks || []).filter((b) => b.itemType === "MCQ").map((b) => b.itemId)
           );
-          const activeQuizzes = filterQuizQuestions(
-            mergeQuizQuestions(state.quizzes || [], false),
-            {
-              semester: state.studentSemester || 0,
-              subjectKey: edu.quizSubject || "ALL",
-              examCategory: edu.quizExam || "ALL",
-              questionType: mode === "PYQ_SET" ? "OFFICIAL_PYQ" : (edu.quizType || "ALL"),
-              difficulty: edu.quizDifficulty || "ALL",
-              search: edu.quizSearch || "",
-              savedOnly: Boolean(edu.quizSavedOnly)
-            },
-            savedMcqIds
-          );
+          const allPublishedQuizzes = mergeQuizQuestions(state.quizzes || [], false);
+          const activeQuizzes = activeTest
+            ? resolveMockTestQuestions(activeTest, allPublishedQuizzes)
+            : filterQuizQuestions(
+              allPublishedQuizzes,
+              {
+                semester: state.studentSemester || 0,
+                subjectKey: edu.quizSubject || "ALL",
+                examCategory: edu.quizExam || "ALL",
+                questionType: mode === "PYQ_SET" ? "OFFICIAL_PYQ" : (edu.quizType || "ALL"),
+                difficulty: edu.quizDifficulty || "ALL",
+                search: edu.quizSearch || "",
+                savedOnly: Boolean(edu.quizSavedOnly)
+              },
+              savedMcqIds
+            );
           let score = 0;
           activeQuizzes.forEach((q) => {
             if (state.quizAnswers[q.id] !== undefined && Number(state.quizAnswers[q.id]) === Number(q.correctIndex)) score++;
@@ -1649,17 +1672,17 @@ function bindGlobalEvents() {
           if (state.user && activeQuizzes.length > 0) {
             await firebaseService.recordQuizAttempt(
               state.user.uid,
-              state.studentSemester || 1,
+              (activeTest && activeTest.semester > 0) ? activeTest.semester : (state.studentSemester || 1),
               score,
               activeQuizzes.length,
               {
                 mode,
-                examCategory: edu.quizExam || "ALL",
-                subjectKey: edu.quizSubject || "ALL"
+                examCategory: activeTest ? activeTest.examCategory : (edu.quizExam || "ALL"),
+                subjectKey: activeTest ? activeTest.subjectKey : (edu.quizSubject || "ALL")
               }
             ).catch(() => {});
           }
-          showToast(`Exam submitted! Score: ${score}/${activeQuizzes.length}`);
+          showToast(`${activeTest ? activeTest.title : "Exam"} submitted! Score: ${score}/${activeQuizzes.length}`);
           renderActiveView();
           return;
         }
@@ -2119,6 +2142,8 @@ function bindGlobalEvents() {
       if (m) {
         const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
         setVal("amEditId", m.id);
+        setVal("amFileName", m.fileName || "");
+        setVal("amFileType", m.fileType || "");
         setVal("amTitle", m.title || "");
         setVal("amTitleBn", m.titleBn || "");
         setVal("amSemester", String(m.semester || 1));
@@ -2126,6 +2151,7 @@ function bindGlobalEvents() {
         setVal("amSubjectKey", m.subjectKey || resolveSubjectKey(m.subject, m.title));
         setVal("amSubject", m.subject || "");
         setVal("amTopic", m.topic || "");
+        setVal("amLanguage", m.language || "EN");
         setVal("amUrl", m.resourceUrl || "");
         setVal("amSourceName", m.sourceName || "");
         setVal("amSourceUrl", m.sourceUrl || "");
@@ -2134,13 +2160,15 @@ function bindGlobalEvents() {
         setVal("amOrigin", m.contentOrigin || "VERIFIED_FACULTY");
         setVal("amSummary", m.summary || "");
         setVal("amContent", m.contentText || "");
+        const metaEl = document.getElementById("amUploadMeta");
+        if (metaEl && m.fileName) metaEl.textContent = `Attached: ${m.fileName} (${m.fileType || "DOC"})`;
         const pubEl = document.getElementById("amPublished");
         if (pubEl) pubEl.checked = m.published !== false;
         const aiEl = document.getElementById("amVerifiedAi");
         if (aiEl) aiEl.checked = m.verifiedForAi !== false;
         const dlEl = document.getElementById("amDownloadOk");
         if (dlEl) dlEl.checked = Boolean(m.downloadPermitted);
-        document.getElementById("amFormTitle").textContent = "Edit Study Material";
+        document.getElementById("amFormTitle").textContent = "Edit Agriculture Note / Document";
         document.getElementById("amCancelEdit")?.classList.remove("hidden");
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -2559,14 +2587,27 @@ function bindGlobalEvents() {
       return;
     }
     if (id === "amPdfUpload" && e.target.files?.[0]) {
+      const file = e.target.files[0];
+      const check = validateStudyDocumentFile(file);
+      if (!check.ok) {
+        showToast(check.error, true);
+        e.target.value = "";
+        return;
+      }
       try {
-        showToast("Uploading PDF to Firebase Storage...");
-        const url = await firebaseService.uploadPdfToStorage(e.target.files[0]);
+        showToast(`Uploading ${check.fileType} document to Firebase Storage...`);
+        const url = await firebaseService.uploadPdfToStorage(file);
         const urlInput = document.getElementById("amUrl");
         if (urlInput) urlInput.value = url;
-        showToast("PDF uploaded! URL attached automatically.");
+        const nameEl = document.getElementById("amFileName");
+        if (nameEl) nameEl.value = check.safeName;
+        const typeEl = document.getElementById("amFileType");
+        if (typeEl) typeEl.value = check.fileType;
+        const metaEl = document.getElementById("amUploadMeta");
+        if (metaEl) metaEl.textContent = `Uploaded: ${check.safeName} (${check.fileType})`;
+        showToast(`${check.fileType} uploaded! Cloud URL attached automatically.`);
       } catch (err) {
-        showToast(err.message || "Storage upload failed. Paste a Drive/PDF URL instead.", true);
+        showToast(err.message || "Storage upload failed. Paste a verified document URL instead.", true);
       }
     }
   });
@@ -2929,6 +2970,9 @@ function bindGlobalEvents() {
               subjectKey: document.getElementById("amSubjectKey")?.value || resolveSubjectKey(document.getElementById("amSubject").value, document.getElementById("amTitle").value),
               subject: document.getElementById("amSubject").value,
               topic: document.getElementById("amTopic")?.value || "",
+              language: document.getElementById("amLanguage")?.value || "EN",
+              fileName: document.getElementById("amFileName")?.value || "",
+              fileType: document.getElementById("amFileType")?.value || "",
               resourceUrl: document.getElementById("amUrl").value,
               sourceName: document.getElementById("amSourceName")?.value || "",
               sourceUrl: document.getElementById("amSourceUrl")?.value || "",
@@ -2945,7 +2989,13 @@ function bindGlobalEvents() {
           );
           form.reset();
           document.getElementById("amEditId").value = "";
-          showToast(editId ? "Study material updated live!" : "Study material saved live to Firestore!");
+          const fnEl = document.getElementById("amFileName");
+          if (fnEl) fnEl.value = "";
+          const ftEl = document.getElementById("amFileType");
+          if (ftEl) ftEl.value = "";
+          const metaEl = document.getElementById("amUploadMeta");
+          if (metaEl) metaEl.textContent = "Uploaded files attach their cloud URL automatically.";
+          showToast(editId ? "Agriculture note updated live!" : "Agriculture note saved live to Firestore!");
         });
         return;
       }
@@ -3297,6 +3347,12 @@ bindAgriEducationEvents({
   showToast,
   withBusySubmit,
   openAuthModal
+});
+bindEduCmsEvents({
+  state,
+  renderActiveView,
+  showToast,
+  withBusySubmit
 });
 const initialHash = (window.location.hash || "").replace(/^#/, "");
 if (initialHash && VALID_ROUTES.has(initialHash)) {

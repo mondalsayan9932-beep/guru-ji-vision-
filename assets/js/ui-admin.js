@@ -18,7 +18,7 @@ import {
   EXAM_PREP_CATEGORIES,
   QUESTION_PROVENANCE_META
 } from "./agri-education-data.js";
-import { renderAdminSyllabusDiscoveryTab } from "./agri-education-ui.js";
+import { renderAdminEducationCmsView } from "./edu-cms-admin-ui.js";
 
 // ----------------------------------------------------------------------------
 // 1. ADMIN DASHBOARD
@@ -30,7 +30,7 @@ export function renderAdminView(state) {
         <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center text-2xl">🛡️</div>
         <h2 class="font-display text-2xl font-bold text-[#14532D]">Authorized Admin Access Required</h2>
         <p class="text-sm text-[#496052] leading-relaxed">
-          Administrative controls are strictly protected by Firebase Authentication and Firestore Security Rules. Sign in with your verified Founder or authorized Admin account to manage notes, quizzes, notices, meetings, faculty, and settings.
+          Administrative controls are strictly protected by Firebase Authentication and Firestore Security Rules. Sign in with your verified Founder or authorized Admin account to manage notes, videos, MCQs, mock tests, PYQs, syllabi, notices, meetings, faculty, and settings.
         </p>
         ${!state.user ? `
           <button data-action="open-auth" class="w-full py-3 rounded-2xl bg-[#14532D] text-white text-sm font-extrabold">Sign In with Authorized Account</button>
@@ -43,11 +43,11 @@ export function renderAdminView(state) {
     `;
   }
 
-  const sub = state.adminSubTab || "materials";
+  // Backward-compatible mapping if legacy sub-tab names are referenced
+  const rawSub = state.adminSubTab || "edu-cms";
+  const sub = ["materials", "quizzes", "syllabus-discovery"].includes(rawSub) ? "edu-cms" : rawSub;
   const tabs = [
-    ["materials", "Notes & PDFs"],
-    ["quizzes", "MCQs"],
-    ["syllabus-discovery", "Syllabus & Discovery"],
+    ["edu-cms", "Education CMS"],
     ["notices", "Notices"],
     ["market", "Market Prices"],
     ["schemes", "Govt Schemes"],
@@ -85,9 +85,7 @@ export function renderAdminView(state) {
         `).join("")}
       </div>
 
-      ${sub === "materials" ? renderAdminMaterials(state) : ""}
-      ${sub === "quizzes" ? renderAdminQuizzes(state) : ""}
-      ${sub === "syllabus-discovery" ? renderAdminSyllabusDiscoveryTab(state) : ""}
+      ${sub === "edu-cms" ? renderAdminEducationCmsView(state) : ""}
       ${sub === "notices" ? renderAdminNotices(state) : ""}
       ${sub === "market" ? renderAdminMarketPrices(state) : ""}
       ${sub === "schemes" ? renderAdminSchemes(state) : ""}

@@ -31,6 +31,15 @@ import {
   mergeStudyMaterials,
   mergeSyllabi
 } from "./agri-education-data.js";
+import {
+  EDU_LANGUAGES,
+  EDU_LANGUAGE_MAP,
+  LEARNING_RESOURCE_CATEGORIES,
+  LEARNING_RESOURCE_CATEGORY_MAP,
+  PYQ_ORIGIN_META,
+  extractYouTubeInfo,
+  resolveMockTestQuestions
+} from "./edu-cms-utils.js";
 
 function resolveEduLang(state) {
   const pref = state.edu?.lang;
@@ -43,16 +52,20 @@ function getBookmarkSets(state) {
   const notes = new Set();
   const mcqs = new Set();
   const syllabi = new Set();
+  const videos = new Set();
+  const resources = new Set();
   const progress = [];
   for (const b of list) {
     if (!b || !b.itemId) continue;
     if (b.itemType === "NOTE") notes.add(b.itemId);
     else if (b.itemType === "MCQ") mcqs.add(b.itemId);
     else if (b.itemType === "SYLLABUS") syllabi.add(b.itemId);
+    else if (b.itemType === "VIDEO") videos.add(b.itemId);
+    else if (b.itemType === "RESOURCE") resources.add(b.itemId);
     else if (b.itemType === "PROGRESS") progress.push(b);
   }
   progress.sort((a, b) => (Number(b.updatedAtMs) || 0) - (Number(a.updatedAtMs) || 0));
-  return { notes, mcqs, syllabi, progress };
+  return { notes, mcqs, syllabi, videos, resources, progress };
 }
 
 function renderContinueLearningBar(progressList, bn) {
@@ -100,6 +113,274 @@ function renderInlinePdfModal(edu, bn) {
           <iframe src="${escapeHtml(viewerUrl)}" title="${escapeHtml(edu.previewPdfTitle || "PDF Preview")}" class="w-full h-full border-0"></iframe>
         </div>
       </div>
+    </div>
+  `;
+}
+
+function renderInlineVideoModal(edu, bn) {
+  if (!edu?.previewVideoUrl) return "";
+  const yt = extractYouTubeInfo(edu.previewVideoUrl);
+  if (!yt.ok || !yt.embedUrl) return "";
+  return `
+    <div class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-[#CDE0D3]">
+        <div class="px-4 sm:px-5 py-3.5 bg-[#14532D] text-white flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-xs text-[#DCFCE7] font-bold">${bn ? "ভিডিও ক্লাস প্লেয়ার" : "YouTube Video Player"}</div>
+            <div class="text-sm font-extrabold truncate">${escapeHtml(edu.previewVideoTitle || "Video Lecture")}</div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <a href="${escapeHtml(yt.watchUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold">
+              YouTube ↗
+            </a>
+            <button type="button" data-edu-close-video="1" class="px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold">✕</button>
+          </div>
+        </div>
+        <div class="aspect-video w-full bg-black">
+          <iframe
+            src="${escapeHtml(yt.embedUrl)}"
+            title="${escapeHtml(edu.previewVideoTitle || "YouTube Lecture")}"
+            class="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen
+          ></iframe>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// 1B. DEDICATED VIDEO LEARNING SUB-VIEW (ADMIN-CURATED YOUTUBE VIDEOS)
+// ----------------------------------------------------------------------------
+function renderVideoLearningSubView(state, lang, allMaterials, savedVideoIds) {
+  const bn = lang === "BN";
+  const edu = state.edu || {};
+  const semFilter = Number(state.studentSemester) || 0;
+  const subjFilter = edu.videoSubject || "ALL";
+  const langFilter = edu.videoLanguage || "ALL";
+  const q = String(edu.videoSearch || "").trim().toLowerCase();
+
+  const allVideos = allMaterials.filter((m) => m.category === "VIDEO_LECTURE");
+  const filtered = allVideos.filter((v) => {
+    if (semFilter > 0 && Number(v.semester) !== semFilter) return false;
+    if (subjFilter !== "ALL" && v.subjectKey !== subjFilter) return false;
+    if (langFilter !== "ALL" && (v.language || "EN") !== langFilter) return false;
+    if (q) {
+      const hay = `${v.title || ""} ${v.titleBn || ""} ${v.subject || ""} ${v.topic || ""} ${v.summary || ""} ${v.sourceName || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  return `
+    <div class="space-y-4">
+      <div class="gv-card p-3.5 sm:p-4 space-y-3">
+        <div>
+          <h3 class="text-sm sm:text-base font-extrabold text-[#14532D]">
+            ${bn ? "কৃষি ভিডিও লার্নিং (YouTube ক্লাস ও লেকচার)" : "Agriculture Video Learning (Curated YouTube Lectures)"}
+          </h3>
+          <p class="text-[11px] text-[#496052]">
+            ${bn ? "অ্যাডমিন কর্তৃক প্রকাশিত যাচাইকৃত কৃষি ভিডিও লেকচার — বিষয়, টপিক ও ভাষা অনুযায়ী খুঁজুন।" : "Admin-curated agriculture lectures, field demos & exam prep videos with safe inline playback."}
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <input id="eduVideoSearch" type="search" value="${escapeHtml(edu.videoSearch || "")}" placeholder="${bn ? "ভিডিও, বিষয় বা টপিক খুঁজুন..." : "Search videos, subject, topic..."}" class="px-3.5 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white" />
+          <select id="eduVideoSubject" class="px-3 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
+            <option value="ALL">${bn ? "সব বিষয় (১৩টি)" : "All 13 Subjects"}</option>
+            ${AGRI_SUBJECTS.map((s) => `<option value="${escapeHtml(s.key)}" ${subjFilter === s.key ? "selected" : ""}>${escapeHtml(bn ? s.bn : s.en)}</option>`).join("")}
+          </select>
+          <select id="eduVideoLanguage" class="px-3 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
+            <option value="ALL">${bn ? "সব ভাষা" : "All Languages"}</option>
+            ${EDU_LANGUAGES.map((l) => `<option value="${escapeHtml(l.key)}" ${langFilter === l.key ? "selected" : ""}>${escapeHtml(l.label)}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+
+      ${filtered.length === 0 ? `
+        <div class="gv-card p-8 text-center space-y-2">
+          <p class="text-sm font-extrabold text-[#14532D]">${bn ? "এখনো কোনো ভিডিও লেকচার প্রকাশিত হয়নি বা ফিল্টারের সাথে মিলেনি।" : "No published video lectures match this filter yet."}</p>
+          <p class="text-xs text-[#496052]">${bn ? "অ্যাডমিন এডুকেশন CMS থেকে নতুন YouTube ভিডিও যোগ করলে সাথে সাথে এখানে দেখা যাবে।" : "New YouTube video lectures published by Admins in Education CMS appear here immediately."}</p>
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${filtered.map((v) => {
+            const rawYt = v.youtubeUrl || v.resourceUrl || "";
+            const yt = extractYouTubeInfo(rawYt);
+            const thumb = safeUrl(v.thumbnailUrl || (yt.ok ? yt.thumbnailUrl : ""));
+            const watchHref = safeUrl(yt.ok ? yt.watchUrl : rawYt);
+            const langLabel = EDU_LANGUAGE_MAP[v.language]?.label || "English";
+            const isSaved = savedVideoIds.has(v.id);
+            const title = bn && v.titleBn ? v.titleBn : v.title;
+            return `
+              <article class="gv-card overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <div class="relative aspect-video bg-slate-900 overflow-hidden">
+                    ${thumb ? `
+                      <img src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" loading="lazy" />
+                    ` : `
+                      <div class="w-full h-full flex items-center justify-center text-white text-xs font-extrabold">YouTube Video Lecture</div>
+                    `}
+                    <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/75 text-white text-[10px] font-extrabold">${escapeHtml(langLabel)}</span>
+                    <span class="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-[#14532D]/90 text-white text-[10px] font-extrabold">Sem ${escapeHtml(v.semester || 1)}</span>
+                  </div>
+                  <div class="p-4 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-[11px] font-extrabold text-[#1E7E45] truncate">${escapeHtml(v.subject)}${v.topic ? ` • ${escapeHtml(v.topic)}` : ""}</span>
+                      <button
+                        type="button"
+                        data-edu-bookmark-type="VIDEO"
+                        data-edu-bookmark-id="${escapeHtml(v.id)}"
+                        data-edu-bookmark-title="${escapeHtml(v.title)}"
+                        data-edu-bookmark-subject="${escapeHtml(v.subject)}"
+                        data-edu-bookmark-sem="${escapeHtml(v.semester || 1)}"
+                        class="px-2 py-0.5 rounded-lg text-[11px] font-extrabold shrink-0 ${isSaved ? "bg-amber-400 text-[#0C3B20]" : "bg-slate-100 text-slate-700"}"
+                      >${isSaved ? "★ Saved" : "☆ Save"}</button>
+                    </div>
+                    <h4 class="text-sm font-extrabold text-[#132219] leading-snug line-clamp-2">${escapeHtml(title)}</h4>
+                    ${v.summary ? `<p class="text-xs text-[#496052] line-clamp-2">${escapeHtml(v.summary)}</p>` : ""}
+                    ${v.sourceName ? `<div class="text-[11px] text-[#64748B] truncate">${escapeHtml(v.sourceName)}</div>` : ""}
+                  </div>
+                </div>
+                <div class="px-4 pb-4 flex flex-wrap gap-2">
+                  ${yt.ok ? `
+                    <button type="button" data-edu-play-video="${escapeHtml(yt.watchUrl)}" data-edu-play-title="${escapeHtml(title)}" class="flex-1 min-h-[40px] px-3 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
+                      ▶ ${bn ? "ভিডিও দেখুন" : "Watch Lecture"}
+                    </button>
+                  ` : ""}
+                  ${watchHref ? `
+                    <a href="${escapeHtml(watchHref)}" target="_blank" rel="noopener noreferrer" class="min-h-[40px] inline-flex items-center justify-center px-3 py-2 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">
+                      YouTube ↗
+                    </a>
+                  ` : ""}
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// 1C. DEDICATED OFFICIAL PREVIOUS YEAR QUESTION PAPERS & ANSWER KEYS SUB-VIEW
+// ----------------------------------------------------------------------------
+function renderPyqPapersSubView(state, lang, allMaterials, savedNoteIds) {
+  const bn = lang === "BN";
+  const edu = state.edu || {};
+  const examFilter = edu.pyqExam || "ALL";
+  const yearFilter = String(edu.pyqYear || "").trim();
+  const originFilter = edu.pyqOrigin || "ALL";
+  const q = String(edu.pyqSearch || "").trim().toLowerCase();
+
+  const allPyqs = allMaterials.filter((m) => m.category === "PYQ");
+  const years = Array.from(new Set(allPyqs.map((p) => p.examYear).filter(Boolean))).sort().reverse();
+  const filtered = allPyqs.filter((p) => {
+    const pOrigin = p.pyqOrigin || (p.contentOrigin === "AI_PRACTICE" ? "AI_PRACTICE" : "OFFICIAL_PYQ");
+    if (examFilter !== "ALL" && p.examCategory && p.examCategory !== examFilter) return false;
+    if (yearFilter && String(p.examYear || "") !== yearFilter) return false;
+    if (originFilter !== "ALL" && pOrigin !== originFilter) return false;
+    if (q) {
+      const hay = `${p.title || ""} ${p.subject || ""} ${p.examCategory || ""} ${p.examYear || ""} ${p.sourceName || ""} ${p.summary || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  return `
+    <div class="space-y-4">
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-3">
+        <div class="space-y-0.5 max-w-2xl">
+          <div class="font-extrabold">${bn ? "অফিশিয়াল PYQ বনাম প্র্যাকটিস প্রশ্নপত্রের স্বচ্ছতা নীতি" : "Strict PYQ Authenticity Policy"}</div>
+          <div>${bn ? "অফিশিয়াল বিগত বছরের প্রশ্নপত্র (Official PYQ), প্র্যাকটিস সেট এবং AI-তৈরি প্রশ্নপত্র স্পষ্টভাবে আলাদা ব্যাজে দেখানো হয়।" : "Verified Official Previous Year Question Papers, Practice Sets, and AI-Generated Practice Papers are strictly distinguished with clear labels and official answer keys where available."}</div>
+        </div>
+        <button type="button" data-edu-jump-pyq-mcqs="1" class="px-3.5 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold shrink-0">
+          ${bn ? "অফিশিয়াল PYQ MCQ অনুশীলন →" : "Practice Official PYQ MCQs →"}
+        </button>
+      </div>
+
+      <div class="gv-card p-3.5 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <input id="eduPyqSearch" type="search" value="${escapeHtml(edu.pyqSearch || "")}" placeholder="${bn ? "পরীক্ষা, সাল বা বিষয় খুঁজুন..." : "Search exam, year, subject..."}" class="px-3.5 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white" />
+        <select id="eduPyqExam" class="px-3 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
+          ${EXAM_PREP_CATEGORIES.map((ex) => `<option value="${escapeHtml(ex.key)}" ${examFilter === ex.key ? "selected" : ""}>${escapeHtml(bn ? ex.bn : ex.en)}</option>`).join("")}
+        </select>
+        <select id="eduPyqYear" class="px-3 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
+          <option value="">${bn ? "সব সাল" : "All Exam Years"}</option>
+          ${years.map((y) => `<option value="${escapeHtml(y)}" ${yearFilter === String(y) ? "selected" : ""}>${escapeHtml(y)}</option>`).join("")}
+        </select>
+        <select id="eduPyqOrigin" class="px-3 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
+          <option value="ALL">${bn ? "সব ধরনের প্রশ্নপত্র" : "All Provenance Types"}</option>
+          <option value="OFFICIAL_PYQ" ${originFilter === "OFFICIAL_PYQ" ? "selected" : ""}>Official PYQs Only</option>
+          <option value="PRACTICE_SET" ${originFilter === "PRACTICE_SET" ? "selected" : ""}>Practice Sets</option>
+          <option value="AI_PRACTICE" ${originFilter === "AI_PRACTICE" ? "selected" : ""}>AI-Generated Practice</option>
+        </select>
+      </div>
+
+      ${filtered.length === 0 ? `
+        <div class="gv-card p-8 text-center space-y-2">
+          <p class="text-sm font-extrabold text-[#14532D]">${bn ? "এই ফিল্টারে কোনো PYQ প্রশ্নপত্র পাওয়া যায়নি।" : "No PYQ papers match this filter yet."}</p>
+          <p class="text-xs text-[#496052]">${bn ? "আমরা কখনোই ভুয়া বিগত বছরের প্রশ্ন তৈরি করি না। অ্যাডমিন প্যানেল থেকে যাচাইকৃত অফিশিয়াল PYQ আপলোড করা যাবে।" : "We never fabricate Previous Year Questions. Verified official papers & answer keys uploaded by Admins appear here immediately."}</p>
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ${filtered.map((p) => {
+            const pOrigin = p.pyqOrigin || (p.contentOrigin === "AI_PRACTICE" ? "AI_PRACTICE" : "OFFICIAL_PYQ");
+            const origMeta = PYQ_ORIGIN_META[pOrigin] || PYQ_ORIGIN_META.OFFICIAL_PYQ;
+            const examMeta = EXAM_PREP_MAP[p.examCategory]?.en || "B.Sc / Competitive Exam";
+            const paperUrl = safeUrl(p.resourceUrl);
+            const answerUrl = safeUrl(p.answerKeyUrl);
+            const srcUrl = safeUrl(p.sourceUrl);
+            const isSaved = savedNoteIds.has(p.id);
+            return `
+              <article class="gv-card p-4 sm:p-5 flex flex-col justify-between gap-3">
+                <div class="space-y-2">
+                  <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
+                    <span class="px-2 py-0.5 rounded-full border ${origMeta.badge}">${escapeHtml(bn ? origMeta.bn : origMeta.en)}</span>
+                    <span class="px-2 py-0.5 rounded-full bg-[#EDF4EE] text-[#14532D]">${escapeHtml(examMeta)}</span>
+                    ${p.examYear ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950">${escapeHtml(p.examYear)}</span>` : ""}
+                    <button
+                      type="button"
+                      data-edu-bookmark-type="NOTE"
+                      data-edu-bookmark-id="${escapeHtml(p.id)}"
+                      data-edu-bookmark-title="${escapeHtml(p.title)}"
+                      data-edu-bookmark-subject="${escapeHtml(p.subject)}"
+                      data-edu-bookmark-sem="${escapeHtml(p.semester || 0)}"
+                      class="ml-auto px-2 py-0.5 rounded-lg text-[11px] font-extrabold ${isSaved ? "bg-amber-400 text-[#0C3B20]" : "bg-slate-100 text-slate-700"}"
+                    >${isSaved ? "★ Saved" : "☆ Save"}</button>
+                  </div>
+                  <h4 class="text-sm sm:text-base font-extrabold text-[#132219]">${escapeHtml(p.title)}</h4>
+                  <div class="text-xs font-bold text-[#1E7E45]">${escapeHtml(p.subject)}${p.sourceName ? ` • ${escapeHtml(p.sourceName)}` : ""}</div>
+                  ${p.summary ? `<p class="text-xs text-[#496052]">${escapeHtml(p.summary)}</p>` : ""}
+                </div>
+                <div class="flex flex-wrap gap-2 pt-2 border-t border-emerald-50">
+                  ${paperUrl ? `
+                    <button type="button" data-edu-preview-pdf="${escapeHtml(paperUrl)}" data-edu-preview-title="${escapeHtml(p.title)}" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
+                      📄 ${bn ? "প্রশ্নপত্র দেখুন" : "View Question Paper"}
+                    </button>
+                  ` : `
+                    <button type="button" data-read-material="${escapeHtml(p.id)}" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">
+                      ${bn ? "বিস্তারিত পড়ুন" : "Read Paper Details"}
+                    </button>
+                  `}
+                  ${answerUrl ? `
+                    <button type="button" data-edu-preview-pdf="${escapeHtml(answerUrl)}" data-edu-preview-title="${escapeHtml(`${p.title} — Official Answer Key`)}" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold">
+                      ✓ ${bn ? "উত্তরপত্র (Answer Key)" : "View Answer Key"}
+                    </button>
+                  ` : ""}
+                  ${paperUrl && p.downloadPermitted ? `
+                    <a href="${escapeHtml(paperUrl)}" download target="_blank" rel="noopener noreferrer" class="min-h-[38px] inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[#14532D] text-xs font-extrabold">⬇ PDF</a>
+                  ` : ""}
+                  ${srcUrl ? `
+                    <a href="${escapeHtml(srcUrl)}" target="_blank" rel="noopener noreferrer" class="ml-auto min-h-[38px] inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-bold text-[#14532D] underline">Source ↗</a>
+                  ` : ""}
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+      `}
     </div>
   `;
 }
@@ -266,18 +547,27 @@ function renderMaterialsSubView(state, lang, allMaterials, savedNoteIds) {
 function renderMcqBankSubView(state, lang, allQuizzes, savedMcqIds) {
   const bn = lang === "BN";
   const edu = state.edu || {};
-  const mode = edu.quizMode || "PRACTICE"; // PRACTICE | MOCK_TEST | PYQ_SET
+  const publishedTests = (state.mockTests || []).filter((t) => t.published !== false);
+  const activeTest = edu.activeMockTestId
+    ? publishedTests.find((t) => t.id === edu.activeMockTestId) || null
+    : null;
+
+  const mode = activeTest
+    ? (activeTest.testType === "MOCK_TEST" ? "MOCK_TEST" : "PRACTICE")
+    : (edu.quizMode || "PRACTICE"); // PRACTICE | MOCK_TEST | PYQ_SET
   const effectiveTypeFilter = mode === "PYQ_SET" ? "OFFICIAL_PYQ" : (edu.quizType || "ALL");
 
-  const quizzes = filterQuizQuestions(allQuizzes, {
-    semester: state.studentSemester || 0,
-    subjectKey: edu.quizSubject || "ALL",
-    examCategory: edu.quizExam || "ALL",
-    questionType: effectiveTypeFilter,
-    difficulty: edu.quizDifficulty || "ALL",
-    search: edu.quizSearch || "",
-    savedOnly: Boolean(edu.quizSavedOnly)
-  }, savedMcqIds);
+  const quizzes = activeTest
+    ? resolveMockTestQuestions(activeTest, allQuizzes)
+    : filterQuizQuestions(allQuizzes, {
+      semester: state.studentSemester || 0,
+      subjectKey: edu.quizSubject || "ALL",
+      examCategory: edu.quizExam || "ALL",
+      questionType: effectiveTypeFilter,
+      difficulty: edu.quizDifficulty || "ALL",
+      search: edu.quizSearch || "",
+      savedOnly: Boolean(edu.quizSavedOnly)
+    }, savedMcqIds);
 
   const answers = state.quizAnswers || {};
   const submitted = Boolean(state.quizSubmitted);
@@ -297,8 +587,56 @@ function renderMcqBankSubView(state, lang, allQuizzes, savedMcqIds) {
 
   return `
     <div class="space-y-4">
+      ${activeTest ? `
+        <div class="rounded-2xl border-2 border-[#14532D] bg-[#ECFDF5] p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-0.5">
+            <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
+              <span class="px-2 py-0.5 rounded-full bg-[#14532D] text-white">${activeTest.testType === "MOCK_TEST" ? "MOCK TEST ACTIVE" : "PRACTICE TEST ACTIVE"}</span>
+              <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950">${escapeHtml(activeTest.durationMinutes)} mins</span>
+              <span class="px-2 py-0.5 rounded-full bg-white text-[#14532D]">${quizzes.length} Questions</span>
+            </div>
+            <div class="text-sm sm:text-base font-extrabold text-[#14532D]">${escapeHtml(activeTest.title)}</div>
+            ${activeTest.description ? `<div class="text-xs text-[#496052]">${escapeHtml(activeTest.description)}</div>` : ""}
+          </div>
+          <button type="button" data-edu-exit-test="1" class="min-h-[38px] px-3.5 py-2 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-extrabold">
+            ✕ ${bn ? "টেস্ট থেকে বের হন" : "Exit Test"}
+          </button>
+        </div>
+      ` : (publishedTests.length > 0 ? `
+        <div class="gv-card p-4 space-y-3 bg-gradient-to-br from-[#F1F8F3] to-white">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm sm:text-base font-extrabold text-[#14532D]">${bn ? "অফিশিয়াল প্র্যাকটিস ও মক টেস্ট সিরিজ" : "Structured Practice Tests & Mock Tests"} (${publishedTests.length})</h3>
+              <p class="text-[11px] text-[#496052]">${bn ? "অ্যাডমিন তৈরি সময়ভিত্তিক মক টেস্ট ও প্র্যাকটিস সেট শুরু করুন এবং ফলাফল সংরক্ষণ করুন।" : "Launch Admin-curated Mock Tests & Practice Sets and track your scores automatically."}</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${publishedTests.map((t) => {
+              const qCount = resolveMockTestQuestions(t, allQuizzes).length;
+              const examLbl = EXAM_PREP_MAP[t.examCategory]?.en || "All Exams";
+              return `
+                <div class="rounded-2xl border border-[#CDE0D3] bg-white p-3.5 flex flex-col justify-between gap-2.5">
+                  <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-1 text-[10px] font-extrabold">
+                      <span class="px-2 py-0.5 rounded-full ${t.testType === "MOCK_TEST" ? "bg-indigo-100 text-indigo-950" : "bg-sky-100 text-sky-950"}">${t.testType === "MOCK_TEST" ? "Mock Test" : "Practice Test"}</span>
+                      <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900">${escapeHtml(t.durationMinutes)} mins</span>
+                      <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-900">${qCount} Qs</span>
+                    </div>
+                    <div class="text-sm font-extrabold text-[#132219]">${escapeHtml(t.title)}</div>
+                    <div class="text-[11px] text-[#496052]">${escapeHtml(examLbl)}${t.description ? ` • ${escapeHtml(t.description)}` : ""}</div>
+                  </div>
+                  <button type="button" data-edu-start-test="${escapeHtml(t.id)}" ${qCount === 0 ? "disabled" : ""} class="min-h-[38px] w-full py-2 rounded-xl ${qCount === 0 ? "bg-slate-200 text-slate-500" : "bg-[#14532D] hover:bg-[#0C3B20] text-white"} text-xs font-extrabold">
+                    ${qCount === 0 ? "Questions Pending" : (bn ? "টেস্ট শুরু করুন →" : "Start Test →")}
+                  </button>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      ` : "")}
+
       <!-- Exam Preparation Category Bar -->
-      <div class="gv-card p-3.5 sm:p-4 space-y-3">
+      <div class="gv-card p-3.5 sm:p-4 space-y-3 ${activeTest ? "hidden" : ""}">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 class="text-sm sm:text-base font-extrabold text-[#14532D]">
@@ -552,6 +890,7 @@ function renderSyllabusSubView(state, lang, allSyllabi, savedSyllabusIds) {
                   <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
                     <span class="px-2.5 py-0.5 rounded-full bg-[#14532D] text-white">${escapeHtml(syl.universityShort)}</span>
                     <span class="px-2 py-0.5 rounded-full bg-[#EDF4EE] text-[#14532D]">Sem ${escapeHtml(syl.semester)}</span>
+                    ${syl.academicSession ? `<span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-900">Session ${escapeHtml(syl.academicSession)}</span>` : ""}
                     <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200">${escapeHtml(syl.publicationYear || "—")}</span>
                     <button
                       type="button"
@@ -583,9 +922,14 @@ function renderSyllabusSubView(state, lang, allSyllabi, savedSyllabusIds) {
                   <button type="button" data-student-jump-sem="${escapeHtml(syl.semester)}" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#EDF4EE] hover:bg-[#D8F3DC] text-[#14532D] text-xs font-extrabold">
                     ${bn ? "এই সেমিস্টারের নোটস →" : "View Sem Notes →"}
                   </button>
+                  ${pdfHref ? `
+                    <button type="button" data-edu-preview-pdf="${escapeHtml(pdfHref)}" data-edu-preview-title="${escapeHtml(`${syl.universityShort} — ${syl.subject} Syllabus`)}" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
+                      📄 ${bn ? "PDF দেখুন" : "View PDF"}
+                    </button>
+                  ` : ""}
                   ${pdfHref && syl.downloadPermitted ? `
-                    <a href="${escapeHtml(pdfHref)}" target="_blank" rel="noopener noreferrer" class="min-h-[38px] inline-flex items-center px-3 py-1.5 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">
-                      ⬇ ${bn ? "সিলেবাস PDF" : "Syllabus PDF"}
+                    <a href="${escapeHtml(pdfHref)}" download target="_blank" rel="noopener noreferrer" class="min-h-[38px] inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[#14532D] text-xs font-extrabold">
+                      ⬇ PDF
                     </a>
                   ` : ""}
                   ${srcHref ? `
@@ -604,48 +948,96 @@ function renderSyllabusSubView(state, lang, allSyllabi, savedSyllabusIds) {
 }
 
 // ----------------------------------------------------------------------------
-// 4. NEW & DISCOVERED RESOURCES + SOURCE TRANSPARENCY SUB-VIEW
+// 4. AGRICULTURAL LEARNING RESOURCES (7 CATEGORIES) + SOURCE TRANSPARENCY
 // ----------------------------------------------------------------------------
-function renderDiscoveredResourcesSubView(state, lang) {
+function renderDiscoveredResourcesSubView(state, lang, savedResourceIds) {
   const bn = lang === "BN";
+  const edu = state.edu || {};
+  const catFilter = edu.resCategory || "ALL";
+  const subjFilter = edu.resSubject || "ALL";
+  const q = String(edu.resSearch || "").trim().toLowerCase();
+
   const approved = (state.discoveredStudyResources || []).filter((r) => r.reviewStatus === "APPROVED_PUBLISHED");
+  const filtered = approved.filter((r) => {
+    if (catFilter !== "ALL" && r.category !== catFilter) return false;
+    if (subjFilter !== "ALL" && r.subjectKey !== subjFilter) return false;
+    if (q) {
+      const hay = `${r.title || ""} ${r.sourceWebsite || ""} ${r.topic || ""} ${r.summary || ""} ${r.category || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
 
   return `
     <div class="space-y-5">
-      <div class="gv-card p-4 sm:p-5 space-y-2">
-        <h3 class="text-base font-extrabold text-[#14532D]">
-          ${bn ? "নতুন প্রকাশিত ও যাচাইকৃত কৃষি শিক্ষা রিসোর্স" : "Newly Discovered & Admin-Verified Study Resources"} (${approved.length})
-        </h3>
-        <p class="text-xs text-[#496052]">
-          ${bn
-            ? "স্বয়ংক্রিয় অনুমোদিত সরকারি RSS/OpenAlex ফিড এবং অ্যাডমিন যাচাইকরণের পর নতুন রিসোর্স এখানে প্রকাশিত হয়।"
-            : "Resources discovered from permitted official feeds (PIB Agriculture RSS, FAO RSS, OpenAlex Open-Access API) or verified by Admins appear here after review."}
-        </p>
-        ${approved.length === 0 ? `
+      <div class="gv-card p-4 sm:p-5 space-y-3">
+        <div>
+          <h3 class="text-base font-extrabold text-[#14532D]">
+            ${bn ? "কৃষি শিক্ষামূলক রিসোর্স ও অফিশিয়াল প্রকাশনা" : "Agricultural Learning Resources & Official Publications"} (${filtered.length} / ${approved.length})
+          </h3>
+          <p class="text-xs text-[#496052]">
+            ${bn
+              ? "ICAR রিসোর্স, বিশ্ববিদ্যালয়ের মেটেরিয়াল, গবেষণাপত্র, সরকারি প্রকাশনা, YouTube প্লেলিস্ট, রেফারেন্স বই এবং অফিশিয়াল নোটিশ।"
+              : "Admin-verified ICAR resources, university materials, research papers, government publications, educational YouTube playlists, books & official notifications."}
+          </p>
+        </div>
+
+        <!-- Category Filter Pills (All 7 Official Categories) -->
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-edu-res-cat="ALL" class="px-3 py-1.5 min-h-[34px] rounded-xl text-xs font-extrabold transition-colors ${catFilter === "ALL" ? "bg-[#14532D] text-white" : "bg-[#EDF4EE] text-[#14532D]"}">
+            ${bn ? "সব ক্যাটাগরি" : "All 7 Categories"}
+          </button>
+          ${LEARNING_RESOURCE_CATEGORIES.map((c) => `
+            <button type="button" data-edu-res-cat="${escapeHtml(c.key)}" class="px-3 py-1.5 min-h-[34px] rounded-xl text-xs font-bold transition-colors ${catFilter === c.key ? "bg-amber-400 text-[#0C3B20]" : "bg-[#F8FAFC] border border-[#D9EAE0] text-[#14532D] hover:bg-[#ECFDF5]"}">
+              ${escapeHtml(bn ? c.bn : c.en)}
+            </button>
+          `).join("")}
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <input id="eduResSearch" type="search" value="${escapeHtml(edu.resSearch || "")}" placeholder="${bn ? "রিসোর্স, ICAR, বই বা নোটিশ খুঁজুন..." : "Search resources, ICAR, books, playlists, notices..."}" class="px-3.5 py-2.5 min-h-[42px] rounded-xl border border-[#CDE0D3] text-sm bg-white" />
+          <select id="eduResSubject" class="px-3 py-2.5 min-h-[42px] rounded-xl border border-[#CDE0D3] text-sm bg-white">
+            <option value="ALL">${bn ? "সব বিষয় (১৩টি)" : "All 13 Subjects"}</option>
+            ${AGRI_SUBJECTS.map((s) => `<option value="${escapeHtml(s.key)}" ${subjFilter === s.key ? "selected" : ""}>${escapeHtml(bn ? s.bn : s.en)}</option>`).join("")}
+          </select>
+        </div>
+
+        ${filtered.length === 0 ? `
           <div class="rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] p-5 text-xs text-[#475569]">
             ${bn
-              ? "এখনো কোনো নতুন রিসোর্স অ্যাডমিন কর্তৃক প্রকাশিত হয়নি। নিচের অফিশিয়াল পোর্টালগুলো থেকে সরাসরি পড়ুন।"
-              : "No newly approved discovery feed items published yet. Explore the verified official portals below or run Discovery inside Admin Studio."}
+              ? "এই ফিল্টারে এখনো কোনো প্রকাশিত রিসোর্স নেই। নিচের অফিশিয়াল পোর্টালগুলো থেকে সরাসরি পড়ুন।"
+              : "No published learning resources match this filter yet. Explore the verified official portals below or publish curated items via Admin Education CMS."}
           </div>
         ` : `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-            ${approved.map((r) => {
+            ${filtered.map((r) => {
               const href = safeUrl(r.sourceUrl);
               const subj = AGRI_SUBJECT_MAP[r.subjectKey] || AGRI_SUBJECT_MAP.OTHER;
+              const catMeta = LEARNING_RESOURCE_CATEGORY_MAP[r.category] || LEARNING_RESOURCE_CATEGORY_MAP.ICAR_RESOURCE;
+              const isSaved = savedResourceIds.has(r.id);
               return `
                 <article class="rounded-2xl border border-[#CDE0D3] bg-[#F7F9F5] p-4 flex flex-col justify-between gap-2.5">
                   <div class="space-y-1.5">
                     <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
-                      <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950">NEW • ${escapeHtml(r.category)}</span>
+                      <span class="px-2 py-0.5 rounded-full ${catMeta.badge}">${escapeHtml(bn ? catMeta.bn : catMeta.en)}</span>
                       <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[#14532D]">${escapeHtml(bn ? subj.bn : subj.en)}</span>
-                      <span class="text-[#496052] ml-auto">${escapeHtml(r.publicationDate || "")}</span>
+                      ${r.language ? `<span class="px-2 py-0.5 rounded-full bg-purple-50 text-purple-900">${escapeHtml(EDU_LANGUAGE_MAP[r.language]?.label || r.language)}</span>` : ""}
+                      <button
+                        type="button"
+                        data-edu-bookmark-type="RESOURCE"
+                        data-edu-bookmark-id="${escapeHtml(r.id)}"
+                        data-edu-bookmark-title="${escapeHtml(r.title)}"
+                        data-edu-bookmark-subject="${escapeHtml(subj.en)}"
+                        data-edu-bookmark-sem="0"
+                        class="ml-auto px-2 py-0.5 rounded-lg text-[11px] font-extrabold ${isSaved ? "bg-amber-400 text-[#0C3B20]" : "bg-white border border-[#CDE0D3] text-slate-700"}"
+                      >${isSaved ? "★ Saved" : "☆ Save"}</button>
                     </div>
                     <h4 class="text-sm font-extrabold text-[#132219]">${escapeHtml(r.title)}</h4>
-                    <div class="text-[11px] font-bold text-[#1E7E45]">${escapeHtml(r.sourceWebsite)} • ${escapeHtml(r.topic)}</div>
+                    <div class="text-[11px] font-bold text-[#1E7E45]">${escapeHtml(r.sourceWebsite)} • ${escapeHtml(r.topic)} • ${escapeHtml(r.publicationDate || "")}</div>
                     ${r.summary ? `<p class="text-xs text-[#475569]">${escapeHtml(r.summary)}</p>` : ""}
                   </div>
                   ${href ? `
-                    <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="min-h-[38px] inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-[#14532D] text-white text-xs font-extrabold">
+                    <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="min-h-[38px] inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
                       ${bn ? "অফিশিয়াল রিসোর্স খুলুন ↗" : "Open Official Resource ↗"}
                     </a>
                   ` : ""}
@@ -697,14 +1089,16 @@ function renderDiscoveredResourcesSubView(state, lang) {
 function renderSavedDeskSubView(state, lang, allMaterials, allQuizzes, allSyllabi, bookmarks) {
   const bn = lang === "BN";
   const savedNotes = allMaterials.filter((m) => bookmarks.notes.has(m.id));
+  const savedVideos = allMaterials.filter((m) => m.category === "VIDEO_LECTURE" && bookmarks.videos.has(m.id));
   const savedMcqs = allQuizzes.filter((q) => bookmarks.mcqs.has(q.id));
   const savedSyllabi = allSyllabi.filter((s) => bookmarks.syllabi.has(s.id));
+  const savedResources = (state.discoveredStudyResources || []).filter((r) => bookmarks.resources.has(r.id));
 
   return `
     <div class="space-y-4">
       ${!state.user ? `
         <div class="rounded-2xl bg-sky-50 border border-sky-200 p-4 text-xs text-sky-950 flex flex-wrap items-center justify-between gap-2">
-          <span>${bn ? "আপনার সংরক্ষিত নোটস ও MCQ এই ডিভাইসে আছে। সব ডিভাইসে নিরাপদে সিঙ্ক করতে Google দিয়ে সাইন ইন করুন।" : "Bookmarks are saved locally on this device. Sign in with Google to sync your saved notes, MCQs, and progress privately across devices."}</span>
+          <span>${bn ? "আপনার সংরক্ষিত নোটস ও MCQ এই ডিভাইসে আছে। সব ডিভাইসে নিরাপদে সিঙ্ক করতে Google দিয়ে সাইন ইন করুন।" : "Bookmarks are saved locally on this device. Sign in with Google to sync your saved notes, videos, MCQs, and progress privately across devices."}</span>
           <button type="button" data-action="open-auth" class="px-3.5 py-2 rounded-xl bg-[#14532D] text-white font-extrabold">${bn ? "সাইন ইন" : "Sign In"}</button>
         </div>
       ` : ""}
@@ -712,7 +1106,7 @@ function renderSavedDeskSubView(state, lang, allMaterials, allQuizzes, allSyllab
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Saved Notes -->
         <div class="gv-card p-4 space-y-2.5">
-          <h3 class="text-sm font-extrabold text-[#14532D]">★ ${bn ? "সংরক্ষিত নোটস" : "Saved Notes"} (${savedNotes.length})</h3>
+          <h3 class="text-sm font-extrabold text-[#14532D]">★ ${bn ? "সংরক্ষিত নোটস ও PYQ" : "Saved Notes & PYQs"} (${savedNotes.length})</h3>
           ${savedNotes.length === 0 ? `<p class="text-xs text-[#64748B]">${bn ? "এখনো কোনো নোট সংরক্ষণ করেননি।" : "No saved notes yet."}</p>` : savedNotes.map((m) => `
             <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 flex items-center justify-between gap-2">
               <div class="min-w-0">
@@ -740,15 +1134,38 @@ function renderSavedDeskSubView(state, lang, allMaterials, allQuizzes, allSyllab
           ` : ""}
         </div>
 
-        <!-- Saved Syllabi & Recent Activity -->
-        <div class="gv-card p-4 space-y-2.5">
-          <h3 class="text-sm font-extrabold text-[#14532D]">★ ${bn ? "সংরক্ষিত সিলেবাস ও ইতিহাস" : "Saved Syllabi & History"} (${savedSyllabi.length})</h3>
-          ${savedSyllabi.length === 0 ? `<p class="text-xs text-[#64748B]">${bn ? "কোনো সিলেবাস সংরক্ষিত নেই।" : "No saved syllabi yet."}</p>` : savedSyllabi.map((s) => `
-            <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 text-xs">
-              <div class="font-extrabold text-[#14532D]">${escapeHtml(s.universityShort)} • Sem ${escapeHtml(s.semester)}</div>
-              <div class="text-[#475569]">${escapeHtml(s.subject)}</div>
-            </div>
-          `).join("")}
+        <!-- Saved Videos, Syllabi & Resources -->
+        <div class="gv-card p-4 space-y-3">
+          <div class="space-y-2">
+            <h3 class="text-sm font-extrabold text-[#14532D]">★ ${bn ? "সংরক্ষিত ভিডিও" : "Saved Videos"} (${savedVideos.length})</h3>
+            ${savedVideos.length === 0 ? `<p class="text-xs text-[#64748B]">${bn ? "কোনো ভিডিও সংরক্ষিত নেই।" : "No saved videos yet."}</p>` : savedVideos.map((v) => `
+              <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-2.5 flex items-center justify-between gap-2 text-xs">
+                <span class="font-bold text-[#132219] truncate">${escapeHtml(v.title)}</span>
+                <button type="button" data-edu-play-video="${escapeHtml(v.youtubeUrl || v.resourceUrl || "")}" data-edu-play-title="${escapeHtml(v.title)}" class="px-2.5 py-1 rounded-lg bg-[#14532D] text-white text-[11px] font-bold shrink-0">▶</button>
+              </div>
+            `).join("")}
+          </div>
+
+          <div class="space-y-2 pt-2 border-t border-emerald-50">
+            <h3 class="text-sm font-extrabold text-[#14532D]">★ ${bn ? "সংরক্ষিত সিলেবাস ও রিসোর্স" : "Saved Syllabi & Resources"} (${savedSyllabi.length + savedResources.length})</h3>
+            ${savedSyllabi.length === 0 && savedResources.length === 0 ? `<p class="text-xs text-[#64748B]">${bn ? "কোনো সিলেবাস বা রিসোর্স সংরক্ষিত নেই।" : "No saved syllabi or resources yet."}</p>` : `
+              ${savedSyllabi.map((s) => `
+                <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-2.5 text-xs">
+                  <div class="font-extrabold text-[#14532D]">${escapeHtml(s.universityShort)} • Sem ${escapeHtml(s.semester)}</div>
+                  <div class="text-[#475569]">${escapeHtml(s.subject)}</div>
+                </div>
+              `).join("")}
+              ${savedResources.map((r) => {
+                const href = safeUrl(r.sourceUrl);
+                return `
+                  <div class="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-2.5 text-xs flex items-center justify-between gap-2">
+                    <span class="font-bold text-[#132219] truncate">${escapeHtml(r.title)}</span>
+                    ${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="text-[#14532D] font-extrabold shrink-0">↗</a>` : ""}
+                  </div>
+                `;
+              }).join("")}
+            `}
+          </div>
         </div>
       </div>
     </div>
@@ -764,16 +1181,22 @@ export function renderAgriEducationView(state) {
   const sub = state.studentSubTab || "materials";
 
   const allMaterials = mergeStudyMaterials(state.studyMaterials || [], false);
+  const videosCount = allMaterials.filter((m) => m.category === "VIDEO_LECTURE").length;
+  const pyqsCount = allMaterials.filter((m) => m.category === "PYQ").length;
   const allQuizzes = mergeQuizQuestions(state.quizzes || [], false);
   const allSyllabi = mergeSyllabi(state.universitySyllabi || [], false);
+  const approvedResourcesCount = (state.discoveredStudyResources || []).filter((r) => r.reviewStatus === "APPROVED_PUBLISHED").length;
   const bookmarks = getBookmarkSets(state);
+  const totalSaved = bookmarks.notes.size + bookmarks.mcqs.size + bookmarks.syllabi.size + bookmarks.videos.size + bookmarks.resources.size;
 
   const tabs = [
-    ["materials", bn ? `নোটস ও PYQ (${allMaterials.length})` : `Notes & PYQs (${allMaterials.length})`],
-    ["quiz", bn ? `MCQ ব্যাংক (${allQuizzes.length})` : `MCQ Bank (${allQuizzes.length})`],
+    ["materials", bn ? `নোটস (${allMaterials.length})` : `Notes (${allMaterials.length})`],
+    ["videos", bn ? `ভিডিও (${videosCount})` : `Videos (${videosCount})`],
+    ["quiz", bn ? `MCQ ও মক টেস্ট (${allQuizzes.length})` : `MCQs & Tests (${allQuizzes.length})`],
+    ["pyq", bn ? `PYQ পেপার (${pyqsCount})` : `PYQ Papers (${pyqsCount})`],
     ["syllabus", bn ? `সিলেবাস (${allSyllabi.length})` : `Syllabus (${allSyllabi.length})`],
-    ["resources", bn ? "নতুন রিসোর্স" : "New Resources"],
-    ["saved", bn ? `সংরক্ষিত (${bookmarks.notes.size + bookmarks.mcqs.size})` : `Saved (${bookmarks.notes.size + bookmarks.mcqs.size})`]
+    ["resources", bn ? `রিসোর্স (${approvedResourcesCount})` : `Resources (${approvedResourcesCount})`],
+    ["saved", bn ? `সংরক্ষিত (${totalSaved})` : `Saved (${totalSaved})`]
   ];
 
   return `
@@ -782,21 +1205,28 @@ export function renderAgriEducationView(state) {
       <div class="gv-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 class="font-display text-xl sm:text-2xl font-bold text-[#14532D]">
-            ${bn ? "কৃষি শিক্ষা কেন্দ্র — নোটস, MCQ, PYQ ও সিলেবাস" : "Agriculture Education Hub — Notes, MCQs, PYQs & Syllabus"}
+            ${bn ? "কৃষি শিক্ষা কেন্দ্র — নোটস, ভিডিও, MCQ, PYQ ও সিলেবাস" : "Agriculture Education Hub — Notes, Videos, MCQs, PYQs & Syllabus"}
           </h2>
           <p class="text-xs sm:text-sm text-[#496052]">
             ${bn
               ? "B.Sc. Agriculture সেমিস্টার ১–৮, ICAR JRF, CUET-PG, IBPS AFO, NABARD ও State AO পরীক্ষার সম্পূর্ণ প্রস্তুতি"
-              : "13 Subjects • Semesters 1–8 • ICAR JRF, CUET-PG, IBPS AFO, NABARD & State AO Prep"}
+              : "13 Subjects • Semesters 1–8 • Videos • Mock Tests • Official PYQs • University Syllabi"}
           </p>
         </div>
-        <div class="inline-flex items-center gap-1 bg-[#EDF4EE] p-1 rounded-xl shrink-0">
-          <button type="button" data-edu-lang="EN" class="px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-extrabold ${
-            lang === "EN" ? "bg-[#14532D] text-white" : "text-[#14532D]"
-          }">English</button>
-          <button type="button" data-edu-lang="BN" class="px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-extrabold ${
-            lang === "BN" ? "bg-[#14532D] text-white" : "text-[#14532D]"
-          }">বাংলা</button>
+        <div class="flex items-center gap-2 shrink-0">
+          ${state.isAdmin ? `
+            <button type="button" data-nav="admin" data-open-admin-sub="edu-cms" class="px-3 py-1.5 min-h-[36px] rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold">
+              Manage CMS ↗
+            </button>
+          ` : ""}
+          <div class="inline-flex items-center gap-1 bg-[#EDF4EE] p-1 rounded-xl">
+            <button type="button" data-edu-lang="EN" class="px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-extrabold ${
+              lang === "EN" ? "bg-[#14532D] text-white" : "text-[#14532D]"
+            }">English</button>
+            <button type="button" data-edu-lang="BN" class="px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-extrabold ${
+              lang === "BN" ? "bg-[#14532D] text-white" : "text-[#14532D]"
+            }">বাংলা</button>
+          </div>
         </div>
       </div>
 
@@ -812,8 +1242,8 @@ export function renderAgriEducationView(state) {
         `).join("")}
       </nav>
 
-      <!-- Shared Semester Filter Bar (Notes, MCQ & Syllabus) -->
-      ${(sub === "materials" || sub === "quiz" || sub === "syllabus") ? `
+      <!-- Shared Semester Filter Bar (Notes, Videos, MCQ & Syllabus) -->
+      ${(sub === "materials" || sub === "videos" || sub === "quiz" || sub === "syllabus") ? `
         <div class="gv-card p-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map((sem) => `
             <button type="button" data-student-sem="${sem}" class="shrink-0 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
@@ -825,13 +1255,18 @@ export function renderAgriEducationView(state) {
 
       <!-- Active Sub-View -->
       ${sub === "materials" ? renderMaterialsSubView(state, lang, allMaterials, bookmarks.notes) : ""}
+      ${sub === "videos" ? renderVideoLearningSubView(state, lang, allMaterials, bookmarks.videos) : ""}
       ${sub === "quiz" ? renderMcqBankSubView(state, lang, allQuizzes, bookmarks.mcqs) : ""}
+      ${sub === "pyq" ? renderPyqPapersSubView(state, lang, allMaterials, bookmarks.notes) : ""}
       ${sub === "syllabus" ? renderSyllabusSubView(state, lang, allSyllabi, bookmarks.syllabi) : ""}
-      ${sub === "resources" ? renderDiscoveredResourcesSubView(state, lang) : ""}
+      ${sub === "resources" ? renderDiscoveredResourcesSubView(state, lang, bookmarks.resources) : ""}
       ${sub === "saved" ? renderSavedDeskSubView(state, lang, allMaterials, allQuizzes, allSyllabi, bookmarks) : ""}
 
       <!-- Inline PDF Viewer Modal -->
       ${renderInlinePdfModal(state.edu, bn)}
+
+      <!-- Inline Safe YouTube Video Modal -->
+      ${renderInlineVideoModal(state.edu, bn)}
     </div>
   `;
 }

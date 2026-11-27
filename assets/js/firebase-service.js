@@ -441,7 +441,7 @@ class FirebaseService {
     const publicKeys = new Set([
       "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
       "announcements", "meetings", "professors", "appSettings", "firestoreMarketPrices",
-      "agricultureSchemes", "universitySyllabi", "discoveredStudyResources"
+      "agricultureSchemes", "universitySyllabi", "discoveredStudyResources", "mockTests"
     ]);
     for (const [key, unsub] of this.activeUnsubs.entries()) {
       if (!publicKeys.has(key)) {
@@ -634,7 +634,7 @@ class FirebaseService {
     const requiredPublicKeys = [
       "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
       "announcements", "meetings", "professors", "firestoreMarketPrices", "agricultureSchemes",
-      "universitySyllabi", "discoveredStudyResources", "appSettings"
+      "universitySyllabi", "discoveredStudyResources", "mockTests", "appSettings"
     ];
     // Prevent duplicate tear-down and re-subscription when the public query scope has not changed
     if (this.publicSubScopeKey === scopeKey && requiredPublicKeys.every((k) => this.activeUnsubs.has(k))) {
@@ -643,22 +643,34 @@ class FirebaseService {
     this.publicSubScopeKey = scopeKey;
     const { collection, doc, query, where, limit, onSnapshot } = this.mods.fsMod;
 
-    // Study Materials
+    // Study Materials (Notes, Video Learning, Official PYQs, Practicals)
     const matQ = isAdmin
-      ? query(collection(this.db, "studyMaterials"), limit(200))
-      : query(collection(this.db, "studyMaterials"), where("published", "==", true), limit(200));
+      ? query(collection(this.db, "studyMaterials"), limit(250))
+      : query(collection(this.db, "studyMaterials"), where("published", "==", true), limit(250));
     this.setSub("studyMaterials", onSnapshot(matQ, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt), fromCloud: true }))
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt),
+        fromCloud: true
+      }))
         .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       onUpdate("studyMaterials", list, true);
     }, () => {}));
 
-    // Quizzes
+    // Quizzes / MCQs
     const quizQ = isAdmin
-      ? query(collection(this.db, "quizzes"), limit(200))
-      : query(collection(this.db, "quizzes"), where("published", "==", true), limit(200));
+      ? query(collection(this.db, "quizzes"), limit(250))
+      : query(collection(this.db, "quizzes"), where("published", "==", true), limit(250));
     this.setSub("quizzes", onSnapshot(quizQ, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data(), updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt) }));
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      }))
+        .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       onUpdate("quizzes", list, true);
     }, () => {}));
 
@@ -763,7 +775,7 @@ class FirebaseService {
       onUpdate("agricultureSchemeHistory", [], true);
     }
 
-    // Phase 7: University-Wise Official Syllabi (/syllabi)
+    // Phase 7 & Phase 3: University-Wise Official Syllabi (/syllabi)
     const sylQ = isAdmin
       ? query(collection(this.db, "syllabi"), limit(200))
       : query(collection(this.db, "syllabi"), where("published", "==", true), limit(200));
@@ -771,22 +783,38 @@ class FirebaseService {
       const list = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
         updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
       })).sort((a, b) => (Number(a.semester) || 0) - (Number(b.semester) || 0) || b.updatedAtMs - a.updatedAtMs);
       onUpdate("universitySyllabi", list, true);
     }, () => {}));
 
-    // Phase 7: Automatically Discovered & Admin-Reviewed Study Resources (/discoveredStudyResources)
+    // Phase 7 & Phase 3: Agricultural Learning Resources & Auto-Discovery Queue (/discoveredStudyResources)
     const discQ = isAdmin
-      ? query(collection(this.db, "discoveredStudyResources"), limit(200))
-      : query(collection(this.db, "discoveredStudyResources"), where("reviewStatus", "==", "APPROVED_PUBLISHED"), limit(150));
+      ? query(collection(this.db, "discoveredStudyResources"), limit(250))
+      : query(collection(this.db, "discoveredStudyResources"), where("reviewStatus", "==", "APPROVED_PUBLISHED"), limit(200));
     this.setSub("discoveredStudyResources", onSnapshot(discQ, (snap) => {
       const list = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
         updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
       })).sort((a, b) => String(b.publicationDate || "").localeCompare(String(a.publicationDate || "")) || b.updatedAtMs - a.updatedAtMs);
       onUpdate("discoveredStudyResources", list, true);
+    }, () => {}));
+
+    // Phase 3: Admin-Managed Practice Tests & Mock Tests (/mockTests)
+    const mockQ = isAdmin
+      ? query(collection(this.db, "mockTests"), limit(150))
+      : query(collection(this.db, "mockTests"), where("published", "==", true), limit(150));
+    this.setSub("mockTests", onSnapshot(mockQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("mockTests", list, true);
     }, () => {}));
 
     // App Settings (/appSettings/global — public read for WhatsApp Helpline & Notices)
@@ -1804,6 +1832,11 @@ class FirebaseService {
       "AGRI_ENGINEERING", "ANIMAL_HUSBANDRY", "OTHER"
     ];
     const validOrigins = ["OFFICIAL_PUBLICATION", "VERIFIED_FACULTY", "CURATED_REFERENCE", "AI_PRACTICE"];
+    const validLanguages = ["EN", "BN", "HI", "BILINGUAL"];
+    const validExams = [
+      "ALL", "BSC_SEMESTER", "ICAR_ENTRANCE", "ICAR_JRF", "CUET_PG", "IBPS_AFO", "NABARD", "STATE_AO", "OTHER_COMPETITIVE"
+    ];
+    const validPyqOrigins = ["OFFICIAL_PYQ", "PRACTICE_SET", "AI_PRACTICE"];
     const base = {
       title: String(data.title || "").trim().slice(0, 150),
       semester: Math.min(8, Math.max(1, parseInt(data.semester, 10) || 1)),
@@ -1828,12 +1861,30 @@ class FirebaseService {
     if (typeof data.downloadPermitted === "boolean") base.downloadPermitted = data.downloadPermitted;
     if (data.contentOrigin && validOrigins.includes(data.contentOrigin)) base.contentOrigin = data.contentOrigin;
     if (Array.isArray(data.examTags) && data.examTags.length) base.examTags = data.examTags.slice(0, 10);
+    if (data.language && validLanguages.includes(data.language)) base.language = data.language;
+    if (typeof data.youtubeUrl === "string" && data.youtubeUrl.trim()) base.youtubeUrl = data.youtubeUrl.trim().slice(0, 400);
+    if (typeof data.youtubeVideoId === "string" && data.youtubeVideoId.trim()) base.youtubeVideoId = data.youtubeVideoId.trim().slice(0, 20);
+    if (typeof data.thumbnailUrl === "string" && data.thumbnailUrl.trim()) base.thumbnailUrl = data.thumbnailUrl.trim().slice(0, 400);
+    if (data.examCategory && validExams.includes(data.examCategory)) base.examCategory = data.examCategory;
+    if (typeof data.examYear === "string" && data.examYear.trim()) base.examYear = data.examYear.trim().slice(0, 20);
+    if (typeof data.answerKeyUrl === "string" && data.answerKeyUrl.trim()) base.answerKeyUrl = data.answerKeyUrl.trim().slice(0, 400);
+    if (data.pyqOrigin && validPyqOrigins.includes(data.pyqOrigin)) base.pyqOrigin = data.pyqOrigin;
+    if (typeof data.fileName === "string" && data.fileName.trim()) base.fileName = data.fileName.trim().slice(0, 180);
+    if (typeof data.fileType === "string" && data.fileType.trim()) base.fileType = data.fileType.trim().slice(0, 20);
 
     if (editId) {
       await updateDoc(doc(this.db, "studyMaterials", editId), base);
     } else {
       await addDoc(collection(this.db, "studyMaterials"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
     }
+  }
+
+  async toggleStudyMaterialPublished(id, published) {
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "studyMaterials", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
   }
 
   async deleteStudyMaterial(id) {
@@ -1881,6 +1932,14 @@ class FirebaseService {
     } else {
       await addDoc(collection(this.db, "quizzes"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
     }
+  }
+
+  async toggleQuizPublished(id, published) {
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "quizzes", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
   }
 
   async deleteQuizQuestion(id) {
@@ -2370,13 +2429,38 @@ class FirebaseService {
     });
   }
 
-  // Firebase Storage Upload (for Admin PDF uploads)
+  // Firebase Storage Upload (for Admin PDF & Supported Study Document uploads)
   async uploadPdfToStorage(file) {
     if (!this.ready || !this.storage) throw new Error("Firebase Storage unavailable.");
+    const allowedMimes = new Set([
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "text/plain"
+    ]);
+    const extToMime = {
+      ".pdf": "application/pdf",
+      ".doc": "application/msword",
+      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ".ppt": "application/vnd.ms-powerpoint",
+      ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      ".txt": "text/plain"
+    };
+    const lowerName = String(file?.name || "").toLowerCase();
+    const matchedExt = Object.keys(extToMime).find((ext) => lowerName.endsWith(ext));
+    const resolvedType = allowedMimes.has(file?.type) ? file.type : (matchedExt ? extToMime[matchedExt] : "");
+    if (!resolvedType) {
+      throw new Error("Unsupported document format. Allowed: PDF, DOC, DOCX, PPT, PPTX, TXT.");
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      throw new Error("File exceeds the 25 MB limit.");
+    }
     const { ref, uploadBytes, getDownloadURL } = this.mods.storageMod;
     const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const storageRef = ref(this.storage, `study_materials/${safeName}`);
-    await uploadBytes(storageRef, file, { contentType: file.type || "application/pdf" });
+    await uploadBytes(storageRef, file, { contentType: resolvedType });
     return getDownloadURL(storageRef);
   }
 
@@ -2424,7 +2508,7 @@ class FirebaseService {
   async saveStudyBookmark(uid, item) {
     if (!this.ready || !uid) throw new Error("Sign in required to save bookmarks.");
     const { doc, setDoc, serverTimestamp } = this.mods.fsMod;
-    const itemType = ["NOTE", "MCQ", "SYLLABUS", "PROGRESS"].includes(item.itemType) ? item.itemType : "NOTE";
+    const itemType = ["NOTE", "MCQ", "SYLLABUS", "PROGRESS", "VIDEO", "RESOURCE"].includes(item.itemType) ? item.itemType : "NOTE";
     const itemId = String(item.itemId || "").trim().slice(0, 140);
     if (!itemId) throw new Error("Missing bookmark item ID.");
     const docId = String(item.id || `${itemType}__${itemId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)}`).slice(0, 120);
@@ -2470,11 +2554,22 @@ class FirebaseService {
       published: data.published !== false,
       updatedAt: serverTimestamp()
     };
+    if (typeof data.academicSession === "string" && data.academicSession.trim()) {
+      base.academicSession = data.academicSession.trim().slice(0, 40);
+    }
     if (editId) {
       await updateDoc(doc(this.db, "syllabi", editId), base);
     } else {
       await addDoc(collection(this.db, "syllabi"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
     }
+  }
+
+  async toggleUniversitySyllabusPublished(id, published) {
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "syllabi", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
   }
 
   async deleteUniversitySyllabus(id) {
@@ -2490,9 +2585,15 @@ class FirebaseService {
       "HORTICULTURE", "AGRI_ECONOMICS", "AGRI_EXTENSION", "SEED_SCIENCE", "PLANT_PHYSIOLOGY",
       "AGRI_ENGINEERING", "ANIMAL_HUSBANDRY", "OTHER"
     ];
-    const validCats = ["NOTES_PDF", "PYQ", "PRACTICAL", "SYLLABUS", "EXAM_NOTIFICATION"];
+    const validCats = [
+      "NOTES_PDF", "PYQ", "PRACTICAL", "SYLLABUS", "EXAM_NOTIFICATION",
+      "ICAR_RESOURCE", "UNIVERSITY_MATERIAL", "RESEARCH_PAPER",
+      "GOVT_PUBLICATION", "YOUTUBE_PLAYLIST", "BOOK_REFERENCE", "OFFICIAL_NOTIFICATION"
+    ];
     const validMethods = ["RSS_FEED", "PUBLIC_API", "ADMIN_SUBMITTED"];
     const validStatuses = ["PENDING_REVIEW", "APPROVED_PUBLISHED", "REJECTED"];
+    const validLanguages = ["EN", "BN", "HI", "BILINGUAL"];
+    const validOrigins = ["OFFICIAL_ICAR", "UNIVERSITY", "GOVT", "RESEARCH", "CURATED"];
 
     const sourceUrl = String(data.sourceUrl || "").trim().slice(0, 400);
     const title = String(data.title || "").trim().slice(0, 150);
@@ -2504,13 +2605,16 @@ class FirebaseService {
       publicationDate: String(data.publicationDate || new Date().toISOString().slice(0, 10)).trim().slice(0, 30),
       subjectKey: validSubjects.includes(data.subjectKey) ? data.subjectKey : "OTHER",
       topic: String(data.topic || "General Agriculture").trim().slice(0, 120),
-      category: validCats.includes(data.category) ? data.category : "NOTES_PDF",
+      category: validCats.includes(data.category) ? data.category : "ICAR_RESOURCE",
       sourceUrl,
       reviewStatus: validStatuses.includes(data.reviewStatus) ? data.reviewStatus : "PENDING_REVIEW",
       summary: String(data.summary || "").trim().slice(0, 500),
       reviewedBy: uid,
       updatedAt: serverTimestamp()
     };
+    if (data.language && validLanguages.includes(data.language)) editableFields.language = data.language;
+    if (typeof data.thumbnailUrl === "string" && data.thumbnailUrl.trim()) editableFields.thumbnailUrl = data.thumbnailUrl.trim().slice(0, 400);
+    if (data.resourceOrigin && validOrigins.includes(data.resourceOrigin)) editableFields.resourceOrigin = data.resourceOrigin;
 
     if (editId) {
       await updateDoc(doc(this.db, "discoveredStudyResources", editId), editableFields);
@@ -2538,6 +2642,57 @@ class FirebaseService {
   async deleteDiscoveredStudyResource(id) {
     if (!this.ready || !id) return;
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "discoveredStudyResources", id));
+  }
+
+  // --------------------------------------------------------------------------
+  // 12. PHASE 3: ADMIN-MANAGED PRACTICE TESTS & MOCK TESTS (/mockTests)
+  // --------------------------------------------------------------------------
+  async saveMockTest(uid, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validSubjects = [
+      "ALL", "AGRONOMY", "SOIL_SCIENCE", "GENETICS_BREEDING", "PLANT_PATHOLOGY", "ENTOMOLOGY",
+      "HORTICULTURE", "AGRI_ECONOMICS", "AGRI_EXTENSION", "SEED_SCIENCE", "PLANT_PHYSIOLOGY",
+      "AGRI_ENGINEERING", "ANIMAL_HUSBANDRY", "OTHER"
+    ];
+    const validExams = [
+      "ALL", "BSC_SEMESTER", "ICAR_ENTRANCE", "ICAR_JRF", "CUET_PG", "IBPS_AFO", "NABARD", "STATE_AO", "OTHER_COMPETITIVE"
+    ];
+    const validDiffs = ["ALL", "EASY", "MEDIUM", "HARD"];
+    const base = {
+      title: String(data.title || "").trim().slice(0, 150),
+      testType: data.testType === "MOCK_TEST" ? "MOCK_TEST" : "PRACTICE_TEST",
+      examCategory: validExams.includes(data.examCategory) ? data.examCategory : "ALL",
+      subjectKey: validSubjects.includes(data.subjectKey) ? data.subjectKey : "ALL",
+      semester: Math.min(8, Math.max(0, parseInt(data.semester, 10) || 0)),
+      difficulty: validDiffs.includes(data.difficulty) ? data.difficulty : "ALL",
+      durationMinutes: Math.min(240, Math.max(5, parseInt(data.durationMinutes, 10) || 30)),
+      description: String(data.description || "").trim().slice(0, 600),
+      onlyOfficialPyq: Boolean(data.onlyOfficialPyq),
+      published: data.published !== false,
+      updatedAt: serverTimestamp()
+    };
+    if (Array.isArray(data.questionIds)) {
+      base.questionIds = data.questionIds.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 200);
+    }
+    if (editId) {
+      await updateDoc(doc(this.db, "mockTests", editId), base);
+    } else {
+      await addDoc(collection(this.db, "mockTests"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
+    }
+  }
+
+  async toggleMockTestPublished(id, published) {
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "mockTests", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteMockTest(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "mockTests", id));
   }
 }
 

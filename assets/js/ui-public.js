@@ -632,10 +632,12 @@ export function renderSharedCommonModulesSection(state, zoneKey) {
 export function renderStudentZoneView(state) {
   const publicMaterials = mergeStudyMaterials(state.studyMaterials || [], false);
   const notesCount = publicMaterials.filter((m) => m.category === "NOTES_PDF").length;
+  const videoCount = publicMaterials.filter((m) => m.category === "VIDEO_LECTURE").length;
   const pyqCount = publicMaterials.filter((m) => m.category === "PYQ").length;
-  const practicalCount = publicMaterials.filter((m) => m.category === "PRACTICAL" || m.category === "VIDEO_LECTURE").length;
   const quizCount = mergeQuizQuestions(state.quizzes || [], false).length;
+  const mockTestCount = (state.mockTests || []).filter((t) => t.published !== false).length;
   const syllabusCount = mergeSyllabi(state.universitySyllabi || [], false).length;
+  const resourceCount = (state.discoveredStudyResources || []).filter((r) => r.reviewStatus === "APPROVED_PUBLISHED").length;
   const careerCount = state.careerOpportunities.filter((c) => c.published !== false).length;
   const unreadDoubts = state.totalUnreadDoubts || 0;
   const isProf = state.facultyIdentity?.isAuthorizedProfessor;
@@ -644,7 +646,7 @@ export function renderStudentZoneView(state) {
     {
       route: "student",
       title: "Student Academic Dashboard",
-      subtitle: `Complete B.Sc (Hons.) Agriculture portal — all ${publicMaterials.length} published notes, syllabus, practicals & MCQs (Semesters 1–8)`,
+      subtitle: `Complete B.Sc (Hons.) Agriculture portal — all ${publicMaterials.length} published notes, videos, syllabus, PYQs & MCQs (Semesters 1–8)`,
       icon: AGRI_ICONS.student,
       badge: `${publicMaterials.length} Resources`,
       featured: true,
@@ -652,43 +654,51 @@ export function renderStudentZoneView(state) {
     },
     {
       route: "student",
-      title: "Agriculture Study Notes",
-      subtitle: `Semester-wise B.Sc Agriculture notes, PDFs, formulas & verified chapter summaries (${notesCount} notes)`,
+      title: "Agriculture Study Notes & Documents",
+      subtitle: `Subject-wise & semester-wise B.Sc Agriculture notes, PDFs, docs, formulas & chapter summaries (${notesCount} notes)`,
       icon: AGRI_ICONS.notes,
       badge: "Notes & PDFs",
       attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "NOTES_PDF" }
     },
     {
       route: "student",
-      title: "Agriculture MCQ and Question Bank",
-      subtitle: `Interactive online B.Sc Agriculture MCQ practice with instant scoring, explanations & attempt history (${quizCount} questions)`,
+      title: "Video Learning (YouTube Lectures)",
+      subtitle: `Curated agriculture YouTube lectures by subject, topic & language with safe inline player (${videoCount} lectures)`,
+      icon: AGRI_ICONS.resources,
+      badge: `${videoCount} Videos`,
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "videos" }
+    },
+    {
+      route: "student",
+      title: "Agriculture MCQ Practice & Mock Tests",
+      subtitle: `Interactive MCQ bank with explanations, score tracking & ${mockTestCount} Admin Practice/Mock Tests (${quizCount} questions)`,
       icon: AGRI_ICONS.quiz,
-      badge: `${quizCount} MCQs`,
+      badge: mockTestCount > 0 ? `${quizCount} MCQs • ${mockTestCount} Tests` : `${quizCount} MCQs`,
       attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "quiz" }
     },
     {
       route: "student",
-      title: "Agriculture Syllabus",
-      subtitle: `ICAR 5th Deans' Committee (Sem 1–8) + University-wise official B.Sc. Agriculture syllabi (${syllabusCount} curriculum entries)`,
+      title: "Official Previous Year Questions (PYQs)",
+      subtitle: `Exam-wise & year-wise official question papers with official answer keys — strictly separated from practice sets (${pyqCount} papers)`,
+      icon: AGRI_ICONS.pyq,
+      badge: "Official PYQs",
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "pyq" }
+    },
+    {
+      route: "student",
+      title: "Agriculture Syllabus (ICAR & University-Wise)",
+      subtitle: `ICAR 5th Deans' Committee (Sem 1–8) + University-wise syllabi with academic sessions & PDFs (${syllabusCount} entries)`,
       icon: AGRI_ICONS.syllabus,
       badge: `${syllabusCount} Syllabi`,
       attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "syllabus" }
     },
     {
       route: "student",
-      title: "Previous Year Questions",
-      subtitle: `Solved university PYQ papers and exam question banks across agriculture subjects (${pyqCount} papers)`,
-      icon: AGRI_ICONS.pyq,
-      badge: "PYQ Bank",
-      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "PYQ" }
-    },
-    {
-      route: "student",
-      title: "Study Resources (Practicals & Lectures)",
-      subtitle: `Laboratory practical manuals, field identification guides & video lecture links (${practicalCount} resources)`,
+      title: "Agricultural Learning Resources",
+      subtitle: `ICAR resources, university materials, research papers, govt publications, YouTube playlists, books & notices (${resourceCount} published)`,
       icon: AGRI_ICONS.resources,
-      badge: "Practicals",
-      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "materials", "data-open-student-cat": "PRACTICAL" }
+      badge: "7 Categories",
+      attrs: { "data-from-zone": "student-zone", "data-open-student-sub": "resources" }
     },
     {
       route: "career-guidance",
@@ -716,6 +726,19 @@ export function renderStudentZoneView(state) {
       attrs: { "data-from-zone": "student-zone" }
     }
   ];
+
+  if (state.isAdmin) {
+    studentItems.unshift({
+      route: "admin",
+      title: "Manage Student Education CMS (Admin)",
+      subtitle: "Upload notes & documents, add YouTube videos, build Mock Tests, upload PYQs & syllabi, and review auto-discovered resources",
+      icon: AGRI_ICONS.notes,
+      badge: "Admin CMS",
+      badgeClass: "bg-amber-400 text-[#0C3B20]",
+      featured: true,
+      attrs: { "data-from-zone": "student-zone", "data-open-admin-sub": "edu-cms" }
+    });
+  }
 
   if (isProf) {
     studentItems.unshift({

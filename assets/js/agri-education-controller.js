@@ -25,6 +25,19 @@ export function createInitialEduState() {
     noteViewMode: "ALL", // ALL | RECENT | POPULAR | SAVED
     previewPdfUrl: "",
     previewPdfTitle: "",
+    previewVideoUrl: "",
+    previewVideoTitle: "",
+    videoSubject: "ALL",
+    videoLanguage: "ALL",
+    videoSearch: "",
+    pyqExam: "ALL",
+    pyqYear: "",
+    pyqOrigin: "ALL",
+    pyqSearch: "",
+    resCategory: "ALL",
+    resSubject: "ALL",
+    resSearch: "",
+    activeMockTestId: "",
     quizMode: "PRACTICE", // PRACTICE | MOCK_TEST | PYQ_SET
     quizExam: "ALL",
     quizSubject: "ALL",
@@ -125,6 +138,12 @@ export function bindAgriEducationEvents({
       "[data-edu-reset-notes]",
       "[data-edu-preview-pdf]",
       "[data-edu-close-pdf]",
+      "[data-edu-play-video]",
+      "[data-edu-close-video]",
+      "[data-edu-jump-pyq-mcqs]",
+      "[data-edu-start-test]",
+      "[data-edu-exit-test]",
+      "[data-edu-res-cat]",
       "[data-edu-bookmark-type]",
       "[data-edu-quiz-mode]",
       "[data-edu-quiz-exam]",
@@ -183,6 +202,52 @@ export function bindAgriEducationEvents({
     if (target.dataset.eduClosePdf) {
       edu.previewPdfUrl = "";
       edu.previewPdfTitle = "";
+      renderActiveView();
+      return;
+    }
+
+    if (target.dataset.eduPlayVideo) {
+      edu.previewVideoUrl = target.dataset.eduPlayVideo;
+      edu.previewVideoTitle = target.dataset.eduPlayTitle || "Video Lecture";
+      renderActiveView();
+      return;
+    }
+
+    if (target.dataset.eduCloseVideo) {
+      edu.previewVideoUrl = "";
+      edu.previewVideoTitle = "";
+      renderActiveView();
+      return;
+    }
+
+    if (target.dataset.eduJumpPyqMcqs) {
+      state.studentSubTab = "quiz";
+      edu.activeMockTestId = "";
+      edu.quizMode = "PYQ_SET";
+      state.quizSubmitted = false;
+      renderActiveView();
+      return;
+    }
+
+    if (target.dataset.eduStartTest) {
+      edu.activeMockTestId = target.dataset.eduStartTest;
+      state.quizAnswers = {};
+      state.quizSubmitted = false;
+      renderActiveView();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (target.dataset.eduExitTest) {
+      edu.activeMockTestId = "";
+      state.quizAnswers = {};
+      state.quizSubmitted = false;
+      renderActiveView();
+      return;
+    }
+
+    if (target.dataset.eduResCat) {
+      edu.resCategory = target.dataset.eduResCat;
       renderActiveView();
       return;
     }
@@ -347,10 +412,17 @@ export function bindAgriEducationEvents({
     if (target.dataset.adminReviewDisc) {
       if (!state.user || !state.isAdmin) return;
       const id = target.dataset.adminReviewDisc;
-      const nextStatus = target.dataset.reviewStatus === "APPROVED_PUBLISHED" ? "APPROVED_PUBLISHED" : "PENDING_REVIEW";
+      const rawStatus = target.dataset.reviewStatus;
+      const nextStatus = ["APPROVED_PUBLISHED", "PENDING_REVIEW", "REJECTED"].includes(rawStatus)
+        ? rawStatus
+        : "PENDING_REVIEW";
       try {
         await firebaseService.updateDiscoveredStudyResourceStatus(state.user.uid, id, nextStatus);
-        showToast(nextStatus === "APPROVED_PUBLISHED" ? "Published live to students!" : "Moved back to Pending Review.");
+        showToast(
+          nextStatus === "APPROVED_PUBLISHED"
+            ? "Published live to students!"
+            : (nextStatus === "REJECTED" ? "Marked as Rejected." : "Moved back to Pending Review.")
+        );
       } catch (err) {
         showToast(err.message || "Failed to update review status.", true);
       }
@@ -359,10 +431,10 @@ export function bindAgriEducationEvents({
 
     if (target.dataset.adminDelDisc) {
       if (!state.user || !state.isAdmin) return;
-      if (!confirm("Delete this discovered resource from Firestore?")) return;
+      if (!confirm("Delete this learning resource from Firestore?")) return;
       try {
         await firebaseService.deleteDiscoveredStudyResource(target.dataset.adminDelDisc);
-        showToast("Discovered resource deleted.");
+        showToast("Learning resource deleted.");
       } catch (err) {
         showToast(err.message || "Delete failed.", true);
       }
@@ -377,6 +449,7 @@ export function bindAgriEducationEvents({
       setVal("asylEditId", syl.id);
       setVal("asylUniversity", syl.university || "");
       setVal("asylUniShort", syl.universityShort || "");
+      setVal("asylSession", syl.academicSession || "");
       setVal("asylPubYear", syl.publicationYear || "");
       setVal("asylCourse", syl.course || "B.Sc. (Hons.) Agriculture");
       setVal("asylSemester", String(syl.semester || 1));
@@ -413,22 +486,35 @@ export function bindAgriEducationEvents({
   document.addEventListener("input", (e) => {
     const id = e.target.id;
     const edu = ensureEdu();
+    const refocus = (elId) => {
+      const el = document.getElementById(elId);
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    };
     if (id === "eduNoteTopic") {
       edu.noteTopic = e.target.value;
       renderActiveView();
-      const el = document.getElementById("eduNoteTopic");
-      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      refocus("eduNoteTopic");
     } else if (id === "eduQuizSearch") {
       edu.quizSearch = e.target.value;
       state.quizSubmitted = false;
       renderActiveView();
-      const el = document.getElementById("eduQuizSearch");
-      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      refocus("eduQuizSearch");
     } else if (id === "eduSyllabusSearch") {
       edu.syllabusSearch = e.target.value;
       renderActiveView();
-      const el = document.getElementById("eduSyllabusSearch");
-      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      refocus("eduSyllabusSearch");
+    } else if (id === "eduVideoSearch") {
+      edu.videoSearch = e.target.value;
+      renderActiveView();
+      refocus("eduVideoSearch");
+    } else if (id === "eduPyqSearch") {
+      edu.pyqSearch = e.target.value;
+      renderActiveView();
+      refocus("eduPyqSearch");
+    } else if (id === "eduResSearch") {
+      edu.resSearch = e.target.value;
+      renderActiveView();
+      refocus("eduResSearch");
     }
   });
 
@@ -460,6 +546,24 @@ export function bindAgriEducationEvents({
     } else if (id === "eduSyllabusSubject") {
       edu.syllabusSubject = e.target.value;
       renderActiveView();
+    } else if (id === "eduVideoSubject") {
+      edu.videoSubject = e.target.value;
+      renderActiveView();
+    } else if (id === "eduVideoLanguage") {
+      edu.videoLanguage = e.target.value;
+      renderActiveView();
+    } else if (id === "eduPyqExam") {
+      edu.pyqExam = e.target.value;
+      renderActiveView();
+    } else if (id === "eduPyqYear") {
+      edu.pyqYear = e.target.value;
+      renderActiveView();
+    } else if (id === "eduPyqOrigin") {
+      edu.pyqOrigin = e.target.value;
+      renderActiveView();
+    } else if (id === "eduResSubject") {
+      edu.resSubject = e.target.value;
+      renderActiveView();
     }
   });
 
@@ -484,6 +588,7 @@ export function bindAgriEducationEvents({
         {
           university: document.getElementById("asylUniversity")?.value || "",
           universityShort: document.getElementById("asylUniShort")?.value || "",
+          academicSession: document.getElementById("asylSession")?.value || "",
           publicationYear: document.getElementById("asylPubYear")?.value || "",
           course: document.getElementById("asylCourse")?.value || "B.Sc. (Hons.) Agriculture",
           semester: document.getElementById("asylSemester")?.value || 1,
@@ -502,11 +607,16 @@ export function bindAgriEducationEvents({
     });
   });
 
-  // ESC closes inline PDF modal cleanly
+  // ESC closes inline PDF / Video modals cleanly
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && state.edu?.previewPdfUrl) {
+    if (e.key !== "Escape") return;
+    if (state.edu?.previewPdfUrl) {
       state.edu.previewPdfUrl = "";
       state.edu.previewPdfTitle = "";
+      renderActiveView();
+    } else if (state.edu?.previewVideoUrl) {
+      state.edu.previewVideoUrl = "";
+      state.edu.previewVideoTitle = "";
       renderActiveView();
     }
   });

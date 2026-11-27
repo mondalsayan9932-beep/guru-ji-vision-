@@ -2015,6 +2015,221 @@ test("Strictly Isolated Student & Farmer Financial Profiles: Role-gated collecti
   await assertSucceeds(farmerTxRef.delete());
 });
 
+test("Phase 3 Student Zone Education CMS: Admin CRUD & publish/unpublish across Notes, Videos, Official PYQs, Mock Tests, Syllabi, 7-Category Resources; non-admin writes & draft reads denied", async () => {
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, {
+    email: "alice@agri.edu.in",
+    email_verified: true,
+  }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const ts = pastTime(3000);
+
+  // 1. Admin creates YouTube Video Lecture (published) & Draft Video Lecture
+  await assertSucceeds(
+    adminDb.collection("studyMaterials").doc("video_agronomy_1").set({
+      title: "Conservation Agriculture & Zero Tillage",
+      titleBn: "সংরক্ষণ কৃষি ও জিরো টিলেজ",
+      semester: 2,
+      subject: "Agronomy",
+      subjectKey: "AGRONOMY",
+      topic: "Tillage",
+      category: "VIDEO_LECTURE",
+      language: "BILINGUAL",
+      summary: "Verified ICAR lecture explaining residue management and zero tillage in rice-wheat systems.",
+      contentText: "",
+      resourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      youtubeVideoId: "dQw4w9WgXcQ",
+      thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+      sourceName: "ICAR eCourses Official",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      lastUpdatedDate: "2026-11-26",
+      contentOrigin: "CURATED_REFERENCE",
+      downloadPermitted: false,
+      verifiedForAi: false,
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 2. Admin creates Official PYQ Paper with Answer Key URL (initially draft, then published)
+  const pyqRef = adminDb.collection("studyMaterials").doc("pyq_icar_jrf_2024");
+  await assertSucceeds(
+    pyqRef.set({
+      title: "ICAR AIEEA PG Agronomy 2024 Official Question Paper",
+      semester: 8,
+      subject: "Agronomy",
+      subjectKey: "AGRONOMY",
+      topic: "ICAR_JRF 2024",
+      category: "PYQ",
+      examCategory: "ICAR_JRF",
+      examYear: "2024",
+      pyqOrigin: "OFFICIAL_PYQ",
+      summary: "Official NTA ICAR AIEEA PG Agronomy paper with official final answer key.",
+      contentText: "",
+      resourceUrl: "https://nta.ac.in/Download/ExamPaper/ICAR2024.pdf",
+      answerKeyUrl: "https://nta.ac.in/Download/AnswerKey/ICAR2024Key.pdf",
+      sourceName: "NTA / ICAR",
+      sourceUrl: "https://icar.nta.ac.in",
+      lastUpdatedDate: "2026-11-26",
+      contentOrigin: "OFFICIAL_PUBLICATION",
+      downloadPermitted: true,
+      verifiedForAi: false,
+      published: false,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Draft PYQ is NOT readable by Student or Guest
+  await assertFails(studentDb.collection("studyMaterials").doc("pyq_icar_jrf_2024").get());
+  await assertFails(guestDb.collection("studyMaterials").doc("pyq_icar_jrf_2024").get());
+
+  // Admin publishes PYQ in one click -> Student & Guest can now read it
+  await assertSucceeds(pyqRef.update({ published: true, updatedAt: pastTime(1000) }));
+  await assertSucceeds(studentDb.collection("studyMaterials").doc("pyq_icar_jrf_2024").get());
+  await assertSucceeds(guestDb.collection("studyMaterials").doc("pyq_icar_jrf_2024").get());
+
+  // 3. Admin creates Practice Test & Mock Test (/mockTests)
+  const testRef = adminDb.collection("mockTests").doc("mock_icar_jrf_1");
+  await assertSucceeds(
+    testRef.set({
+      title: "ICAR JRF Agronomy Full Mock Test #1",
+      testType: "MOCK_TEST",
+      examCategory: "ICAR_JRF",
+      subjectKey: "AGRONOMY",
+      semester: 0,
+      difficulty: "ALL",
+      durationMinutes: 60,
+      description: "Covers tillage, irrigation, nutrient management, and weed science.",
+      onlyOfficialPyq: false,
+      published: false,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Unpublished Mock Test is hidden from Student & Guest
+  await assertFails(studentDb.collection("mockTests").doc("mock_icar_jrf_1").get());
+  await assertFails(guestDb.collection("mockTests").doc("mock_icar_jrf_1").get());
+
+  // Student CANNOT create, update, or delete Mock Tests
+  await assertFails(
+    studentDb.collection("mockTests").doc("student_fake_test").set({
+      title: "Fake Test",
+      testType: "PRACTICE_TEST",
+      examCategory: "ALL",
+      subjectKey: "ALL",
+      semester: 1,
+      difficulty: "ALL",
+      durationMinutes: 15,
+      description: "Unauthorized",
+      onlyOfficialPyq: false,
+      published: true,
+      createdBy: STUDENT_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Admin publishes Mock Test -> Student & Guest can read; Student still cannot edit/delete
+  await assertSucceeds(testRef.update({ published: true, updatedAt: pastTime(900) }));
+  await assertSucceeds(studentDb.collection("mockTests").where("published", "==", true).get());
+  await assertSucceeds(guestDb.collection("mockTests").where("published", "==", true).get());
+  await assertFails(studentDb.collection("mockTests").doc("mock_icar_jrf_1").update({ title: "Hacked", updatedAt: pastTime(500) }));
+  await assertFails(studentDb.collection("mockTests").doc("mock_icar_jrf_1").delete());
+
+  // 4. Admin creates University Syllabus with academicSession
+  await assertSucceeds(
+    adminDb.collection("syllabi").doc("bckv_sem1_2025").set({
+      university: "Bidhan Chandra Krishi Viswavidyalaya",
+      universityShort: "BCKV",
+      academicSession: "2025-26",
+      course: "B.Sc. (Hons.) Agriculture",
+      semester: 1,
+      subject: "Fundamentals of Agronomy",
+      subjectKey: "AGRONOMY",
+      topics: ["Agronomy and its scope", "Tillage and tilth", "Crop nutrition"],
+      publicationYear: "2025",
+      sourceUrl: "https://www.bckv.edu.in/",
+      pdfUrl: "https://www.bckv.edu.in/syllabus.pdf",
+      downloadPermitted: true,
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(studentDb.collection("syllabi").doc("bckv_sem1_2025").get());
+
+  // 5. Admin creates Learning Resources across new Phase 3 categories (YOUTUBE_PLAYLIST, BOOK_REFERENCE, OFFICIAL_NOTIFICATION)
+  const resRef = adminDb.collection("discoveredStudyResources").doc("res_icar_playlist_1");
+  await assertSucceeds(
+    resRef.set({
+      title: "ICAR Soil Science Official Lecture Playlist",
+      sourceWebsite: "ICAR Official Channel",
+      publicationDate: "2026-11-25",
+      subjectKey: "SOIL_SCIENCE",
+      topic: "Soil Physics & Chemistry",
+      category: "YOUTUBE_PLAYLIST",
+      language: "EN",
+      resourceOrigin: "OFFICIAL_ICAR",
+      sourceUrl: "https://www.youtube.com/playlist?list=PL1234567890ABCDEF",
+      discoveryMethod: "ADMIN_SUBMITTED",
+      reviewStatus: "PENDING_REVIEW",
+      summary: "Verified playlist of ICAR soil science lectures.",
+      dedupeKey: "https://www.youtube.com/playlist?list=pl1234567890abcdef|icar soil science",
+      reviewedBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Pending Review item is strictly blocked from Students & Guests
+  await assertFails(studentDb.collection("discoveredStudyResources").doc("res_icar_playlist_1").get());
+  await assertFails(guestDb.collection("discoveredStudyResources").doc("res_icar_playlist_1").get());
+
+  // Admin approves -> now readable by Students
+  await assertSucceeds(resRef.update({ reviewStatus: "APPROVED_PUBLISHED", updatedAt: pastTime(800) }));
+  await assertSucceeds(studentDb.collection("discoveredStudyResources").doc("res_icar_playlist_1").get());
+
+  // 6. Student can save private VIDEO and RESOURCE bookmarks under users/{uid}/studyBookmarks
+  await assertSucceeds(
+    studentDb.collection("users").doc(STUDENT_UID).collection("studyBookmarks").doc("VIDEO__video_agronomy_1").set({
+      itemType: "VIDEO",
+      itemId: "video_agronomy_1",
+      title: "Conservation Agriculture & Zero Tillage",
+      subject: "Agronomy",
+      semester: 2,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(
+    studentDb.collection("users").doc(STUDENT_UID).collection("studyBookmarks").doc("RESOURCE__res_icar_playlist_1").set({
+      itemType: "RESOURCE",
+      itemId: "res_icar_playlist_1",
+      title: "ICAR Soil Science Official Lecture Playlist",
+      subject: "Soil Science",
+      semester: 0,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Admin can delete Mock Test and Video when authorized
+  await assertSucceeds(testRef.delete());
+  await assertSucceeds(adminDb.collection("studyMaterials").doc("video_agronomy_1").delete());
+});
+
+
 
 
 
