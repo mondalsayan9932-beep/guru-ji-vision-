@@ -2674,6 +2674,217 @@ test("Phase 5 Women Farmer Nearby Services & SHG Directory: contributor PENDING_
   await assertSucceeds(adminDb.collection("shgDirectoryListings").doc("shg_nadia_1").delete());
 });
 
+test("Phase 6 Skill Zone: Admin CRUD & publish/unpublish on skillPrograms & skillCareerResources; owner-only skillProgress with strict completion integrity", async () => {
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, {
+    email: "alice@agri.edu.in",
+    email_verified: true,
+  }).firestore();
+  const farmerDb = testEnv.authenticatedContext(FARMER_UID, {
+    email: "rahul@farm.in",
+    email_verified: true,
+  }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const ts = pastTime(5000);
+
+  // 1. /skillPrograms — Admin creates a Draft program -> Guest & Student CANNOT read Draft
+  const progRef = adminDb.collection("skillPrograms").doc("prog_hort_1");
+  await assertSucceeds(
+    progRef.set({
+      title: "Commercial Vegetable Nursery Training",
+      titleBn: "বাণিজ্যিক সবজি নার্সারি প্রশিক্ষণ",
+      category: "NURSERY_HORTICULTURE",
+      targetRoles: ["FARMER", "WOMEN_FARMER", "STUDENT"],
+      provider: "ICAR-KVK Nadia",
+      description: "Hands-on protray seedling production and nursery management.",
+      eligibility: "Farmers, SHGs, and agriculture students",
+      duration: "2 weeks",
+      verifiedFees: "Free government KVK batch",
+      certificateDetails: "KVK participation certificate issued upon batch completion",
+      youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      courseUrl: "https://kvk.icar.gov.in/",
+      pdfUrl: "",
+      applicationUrl: "https://kvk.icar.gov.in/",
+      officialSourceUrl: "https://kvk.icar.gov.in/",
+      certificateUrl: "",
+      lessons: [
+        { id: "l1", title: "Protray Media Preparation" },
+        { id: "l2", title: "Seedling Hardening & Pest Control" }
+      ],
+      published: false,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(guestDb.collection("skillPrograms").doc("prog_hort_1").get());
+  await assertFails(studentDb.collection("skillPrograms").doc("prog_hort_1").get());
+
+  // Non-admin CANNOT create, update, or delete skillPrograms
+  await assertFails(
+    studentDb.collection("skillPrograms").doc("prog_hack").set({
+      title: "Unauthorized Course",
+      category: "JOB_PREPARATION",
+      targetRoles: ["ALL"],
+      provider: "Unknown",
+      description: "Attempted unauthorized write",
+      lessons: [{ id: "l1", title: "Lesson 1" }],
+      published: true,
+      createdBy: STUDENT_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(studentDb.collection("skillPrograms").doc("prog_hort_1").delete());
+
+  // Invalid category or empty lessons MUST fail even for Admin
+  await assertFails(
+    adminDb.collection("skillPrograms").doc("prog_bad_cat").set({
+      title: "Bad Category",
+      category: "INVALID_SKILL_CAT",
+      targetRoles: ["ALL"],
+      provider: "Test",
+      description: "Invalid category test",
+      lessons: [{ id: "l1", title: "L1" }],
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(
+    adminDb.collection("skillPrograms").doc("prog_no_lessons").set({
+      title: "No Lessons Program",
+      category: "FINANCIAL_LITERACY",
+      targetRoles: ["ALL"],
+      provider: "Test",
+      description: "Must require at least 1 lesson",
+      lessons: [],
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Admin publishes -> Guest & Student CAN read; Admin unpublishes -> Guest CANNOT read
+  await assertSucceeds(progRef.update({ published: true, updatedAt: pastTime(2000) }));
+  await assertSucceeds(guestDb.collection("skillPrograms").doc("prog_hort_1").get());
+  await assertSucceeds(studentDb.collection("skillPrograms").doc("prog_hort_1").get());
+  await assertSucceeds(progRef.update({ published: false, updatedAt: pastTime(1500) }));
+  await assertFails(guestDb.collection("skillPrograms").doc("prog_hort_1").get());
+  await assertSucceeds(progRef.update({ published: true, updatedAt: pastTime(1000) }));
+
+  // 2. /skillCareerResources — Admin creates Verified Notification & Career Guidance
+  const careerRef = adminDb.collection("skillCareerResources").doc("career_afo_1");
+  await assertSucceeds(
+    careerRef.set({
+      title: "IBPS AFO Interview Preparation Checklist",
+      titleBn: "IBPS AFO ইন্টারভিউ প্রস্তুতি",
+      recordKind: "CAREER_GUIDANCE",
+      prepCategory: "INTERVIEW_PREP",
+      targetRoles: ["STUDENT"],
+      organization: "Guru Ji Vision Mentorship",
+      summary: "Structured interview preparation checklist for agriculture graduates.",
+      eligibility: "Agriculture & allied graduates",
+      deadline: "",
+      officialSourceUrl: "https://www.ibps.in/",
+      applicationUrl: "",
+      youtubeUrl: "",
+      pdfUrl: "",
+      verifiedNote: "General preparation guide only",
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertSucceeds(guestDb.collection("skillCareerResources").doc("career_afo_1").get());
+  await assertFails(
+    farmerDb.collection("skillCareerResources").doc("career_afo_1").update({
+      title: "Tampered",
+      updatedAt: pastTime(500),
+    })
+  );
+
+  // 3. /users/{uid}/skillProgress — Owner-only Enrolment, Progress & STRICT Completion Integrity
+  const userProgRef = studentDb.collection("users").doc(STUDENT_UID).collection("skillProgress").doc("prog_hort_1");
+
+  // Enrol with 0 of 2 lessons done -> succeeds (completed=false, certificateUnlocked=false)
+  await assertSucceeds(
+    userProgRef.set({
+      programId: "prog_hort_1",
+      programTitle: "Commercial Vegetable Nursery Training",
+      category: "NURSERY_HORTICULTURE",
+      provider: "ICAR-KVK Nadia",
+      enrolled: true,
+      totalLessons: 2,
+      completedLessonIds: [],
+      progressPercent: 0,
+      completed: false,
+      certificateUnlocked: false,
+      enrolledAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // CRITICAL: Forged completion or certificate unlock when only 1 of 2 lessons done MUST FAIL!
+  await assertFails(
+    userProgRef.update({
+      completedLessonIds: ["l1"],
+      progressPercent: 100,
+      completed: true,
+      certificateUnlocked: true,
+      updatedAt: pastTime(1000),
+    })
+  );
+  await assertFails(
+    userProgRef.update({
+      completedLessonIds: ["l1"],
+      progressPercent: 50,
+      completed: false,
+      certificateUnlocked: true,
+      updatedAt: pastTime(1000),
+    })
+  );
+
+  // Valid partial progress (1 of 2 lessons = 50%, completed=false) -> succeeds
+  await assertSucceeds(
+    userProgRef.update({
+      completedLessonIds: ["l1"],
+      progressPercent: 50,
+      completed: false,
+      certificateUnlocked: false,
+      updatedAt: pastTime(900),
+    })
+  );
+
+  // Valid full completion (2 of 2 lessons = 100%, completed=true, certificateUnlocked=true) -> succeeds
+  await assertSucceeds(
+    userProgRef.update({
+      completedLessonIds: ["l1", "l2"],
+      progressPercent: 100,
+      completed: true,
+      certificateUnlocked: true,
+      completedAt: pastTime(500),
+      updatedAt: pastTime(500),
+    })
+  );
+
+  // Owner isolation: Farmer, Guest & even Admin CANNOT read or overwrite Student's private skillProgress
+  await assertFails(farmerDb.collection("users").doc(STUDENT_UID).collection("skillProgress").doc("prog_hort_1").get());
+  await assertFails(guestDb.collection("users").doc(STUDENT_UID).collection("skillProgress").doc("prog_hort_1").get());
+  await assertFails(adminDb.collection("users").doc(STUDENT_UID).collection("skillProgress").doc("prog_hort_1").get());
+
+  // Cleanup
+  await assertSucceeds(userProgRef.delete());
+  await assertSucceeds(progRef.delete());
+  await assertSucceeds(careerRef.delete());
+});
+
 
 
 

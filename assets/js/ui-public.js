@@ -37,6 +37,8 @@ import {
   filterWomenDiscussions,
   getWomenFarmerSchemes
 } from "./women-farmer-data.js";
+import { mergeSkillPrograms } from "./skill-zone-data.js";
+import { renderSkillZoneWorkspace } from "./skill-zone-ui.js";
 
 const GREEN_HEAVEN_LOGO_SVG = `
   <span class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-[#14532D] to-[#15803D] text-[#DCFCE7] shadow-sm shrink-0" aria-hidden="true">
@@ -451,7 +453,7 @@ export function renderHomeView(state) {
               </div>
 
               <div class="pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 w-full">
-                <span data-home-slot="skill-zone-meta" class="text-xs font-bold text-teal-800">${activeCareersCount} Career Listings • Practical &amp; Training Tracks</span>
+                <span data-home-slot="skill-zone-meta" class="text-xs font-bold text-teal-800">15 Skill Categories • ${mergeSkillPrograms(state.skillPrograms || [], false).length} Programs • Career Prep</span>
                 <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0F766E] to-[#14532D] text-white text-xs font-extrabold shadow-sm group-hover:translate-x-0.5 transition-transform">
                   <span>Enter Zone</span>
                   <span>→</span>
@@ -985,107 +987,26 @@ export function renderSkillZoneView(state) {
     }
   ];
 
-  const roadmapTracks = [
-    {
-      audience: "For Agriculture Students",
-      audienceBn: "শিক্ষার্থীদের জন্য",
-      title: "Agri-Tech, Lab & Competitive Exam Readiness",
-      desc: "Structured skill tracks covering GIS/digital agriculture basics, soil testing interpretation, scientific report writing, interview prep, and ICAR / IBPS AFO readiness.",
-      badge: "Planned Next Phase"
-    },
-    {
-      audience: "For Farmers",
-      audienceBn: "কৃষকদের জন্য",
-      title: "Modern Farming, Soil Health & Value Addition",
-      desc: "Practical step-by-step modules on Integrated Pest Management (IPM), water-saving irrigation, organic composting, post-harvest grading, and direct mandi marketing.",
-      badge: "Planned Next Phase"
-    },
-    {
-      audience: "For Women Farmers",
-      audienceBn: "নারী কৃষকদের জন্য",
-      title: "SHG Leadership, Dairy, Mushroom & Agri-Enterprise",
-      desc: "Hands-on livelihood and entrepreneurship learning paths in mushroom cultivation, vermicomposting, backyard poultry, dairy management, and women-led FPO bookkeeping.",
-      badge: "Planned Next Phase"
-    }
-  ];
-
-  return `
-    <div data-zone-dashboard="skill-zone" class="space-y-6">
-      <!-- Top Zone Navigation Bar -->
-      ${renderZoneTopNavBar("skill-zone")}
-
-      <!-- Skill Zone Header Card -->
-      <section class="relative overflow-hidden rounded-3xl gv-hero-agritech text-white p-5 sm:p-7">
-        <div class="absolute inset-0 gv-hero-grid pointer-events-none"></div>
-        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="flex items-start gap-4">
-            <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 backdrop-blur-sm flex items-center justify-center shrink-0">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 2 2 7l10 5 10-5-10-5Z"/>
-                <path d="m2 17 10 5 10-5"/>
-                <path d="m2 12 10 5 10-5"/>
-              </svg>
-            </div>
-            <div class="space-y-1">
-              <span class="inline-block px-2.5 py-0.5 rounded-full bg-teal-300/25 border border-teal-200/40 text-teal-100 text-[10px] font-extrabold uppercase tracking-wider">Skill Development • Training • Career Prep</span>
-              <h2 class="font-display text-2xl sm:text-3xl font-bold leading-tight">Skill Zone | স্কিল ও প্রশিক্ষণ জোন</h2>
-              <p class="text-xs sm:text-sm text-[#DCFCE7]/95 max-w-2xl">
-                Independent skill development, practical training, and career preparation hub designed for Students, Farmers, and Women Farmers.
-              </p>
-            </div>
-          </div>
-          <div class="flex flex-wrap gap-2 shrink-0">
-            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Students</span>
-            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Farmers</span>
-            <span class="px-3 py-1.5 rounded-xl bg-white/12 border border-white/20 text-xs font-bold text-[#DCFCE7]">Women Farmers</span>
-          </div>
+  const connectedModulesHtml = `
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-end justify-between gap-2 px-1">
+        <div>
+          <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Connected Mentorship, Practice &amp; Applied Skill Modules</h3>
+          <p class="text-xs text-[#475569]">Direct access to live faculty mentorship, practical manuals, exam preparation, precision agri tools &amp; live Google Meet workshops.</p>
         </div>
-      </section>
-
-      <!-- Active Connected Skill & Career Preparation Modules -->
-      <section class="space-y-3">
-        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
-          <div>
-            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Available Training, Practice &amp; Career Preparation</h3>
-            <p class="text-xs text-[#475569]">Direct access to live mentorship, practical manuals, exam preparation, precision agri tools &amp; workshops — zero duplicate data.</p>
-          </div>
-          <span class="px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-[11px] font-bold text-teal-900">${connectedSkillModules.length} Live Modules</span>
-        </div>
-        <div class="space-y-2.5">
-          ${connectedSkillModules.map(renderZoneListRow).join("")}
-        </div>
-      </section>
-
-      <!-- Upcoming Structured Skill Development Tracks (Informational Preview) -->
-      <section class="space-y-3">
-        <div class="flex flex-wrap items-end justify-between gap-2 px-1">
-          <div>
-            <h3 class="text-base sm:text-lg font-extrabold text-[#14532D] tracking-tight">Upcoming Structured Skill Tracks</h3>
-            <p class="text-xs text-[#475569]">Dedicated certification pathways and hands-on training modules planned for upcoming phases across all three learner groups.</p>
-          </div>
-          <span class="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#D9EAE0] text-[11px] font-bold text-[#15803D]">3 Learner Tracks</span>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          ${roadmapTracks.map((track) => `
-            <div class="gv-card p-5 space-y-2.5 flex flex-col justify-between">
-              <div class="space-y-2">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <span class="px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-900 text-[10px] font-extrabold">${escapeHtml(track.audience)}</span>
-                  <span class="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-[10px] font-extrabold">${escapeHtml(track.badge)}</span>
-                </div>
-                <h4 class="text-sm sm:text-base font-extrabold text-[#132219] leading-snug">${escapeHtml(track.title)}</h4>
-                <p class="text-xs text-[#475569] leading-relaxed">${escapeHtml(track.desc)}</p>
-              </div>
-              <div class="pt-2 border-t border-[#E2E8F0] text-[11px] font-bold text-[#15803D]">${escapeHtml(track.audienceBn)}</div>
-            </div>
-          `).join("")}
-        </div>
-      </section>
-
-      <!-- 5 Common Services -->
-      ${renderSharedCommonModulesSection(state, "skill-zone")}
-    </div>
+        <span class="px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-[11px] font-bold text-teal-900">${connectedSkillModules.length} Live Modules</span>
+      </div>
+      <div class="space-y-2.5">
+        ${connectedSkillModules.map(renderZoneListRow).join("")}
+      </div>
+    </section>
   `;
+
+  return renderSkillZoneWorkspace(state, {
+    topNavHtml: renderZoneTopNavBar("skill-zone"),
+    connectedModulesHtml,
+    commonModulesHtml: renderSharedCommonModulesSection(state, "skill-zone")
+  });
 }
 
 function renderHomeNoticesMarkup(activeNotices) {
@@ -1199,7 +1120,8 @@ export function patchHomeDashboardInPlace(root, state) {
   setText("stat-meetings", String(upcomingMeetings.length));
   setText("student-zone-meta", `${mergedMaterials.length} Notes & Study Resources Ready`);
   setText("women-zone-meta", `${womenEligibleSchemesCount} Women-Eligible Schemes • ${womenDiscussionCount} Discussions`);
-  setText("skill-zone-meta", `${activeCareersCount} Career Listings • Practical & Training Tracks`);
+  const skillProgramsCount = mergeSkillPrograms(state.skillPrograms || [], false).length;
+  setText("skill-zone-meta", `15 Skill Categories • ${skillProgramsCount} Programs • Career Prep`);
 
   const unreadBadge = dash.querySelector("[data-home-slot='student-unread-badge']");
   if (unreadBadge) {

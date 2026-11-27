@@ -81,6 +81,11 @@ import {
 } from "./women-nearby-controller.js";
 import { syncWomenNearbyLeafletMap } from "./women-nearby-map.js";
 import {
+  bindSkillZoneEvents,
+  createInitialSkillCmsState,
+  createInitialSkillZoneState
+} from "./skill-zone-controller.js";
+import {
   filterQuizQuestions,
   mergeQuizQuestions,
   mergeStudyMaterials,
@@ -225,6 +230,13 @@ const state = {
   womenFarmer: createInitialWomenFarmerState(),
   womenCms: createInitialWomenCmsState(),
   womenNearby: createInitialWomenNearbyState(),
+
+  // Phase 6: Skill Zone Training Programs, Career Preparation & Private User Progress
+  skillPrograms: [],
+  skillCareerResources: [],
+  userSkillProgress: [],
+  skillZone: createInitialSkillZoneState(),
+  skillCms: createInitialSkillCmsState(),
 
   // Agriculture Education Hub & Phase 3 CMS State (Notes, Videos, MCQs, Mock Tests, PYQs, Syllabus, Resources & Bookmarks)
   universitySyllabi: [],
@@ -417,6 +429,8 @@ function clearPrivateStateOnLogout() {
   state.myPendingNearbyListings = [];
   state.myPendingShgListings = [];
   state.directoryAuditLogs = [];
+  state.userSkillProgress = [];
+  state.skillZone.viewingCertificateId = "";
   clearFarmerFinancePrivateState(state);
   clearWomenFarmerTransientState(state);
 
@@ -439,6 +453,7 @@ function clearPrivateStateOnLogout() {
         sigKey === "myPendingNearbyListings" ||
         sigKey === "myPendingShgListings" ||
         sigKey === "directoryAuditLogs" ||
+        sigKey === "userSkillProgress" ||
         sigKey === "studentDoubtThreads" ||
         sigKey === "professorDoubtThreads" ||
         sigKey.startsWith("ff:") ||
@@ -520,7 +535,7 @@ const ROUTE_DATA_DEPS = {
   home: new Set([
     "appSettings", "studyMaterials", "announcements", "meetings",
     "professors", "studentDoubtThreads", "professorDoubtThreads", "userProfile",
-    "agricultureSchemes", "communityPosts", "careerOpportunities"
+    "agricultureSchemes", "communityPosts", "careerOpportunities", "skillPrograms"
   ]),
   "student-zone": new Set([
     "studyMaterials", "quizzes", "mockTests", "universitySyllabi", "discoveredStudyResources",
@@ -537,7 +552,8 @@ const ROUTE_DATA_DEPS = {
     "myPendingNearbyListings", "myPendingShgListings"
   ]),
   "skill-zone": new Set([
-    "studyMaterials", "quizzes", "mockTests", "careerOpportunities", "meetings", "communityPosts", "professors"
+    "studyMaterials", "quizzes", "mockTests", "careerOpportunities", "meetings", "communityPosts", "professors",
+    "skillPrograms", "skillCareerResources", "userSkillProgress", "userProfile"
   ]),
   weather: new Set([]),
   market: new Set(["firestoreMarketPrices"]),
@@ -566,7 +582,8 @@ const ROUTE_DATA_DEPS = {
     "announcements", "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
     "agricultureSchemes", "agricultureSchemeHistory", "communityPosts",
     "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue",
-    "nearbyServiceListings", "shgDirectoryListings", "directoryAuditLogs"
+    "nearbyServiceListings", "shgDirectoryListings", "directoryAuditLogs",
+    "skillPrograms", "skillCareerResources"
   ]),
   owner: new Set([
     "appSettings", "ownerUsers", "ownerAdmins", "ownerActivities",
@@ -3399,6 +3416,13 @@ bindWomenNearbyEvents({
   renderActiveView,
   showToast,
   withBusySubmit,
+  openAuthModal
+});
+bindSkillZoneEvents({
+  state,
+  firebaseService,
+  renderActiveView,
+  showToast,
   openAuthModal
 });
 const initialHash = (window.location.hash || "").replace(/^#/, "");

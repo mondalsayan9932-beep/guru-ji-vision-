@@ -901,6 +901,36 @@ class FirebaseService {
       onUpdate("shgDirectoryListings", list, true);
     }, () => {}));
 
+    // Phase 6: Skill Zone Training Programs (/skillPrograms)
+    const skillProgQ = isAdmin
+      ? query(collection(this.db, "skillPrograms"), limit(250))
+      : query(collection(this.db, "skillPrograms"), where("published", "==", true), limit(250));
+    this.setSub("skillPrograms", onSnapshot(skillProgQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt),
+        fromCloud: true
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("skillPrograms", list, true);
+    }, () => {}));
+
+    // Phase 6: Skill Zone Job & Career Preparation (/skillCareerResources)
+    const skillCareerQ = isAdmin
+      ? query(collection(this.db, "skillCareerResources"), limit(250))
+      : query(collection(this.db, "skillCareerResources"), where("published", "==", true), limit(250));
+    this.setSub("skillCareerResources", onSnapshot(skillCareerQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt),
+        fromCloud: true
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("skillCareerResources", list, true);
+    }, () => {}));
+
     // App Settings (/appSettings/global — public read for WhatsApp Helpline & Notices)
     this.setSub("appSettings", onSnapshot(doc(this.db, "appSettings", "global"), (snap) => {
       if (snap.exists()) {
@@ -923,6 +953,7 @@ class FirebaseService {
     const requiredPrivateKeys = [
       "farmerQueries", "quizAttempts", "studyBookmarks",
       "myPendingNearbyListings", "myPendingShgListings",
+      "userSkillProgress",
       ...(isAdmin ? ["directoryAuditLogs"] : [])
     ];
     if (this.privateSubKey === privKey && requiredPrivateKeys.every((k) => this.activeUnsubs.has(k))) {
@@ -980,6 +1011,20 @@ class FirebaseService {
           updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
         })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
         onUpdate("myPendingShgListings", list);
+      },
+      () => {}
+    ));
+
+    // Phase 6: Private Owner-Only User Skill Enrolment & Progress (/users/{uid}/skillProgress)
+    this.setSub("userSkillProgress", onSnapshot(
+      query(collection(this.db, "users", uid, "skillProgress"), limit(150)),
+      (snap) => {
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().enrolledAt)
+        })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        onUpdate("userSkillProgress", list);
       },
       () => {}
     ));
@@ -3236,6 +3281,176 @@ class FirebaseService {
         summary: "SHG listing deleted by Admin."
       });
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // 15. PHASE 6: SKILL ZONE TRAINING PROGRAMS, CAREER PREP & USER PROGRESS
+  // --------------------------------------------------------------------------
+  async saveSkillProgram(adminUid, data, { editId = "" } = {}) {
+    if (!this.ready || !adminUid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validCats = new Set([
+      "AGRI_SKILL_DEV", "COMPUTER_DIGITAL", "DIGITAL_AGRI_TECH",
+      "ENTREPRENEURSHIP_BUSINESS", "NURSERY_HORTICULTURE", "ORGANIC_NATURAL_FARMING",
+      "DAIRY_LIVESTOCK", "POULTRY_FISHERIES", "FOOD_PROCESSING_VALUE",
+      "COMMUNICATION_SOFT_SKILLS", "FINANCIAL_LITERACY", "GOVT_TRAINING_PROGRAMS",
+      "INTERNSHIP_APPRENTICESHIP", "JOB_PREPARATION", "COMPETITIVE_EXAM_PREP"
+    ]);
+    const validRoles = new Set(["ALL", "STUDENT", "FARMER", "WOMEN_FARMER"]);
+    const targetRoles = Array.from(new Set(
+      (Array.isArray(data.targetRoles) ? data.targetRoles : ["ALL"]).filter((r) => validRoles.has(r))
+    ));
+    const lessons = (Array.isArray(data.lessons) ? data.lessons : [])
+      .map((l, idx) => ({
+        id: String(l?.id || `l${idx + 1}`).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || `l${idx + 1}`,
+        title: String(l?.title || "").trim().slice(0, 180)
+      }))
+      .filter((l) => l.title)
+      .slice(0, 30);
+    if (!lessons.length) throw new Error("At least 1 defined lesson is required.");
+
+    const base = {
+      title: String(data.title || "").trim().slice(0, 160),
+      titleBn: String(data.titleBn || "").trim().slice(0, 200),
+      category: validCats.has(data.category) ? data.category : "AGRI_SKILL_DEV",
+      targetRoles: targetRoles.length ? targetRoles : ["ALL"],
+      provider: String(data.provider || "").trim().slice(0, 140),
+      description: String(data.description || "").trim().slice(0, 1200),
+      eligibility: String(data.eligibility || "").trim().slice(0, 300),
+      duration: String(data.duration || "").trim().slice(0, 100),
+      verifiedFees: String(data.verifiedFees || "").trim().slice(0, 160),
+      certificateDetails: String(data.certificateDetails || "").trim().slice(0, 260),
+      youtubeUrl: String(data.youtubeUrl || "").trim().slice(0, 400),
+      courseUrl: String(data.courseUrl || "").trim().slice(0, 400),
+      pdfUrl: String(data.pdfUrl || "").trim().slice(0, 400),
+      applicationUrl: String(data.applicationUrl || "").trim().slice(0, 400),
+      officialSourceUrl: String(data.officialSourceUrl || "").trim().slice(0, 400),
+      certificateUrl: String(data.certificateUrl || "").trim().slice(0, 400),
+      lessons,
+      published: Boolean(data.published),
+      updatedAt: serverTimestamp()
+    };
+
+    if (editId) {
+      await updateDoc(doc(this.db, "skillPrograms", editId), base);
+    } else {
+      await addDoc(collection(this.db, "skillPrograms"), {
+        ...base,
+        createdBy: adminUid,
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async setSkillProgramPublished(adminUid, id, published) {
+    if (!this.ready || !adminUid || !id) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "skillPrograms", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteSkillProgram(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "skillPrograms", id));
+  }
+
+  async saveSkillCareerResource(adminUid, data, { editId = "" } = {}) {
+    if (!this.ready || !adminUid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validPrepCats = new Set([
+      "AGRI_JOB_PREP", "GOVT_JOB_PREP", "PRIVATE_SECTOR",
+      "INTERNSHIP", "APPRENTICESHIP", "INTERVIEW_PREP",
+      "RESUME_CAREER", "COMPETITIVE_EXAM"
+    ]);
+    const validRoles = new Set(["ALL", "STUDENT", "FARMER", "WOMEN_FARMER"]);
+    const targetRoles = Array.from(new Set(
+      (Array.isArray(data.targetRoles) ? data.targetRoles : ["ALL"]).filter((r) => validRoles.has(r))
+    ));
+
+    const base = {
+      title: String(data.title || "").trim().slice(0, 160),
+      titleBn: String(data.titleBn || "").trim().slice(0, 200),
+      recordKind: data.recordKind === "VERIFIED_NOTIFICATION" ? "VERIFIED_NOTIFICATION" : "CAREER_GUIDANCE",
+      prepCategory: validPrepCats.has(data.prepCategory) ? data.prepCategory : "AGRI_JOB_PREP",
+      targetRoles: targetRoles.length ? targetRoles : ["ALL"],
+      organization: String(data.organization || "").trim().slice(0, 140),
+      summary: String(data.summary || "").trim().slice(0, 1000),
+      eligibility: String(data.eligibility || "").trim().slice(0, 300),
+      deadline: String(data.deadline || "").trim().slice(0, 60),
+      officialSourceUrl: String(data.officialSourceUrl || "").trim().slice(0, 400),
+      applicationUrl: String(data.applicationUrl || "").trim().slice(0, 400),
+      youtubeUrl: String(data.youtubeUrl || "").trim().slice(0, 400),
+      pdfUrl: String(data.pdfUrl || "").trim().slice(0, 400),
+      verifiedNote: String(data.verifiedNote || "").trim().slice(0, 260),
+      published: Boolean(data.published),
+      updatedAt: serverTimestamp()
+    };
+
+    if (editId) {
+      await updateDoc(doc(this.db, "skillCareerResources", editId), base);
+    } else {
+      await addDoc(collection(this.db, "skillCareerResources"), {
+        ...base,
+        createdBy: adminUid,
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async setSkillCareerResourcePublished(adminUid, id, published) {
+    if (!this.ready || !adminUid || !id) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "skillCareerResources", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteSkillCareerResource(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "skillCareerResources", id));
+  }
+
+  async saveUserSkillProgress(uid, program, { enrolled = true, completedLessonIds = [] } = {}) {
+    if (!this.ready || !uid || !program?.id) throw new Error("Sign-in required to save learning progress.");
+    const { doc, getDoc, setDoc, serverTimestamp } = this.mods.fsMod;
+    const lessons = Array.isArray(program.lessons) ? program.lessons : [];
+    const totalLessons = lessons.length;
+    if (totalLessons < 1) throw new Error("This program has no defined lessons to track.");
+
+    const validIds = new Set(lessons.map((l) => String(l.id || "").trim()));
+    const cleanCompleted = Array.from(
+      new Set((Array.isArray(completedLessonIds) ? completedLessonIds : []).map((x) => String(x || "").trim()).filter((x) => validIds.has(x)))
+    );
+
+    // STRICT COMPLETION CONDITION: Only completed when ALL defined lessons are done
+    const isCompleted = Boolean(enrolled) && cleanCompleted.length === totalLessons;
+    const progressPercent = isCompleted ? 100 : Math.min(99, Math.round((cleanCompleted.length / totalLessons) * 100));
+
+    const ref = doc(this.db, "users", uid, "skillProgress", program.id);
+    const prevSnap = await getDoc(ref).catch(() => null);
+    const prevData = prevSnap && prevSnap.exists() ? prevSnap.data() : null;
+
+    const payload = {
+      programId: String(program.id).slice(0, 128),
+      programTitle: String(program.title || "Skill Program").trim().slice(0, 160),
+      category: String(program.category || "AGRI_SKILL_DEV").slice(0, 60),
+      provider: String(program.provider || "").trim().slice(0, 140),
+      enrolled: Boolean(enrolled),
+      totalLessons,
+      completedLessonIds: cleanCompleted,
+      progressPercent,
+      completed: isCompleted,
+      certificateUnlocked: isCompleted,
+      enrolledAt: prevData?.enrolledAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    if (isCompleted) {
+      payload.completedAt = prevData?.completedAt || serverTimestamp();
+    }
+    await setDoc(ref, payload);
   }
 }
 

@@ -601,6 +601,78 @@ service cloud.firestore {
         isValidTimestamp(data.createdAt);
     }
 
+    // --- PHASE 6: SKILL ZONE TRAINING PROGRAMS, CAREER PREP & USER PROGRESS VALIDATORS ---
+    function isValidSkillProgram(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        (!('titleBn' in data) || (data.titleBn is string && data.titleBn.size() <= 200)) &&
+        data.category in [
+          'AGRI_SKILL_DEV', 'COMPUTER_DIGITAL', 'DIGITAL_AGRI_TECH',
+          'ENTREPRENEURSHIP_BUSINESS', 'NURSERY_HORTICULTURE', 'ORGANIC_NATURAL_FARMING',
+          'DAIRY_LIVESTOCK', 'POULTRY_FISHERIES', 'FOOD_PROCESSING_VALUE',
+          'COMMUNICATION_SOFT_SKILLS', 'FINANCIAL_LITERACY', 'GOVT_TRAINING_PROGRAMS',
+          'INTERNSHIP_APPRENTICESHIP', 'JOB_PREPARATION', 'COMPETITIVE_EXAM_PREP'
+        ] &&
+        data.targetRoles is list && data.targetRoles.size() >= 1 && data.targetRoles.size() <= 4 &&
+        data.provider is string && data.provider.size() >= 2 && data.provider.size() <= 140 &&
+        data.description is string && data.description.size() >= 5 && data.description.size() <= 1200 &&
+        (!('eligibility' in data) || (data.eligibility is string && data.eligibility.size() <= 300)) &&
+        (!('duration' in data) || (data.duration is string && data.duration.size() <= 100)) &&
+        (!('verifiedFees' in data) || (data.verifiedFees is string && data.verifiedFees.size() <= 160)) &&
+        (!('certificateDetails' in data) || (data.certificateDetails is string && data.certificateDetails.size() <= 260)) &&
+        (!('youtubeUrl' in data) || (data.youtubeUrl is string && data.youtubeUrl.size() <= 400)) &&
+        (!('courseUrl' in data) || (data.courseUrl is string && data.courseUrl.size() <= 400)) &&
+        (!('pdfUrl' in data) || (data.pdfUrl is string && data.pdfUrl.size() <= 400)) &&
+        (!('applicationUrl' in data) || (data.applicationUrl is string && data.applicationUrl.size() <= 400)) &&
+        (!('officialSourceUrl' in data) || (data.officialSourceUrl is string && data.officialSourceUrl.size() <= 400)) &&
+        (!('certificateUrl' in data) || (data.certificateUrl is string && data.certificateUrl.size() <= 400)) &&
+        data.lessons is list && data.lessons.size() >= 1 && data.lessons.size() <= 30 &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSkillCareerResource(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        (!('titleBn' in data) || (data.titleBn is string && data.titleBn.size() <= 200)) &&
+        data.recordKind in ['VERIFIED_NOTIFICATION', 'CAREER_GUIDANCE'] &&
+        data.prepCategory in [
+          'AGRI_JOB_PREP', 'GOVT_JOB_PREP', 'PRIVATE_SECTOR',
+          'INTERNSHIP', 'APPRENTICESHIP', 'INTERVIEW_PREP',
+          'RESUME_CAREER', 'COMPETITIVE_EXAM'
+        ] &&
+        data.targetRoles is list && data.targetRoles.size() >= 1 && data.targetRoles.size() <= 4 &&
+        data.organization is string && data.organization.size() >= 2 && data.organization.size() <= 140 &&
+        data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 1000 &&
+        (!('eligibility' in data) || (data.eligibility is string && data.eligibility.size() <= 300)) &&
+        (!('deadline' in data) || (data.deadline is string && data.deadline.size() <= 60)) &&
+        (!('officialSourceUrl' in data) || (data.officialSourceUrl is string && data.officialSourceUrl.size() <= 400)) &&
+        (!('applicationUrl' in data) || (data.applicationUrl is string && data.applicationUrl.size() <= 400)) &&
+        (!('youtubeUrl' in data) || (data.youtubeUrl is string && data.youtubeUrl.size() <= 400)) &&
+        (!('pdfUrl' in data) || (data.pdfUrl is string && data.pdfUrl.size() <= 400)) &&
+        (!('verifiedNote' in data) || (data.verifiedNote is string && data.verifiedNote.size() <= 260)) &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidUserSkillProgress(data) {
+      return data.programId is string && data.programId.size() >= 1 && data.programId.size() <= 128 &&
+        data.programTitle is string && data.programTitle.size() >= 2 && data.programTitle.size() <= 160 &&
+        data.enrolled is bool &&
+        data.totalLessons is int && data.totalLessons >= 1 && data.totalLessons <= 30 &&
+        data.completedLessonIds is list && data.completedLessonIds.size() <= data.totalLessons &&
+        data.progressPercent is int && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+        data.completed is bool &&
+        data.certificateUnlocked is bool &&
+        // STRICT COMPLETION INTEGRITY: Cannot claim completion or unlock certificate until ALL lessons are completed!
+        (!data.completed || (data.enrolled == true && data.completedLessonIds.size() >= data.totalLessons && data.progressPercent == 100)) &&
+        (!data.certificateUnlocked || data.completed == true) &&
+        isValidTimestamp(data.enrolledAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
     function isValidCareerOpportunity(data) {
       return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
         data.organization is string && data.organization.size() >= 2 && data.organization.size() <= 120 &&
@@ -1083,6 +1155,31 @@ service cloud.firestore {
           isValidStudyBookmark(incoming());
 
         allow delete: if isValidId(userId) && isValidId(bookmarkId) && isOwner(userId);
+      }
+
+      // Phase 6: Private User Skill Program Enrolment, Lesson Progress & Completion (Owner ONLY)
+      match /skillProgress/{programId} {
+        allow get: if isValidId(userId) && isValidId(programId) && isOwner(userId);
+        allow list: if isOwner(userId);
+
+        allow create, update: if isSignedIn() &&
+          isValidId(userId) &&
+          isValidId(programId) &&
+          isOwner(userId) &&
+          incoming().programId == programId &&
+          incoming().keys().hasAll([
+            'programId', 'programTitle', 'enrolled', 'totalLessons',
+            'completedLessonIds', 'progressPercent', 'completed',
+            'certificateUnlocked', 'enrolledAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'programId', 'programTitle', 'category', 'provider', 'enrolled',
+            'totalLessons', 'completedLessonIds', 'progressPercent', 'completed',
+            'certificateUnlocked', 'completedAt', 'enrolledAt', 'updatedAt'
+          ]) &&
+          isValidUserSkillProgress(incoming());
+
+        allow delete: if isValidId(userId) && isValidId(programId) && isOwner(userId);
       }
     }
 
@@ -2718,6 +2815,78 @@ service cloud.firestore {
           incoming().action in ['SHOP_SUBMITTED', 'SHG_SUBMITTED']
         );
       allow update, delete: if false;
+    }
+
+    // --- PHASE 6: SKILL ZONE TRAINING PROGRAMS (/skillPrograms — Public Published Only, Admin CRUD) ---
+    match /skillPrograms/{programId} {
+      allow get: if isValidId(programId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(programId) &&
+        isAdmin() &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'title', 'category', 'targetRoles', 'provider', 'description',
+          'lessons', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'title', 'titleBn', 'category', 'targetRoles', 'provider', 'description',
+          'eligibility', 'duration', 'verifiedFees', 'certificateDetails',
+          'youtubeUrl', 'courseUrl', 'pdfUrl', 'applicationUrl', 'officialSourceUrl',
+          'certificateUrl', 'lessons', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidSkillProgram(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(programId) &&
+        isAdmin() &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidSkillProgram(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'titleBn', 'category', 'targetRoles', 'provider', 'description',
+          'eligibility', 'duration', 'verifiedFees', 'certificateDetails',
+          'youtubeUrl', 'courseUrl', 'pdfUrl', 'applicationUrl', 'officialSourceUrl',
+          'certificateUrl', 'lessons', 'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(programId) && isAdmin();
+    }
+
+    // --- PHASE 6: SKILL ZONE JOB & CAREER PREPARATION RESOURCES (/skillCareerResources — Public Published Only, Admin CRUD) ---
+    match /skillCareerResources/{resourceId} {
+      allow get: if isValidId(resourceId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(resourceId) &&
+        isAdmin() &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'title', 'recordKind', 'prepCategory', 'targetRoles', 'organization',
+          'summary', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'title', 'titleBn', 'recordKind', 'prepCategory', 'targetRoles', 'organization',
+          'summary', 'eligibility', 'deadline', 'officialSourceUrl', 'applicationUrl',
+          'youtubeUrl', 'pdfUrl', 'verifiedNote', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidSkillCareerResource(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(resourceId) &&
+        isAdmin() &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidSkillCareerResource(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'titleBn', 'recordKind', 'prepCategory', 'targetRoles', 'organization',
+          'summary', 'eligibility', 'deadline', 'officialSourceUrl', 'applicationUrl',
+          'youtubeUrl', 'pdfUrl', 'verifiedNote', 'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(resourceId) && isAdmin();
     }
   }
 }

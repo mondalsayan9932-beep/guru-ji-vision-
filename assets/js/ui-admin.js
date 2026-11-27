@@ -20,6 +20,7 @@ import {
 } from "./agri-education-data.js";
 import { renderAdminEducationCmsView } from "./edu-cms-admin-ui.js";
 import { renderAdminWomenCmsView } from "./women-cms-admin-ui.js";
+import { renderAdminSkillCmsView } from "./skill-cms-admin-ui.js";
 
 // ----------------------------------------------------------------------------
 // 1. ADMIN DASHBOARD
@@ -50,6 +51,7 @@ export function renderAdminView(state) {
   const tabs = [
     ["edu-cms", "Education CMS"],
     ["women-cms", "Women Farmer CMS"],
+    ["skill-cms", "Skill Zone CMS"],
     ["notices", "Notices"],
     ["market", "Market Prices"],
     ["schemes", "Govt Schemes"],
@@ -89,6 +91,7 @@ export function renderAdminView(state) {
 
       ${sub === "edu-cms" ? renderAdminEducationCmsView(state) : ""}
       ${sub === "women-cms" ? renderAdminWomenCmsView(state) : ""}
+      ${sub === "skill-cms" ? renderAdminSkillCmsView(state) : ""}
       ${sub === "notices" ? renderAdminNotices(state) : ""}
       ${sub === "market" ? renderAdminMarketPrices(state) : ""}
       ${sub === "schemes" ? renderAdminSchemes(state) : ""}
