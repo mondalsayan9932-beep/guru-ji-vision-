@@ -16,23 +16,63 @@
 // ============================================================================
 
 export const NEARBY_SERVICE_CATEGORIES = [
-  { key: "MEDICAL_PHARMACY", en: "Medical Store / Pharmacy", bn: "ওষুধের দোকান / ফার্মেসি", icon: "💊" },
-  { key: "FERTILIZER_SHOP", en: "Fertilizer Shop", bn: "সারের দোকান", icon: "🧪" },
-  { key: "SEED_SHOP", en: "Seed Shop", bn: "বীজের দোকান", icon: "🌱" },
-  { key: "PESTICIDE_SHOP", en: "Pesticide Shop", bn: "কীটনাশকের দোকান", icon: "🛡️" },
-  { key: "AGRI_EQUIPMENT_SHOP", en: "Agricultural Equipment Shop", bn: "কৃষি যন্ত্রপাতির দোকান", icon: "🚜" },
-  { key: "GROCERY_GENERAL", en: "Grocery / General Store", bn: "মুদিখানা / সাধারণ দোকান", icon: "🛒" },
-  { key: "FARMER_SUPPORT_CENTRE", en: "Farmer Support Centre", bn: "কৃষক সহায়তা কেন্দ্র", icon: "🏛️" }
+  {
+    key: "MEDICAL_PHARMACY",
+    en: "Medical Store",
+    bn: "ওষুধের দোকান",
+    icon: "💊",
+    descEn: "Pharmacies, essential medicines & first-aid stores",
+    descBn: "ওষুধ, ফার্মেসি ও প্রাথমিক চিকিৎসা সামগ্রী"
+  },
+  {
+    key: "FERTILIZER_SHOP",
+    en: "Fertilizer Shop",
+    bn: "সারের দোকান",
+    icon: "🧪",
+    descEn: "Urea, DAP, MOP, organic & micronutrient fertilizers",
+    descBn: "ইউরিয়া, ডিএপি, পটাশ, জৈব ও অণুখাদ্য সার"
+  },
+  {
+    key: "SEED_SHOP",
+    en: "Seed Shop",
+    bn: "বীজের দোকান",
+    icon: "🌱",
+    descEn: "Certified paddy, vegetable, oilseed & hybrid seeds",
+    descBn: "প্রত্যয়িত ধান, সবজি, তৈলবীজ ও উন্নত বীজ"
+  },
+  {
+    key: "PESTICIDE_SHOP",
+    en: "Pesticide Shop",
+    bn: "কীটনাশকের দোকান",
+    icon: "🛡️",
+    descEn: "Crop protection, fungicides, bio-pesticides & IPM",
+    descBn: "ফসল সুরক্ষা, ছত্রাকনাশক ও জৈব কীটনাশক"
+  },
+  {
+    key: "GROCERY_GENERAL",
+    en: "Grocery Shop",
+    bn: "মুদিখানা দোকান",
+    icon: "🛒",
+    descEn: "Daily essentials, grains & rural grocery stores",
+    descBn: "নিত্যপ্রয়োজনীয় খাদ্যসামগ্রী ও মুদি দোকান"
+  },
+  {
+    key: "AGRI_EQUIPMENT_SHOP",
+    en: "Agricultural Equipment Shop",
+    bn: "কৃষি যন্ত্রপাতির দোকান",
+    icon: "🚜",
+    descEn: "Sprayers, water pumps, tillers, tools & spare parts",
+    descBn: "স্প্রেয়ার, পাম্প, টিলার, যন্ত্রাংশ ও কৃষি সরঞ্জাম"
+  }
 ];
 
-// Backward-compatible map (retains legacy AGRI_INPUT_SHOP / SHG_GROUP labels for any pre-existing records)
-export const NEARBY_SERVICE_CATEGORY_MAP = {
-  ...Object.fromEntries(NEARBY_SERVICE_CATEGORIES.map((c) => [c.key, c])),
-  AGRI_INPUT_SHOP: { key: "AGRI_INPUT_SHOP", en: "Agricultural Input Shop", bn: "কৃষি উপকরণের দোকান", icon: "🌾" },
-  SHG_GROUP: { key: "SHG_GROUP", en: "Self Help Group (SHG)", bn: "স্বনির্ভর গোষ্ঠী (SHG)", icon: "🤝" }
-};
-
 export const NEARBY_SERVICE_CATEGORY_KEYS = NEARBY_SERVICE_CATEGORIES.map((c) => c.key);
+export const NEARBY_SERVICE_CATEGORY_SET = new Set(NEARBY_SERVICE_CATEGORY_KEYS);
+
+// Primary 6-category lookup map (with display-only fallback labels for any pre-existing Admin records)
+export const NEARBY_SERVICE_CATEGORY_MAP = {
+  ...Object.fromEntries(NEARBY_SERVICE_CATEGORIES.map((c) => [c.key, c]))
+};
 
 // Verified West Bengal Agricultural District PIN Hubs (strictly postal reference — NO fabricated businesses)
 export const WEST_BENGAL_PIN_HUBS = [
@@ -301,13 +341,14 @@ export function filterNearbyListings({
   const refBasis = hasUserGps ? "GPS" : (hasPinCenter ? "PIN_CENTER" : "NONE");
 
   const normalizeItem = (raw, sourceTag) => {
+    if (!raw || !NEARBY_SERVICE_CATEGORY_SET.has(raw.category)) return null;
     const hasItemCoords = isValidIndiaCoordinate(raw.lat, raw.lng);
     const dist = refCoords && hasItemCoords
       ? computeReliableDistanceKm(refCoords.lat, refCoords.lng, raw.lat, raw.lng)
       : null;
     return {
       ...raw,
-      category: NEARBY_SERVICE_CATEGORY_MAP[raw.category] ? raw.category : "FARMER_SUPPORT_CENTRE",
+      category: raw.category,
       pinCode: String(raw.pinCode || "").trim(),
       approvalStatus: raw.approvalStatus || (raw.verificationStatus === "ADMIN_VERIFIED" ? "APPROVED" : raw.verificationStatus === "REJECTED" ? "REJECTED" : "PENDING"),
       distanceKm: dist,
@@ -316,10 +357,11 @@ export function filterNearbyListings({
     };
   };
 
-  // Public verified Firestore records only
+  // Public verified Firestore records only (strictly limited to the 6 shop categories)
   const verifiedMatched = (verifiedListings || [])
     .filter((item) => item && item.verificationStatus === "ADMIN_VERIFIED" && item.published === true)
     .map((item) => normalizeItem(item, "FIRESTORE_VERIFIED"))
+    .filter(Boolean)
     .filter((item) => {
       if (!cleanPin) return true;
       if (item.pinCode === cleanPin || surroundingSet.has(item.pinCode)) return true;
@@ -327,31 +369,41 @@ export function filterNearbyListings({
       return false;
     });
 
-  // OpenStreetMap live mapped items for searched PIN
+  // OpenStreetMap live mapped items for searched PIN (strictly limited to the 6 shop categories)
   const liveMatched = cleanPin
-    ? (liveDirectoryListings || []).map((item) => normalizeItem(item, "LIVE_DIRECTORY"))
+    ? (liveDirectoryListings || []).map((item) => normalizeItem(item, "LIVE_DIRECTORY")).filter(Boolean)
     : [];
 
   // Submitter's own pending private submissions (NEVER mixed into public verified counts)
   const pendingOwn = (myPendingListings || [])
     .filter((item) => item && item.verificationStatus === "PENDING_REVIEW")
     .map((item) => normalizeItem(item, "MY_PENDING"))
+    .filter(Boolean)
     .filter((item) => (!cleanPin || item.pinCode === cleanPin || surroundingSet.has(item.pinCode)));
 
-  const applyFilters = (list) => list.filter((item) => {
-    if (category !== "ALL" && item.category !== category) return false;
-    if (q) {
-      const catMeta = NEARBY_SERVICE_CATEGORY_MAP[item.category] || { en: "", bn: "" };
-      const hay = [
-        item.name, item.nameBn, item.address, item.area, item.district,
-        item.pinCode, item.notes, catMeta.en, catMeta.bn
-      ].filter(Boolean).join(" ").toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
+  const matchesSearchOnly = (item) => {
+    if (!q) return true;
+    const catMeta = NEARBY_SERVICE_CATEGORY_MAP[item.category] || { en: "", bn: "" };
+    const hay = [
+      item.name, item.nameBn, item.address, item.area, item.district,
+      item.pinCode, item.notes, catMeta.en, catMeta.bn
+    ].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(q);
+  };
 
-  const combinedPublic = [...applyFilters(verifiedMatched), ...applyFilters(liveMatched)]
+  // Per-category counts across all 6 categories (after PIN & text search, before single-category selection)
+  const allPublicBeforeCategory = [...verifiedMatched, ...liveMatched].filter(matchesSearchOnly);
+  const categoryCounts = Object.fromEntries(NEARBY_SERVICE_CATEGORY_KEYS.map((k) => [k, 0]));
+  for (const item of allPublicBeforeCategory) {
+    if (Object.prototype.hasOwnProperty.call(categoryCounts, item.category)) {
+      categoryCounts[item.category] += 1;
+    }
+  }
+
+  const activeCategory = category === "ALL" || NEARBY_SERVICE_CATEGORY_SET.has(category) ? category : "ALL";
+  const applyCategory = (list) => (activeCategory === "ALL" ? list : list.filter((item) => item.category === activeCategory));
+
+  const combinedPublic = applyCategory(allPublicBeforeCategory)
     .sort((a, b) => {
       const aExact = cleanPin && a.pinCode === cleanPin ? 0 : 1;
       const bExact = cleanPin && b.pinCode === cleanPin ? 0 : 1;
@@ -368,7 +420,9 @@ export function filterNearbyListings({
     exactPinResults: cleanPin ? combinedPublic.filter((x) => x.pinCode === cleanPin || x.matchScope === "EXACT_PIN") : combinedPublic,
     surroundingResults: cleanPin ? combinedPublic.filter((x) => x.pinCode !== cleanPin && x.matchScope !== "EXACT_PIN") : [],
     allResults: combinedPublic,
-    myPendingResults: applyFilters(pendingOwn)
+    categoryCounts,
+    totalBeforeCategory: allPublicBeforeCategory.length,
+    myPendingResults: applyCategory(pendingOwn.filter(matchesSearchOnly))
   };
 }
 

@@ -141,6 +141,43 @@ function renderDashboardSubView(state, lang, stats) {
         </div>
       </div>
 
+      <!-- Direct Quick Access inside Women Farmer Zone: Nearby Services (6 Shop Categories) & SHG Search -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <button type="button" data-wf-tab="nearby" data-wf-quick-entry="nearby" class="gv-card p-4 sm:p-5 text-left border-2 border-emerald-200 hover:border-[#14532D] bg-gradient-to-br from-[#ECFDF5] via-white to-[#F0FDF4] transition-all flex flex-col justify-between gap-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-[#14532D] text-white text-[10px] font-extrabold uppercase tracking-wider">
+              ${bn ? "৬টি দোকান বিভাগ • India Post + OpenStreetMap" : "6 Shop Categories • India Post + OpenStreetMap"}
+            </span>
+            <span class="text-[#14532D] text-xs font-extrabold" aria-hidden="true">Open →</span>
+          </div>
+          <div>
+            <h4 class="text-base font-extrabold text-[#14532D]">📍 ${bn ? "নিকটবর্তী পরিষেবা (Nearby Services)" : "Nearby Services — PIN Code Shop Finder"}</h4>
+            <p class="text-xs text-[#334155] mt-1 leading-relaxed">
+              ${bn
+                ? "ওষুধের দোকান, সারের দোকান, বীজের দোকান, কীটনাশকের দোকান, মুদিখানা দোকান এবং কৃষি যন্ত্রপাতির দোকান খুঁজুন — পিন কোড ও OpenStreetMap ম্যাপসহ।"
+                : "Medical Store, Fertilizer Shop, Seed Shop, Pesticide Shop, Grocery Shop & Agricultural Equipment Shop with 6-digit PIN lookup & Leaflet OpenStreetMap."}
+            </p>
+          </div>
+        </button>
+
+        <button type="button" data-wf-tab="shg" data-wf-quick-entry="shg" class="gv-card p-4 sm:p-5 text-left border-2 border-fuchsia-200 hover:border-fuchsia-700 bg-gradient-to-br from-[#FDF4FF] via-white to-[#ECFDF5] transition-all flex flex-col justify-between gap-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-fuchsia-800 text-white text-[10px] font-extrabold uppercase tracking-wider">
+              ${bn ? "স্বতন্ত্র বিভাগ • স্বনির্ভর গোষ্ঠী (SHG)" : "Dedicated Sub-Section • Women SHGs"}
+            </span>
+            <span class="text-fuchsia-900 text-xs font-extrabold" aria-hidden="true">Open →</span>
+          </div>
+          <div>
+            <h4 class="text-base font-extrabold text-[#14532D]">🤝 ${bn ? "SHG অনুসন্ধান (SHG Search)" : "SHG Search — Women Self Help Groups"}</h4>
+            <p class="text-xs text-[#334155] mt-1 leading-relaxed">
+              ${bn
+                ? "পিন কোড, গ্রাম, গ্রাম পঞ্চায়েত, ব্লক ও জেলা অনুযায়ী অ্যাডমিন-যাচাইকৃত নারী স্বনির্ভর গোষ্ঠী (SHG) ও তাদের পণ্য/কার্যক্রম খুঁজুন।"
+                : "Search Admin-verified Women Self Help Groups by PIN Code, Village, Gram Panchayat, Block & District with List and OpenStreetMap Map views."}
+            </p>
+          </div>
+        </button>
+      </div>
+
       <!-- All 15 Women Farmer Zone Areas Organized Cleanly -->
       ${groups.map((grp) => {
         const items = WOMEN_FARMER_DASHBOARD_AREAS.filter((a) => a.group === grp.key);

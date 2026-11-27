@@ -76,33 +76,31 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 export function classifyOsmTagsToCategory(tags = {}) {
   const amenity = String(tags.amenity || "").toLowerCase();
   const shop = String(tags.shop || "").toLowerCase();
-  const office = String(tags.office || "").toLowerCase();
   const name = String(tags.name || "").toLowerCase();
 
-  if (amenity === "pharmacy" || shop === "chemist" || /medical|pharmacy|medicine|drug/i.test(name)) {
+  if (amenity === "pharmacy" || shop === "chemist" || shop === "medical_supply" || /medical|pharmacy|medicine|drug|ওষুধ|ফার্মেসি/i.test(name)) {
     return "MEDICAL_PHARMACY";
   }
-  if (/fertiliz|urea|dap|sar\b|সার/i.test(name)) return "FERTILIZER_SHOP";
-  if (/seed|beej|বীজ/i.test(name)) return "SEED_SHOP";
-  if (/pesticid|insecticid|kitnashak|কীটনাশক/i.test(name)) return "PESTICIDE_SHOP";
-  if (/tractor|pump|sprayer|machin|equipment|tiller|hardware/i.test(name) || shop === "farm_machinery" || shop === "hardware") {
+  if (/pesticid|insecticid|fungicid|herbicid|kitnashak|কীটনাশক/i.test(name)) {
+    return "PESTICIDE_SHOP";
+  }
+  if (/seed|beej|বীজ/i.test(name)) {
+    return "SEED_SHOP";
+  }
+  if (/fertiliz|urea|dap|\bsar\b|সার/i.test(name)) {
+    return "FERTILIZER_SHOP";
+  }
+  if (/tractor|pump|sprayer|machin|equipment|tiller|hardware|যন্ত্র/i.test(name) || shop === "farm_machinery" || shop === "hardware") {
     return "AGRI_EQUIPMENT_SHOP";
   }
   if (shop === "agrarian" || shop === "farm" || shop === "garden_centre" || /krishi|agri|kisan|কৃষি/i.test(name)) {
     return "FERTILIZER_SHOP";
   }
-  if (
-    amenity === "community_centre" ||
-    amenity === "townhall" ||
-    office === "government" ||
-    /kvk|krishi vigyan|block|ada office|sahayata|bsk|farmer/i.test(name)
-  ) {
-    return "FARMER_SUPPORT_CENTRE";
-  }
-  if (["convenience", "supermarket", "general", "greengrocer", "grocery"].includes(shop)) {
+  if (["convenience", "supermarket", "general", "greengrocer", "grocery"].includes(shop) || /grocery|kirana|bhandar|store|মুদি/i.test(name)) {
     return "GROCERY_GENERAL";
   }
-  return "FARMER_SUPPORT_CENTRE";
+  // Return null for unrelated POIs so only the 6 allowed shop categories are included
+  return null;
 }
 
 async function resolveIndiaPostPin(pin) {
@@ -165,17 +163,15 @@ async function geocodePinNominatim(pin, postalMeta) {
 }
 
 async function fetchOverpassNearby(lat, lng, pin, postalMeta) {
-  // Radius 6000m around verified PIN centroid; strictly real mapped OpenStreetMap nodes/ways
+  // Radius 6000m around verified PIN centroid; strictly real OpenStreetMap shops matching the 6 allowed categories
   const radiusM = 6000;
   const ql = `
     [out:json][timeout:8];
     (
       node(around:${radiusM},${lat},${lng})["amenity"="pharmacy"]["name"];
       way(around:${radiusM},${lat},${lng})["amenity"="pharmacy"]["name"];
-      node(around:${radiusM},${lat},${lng})["shop"~"agrarian|farm|garden_centre|convenience|general|supermarket|hardware"]["name"];
-      way(around:${radiusM},${lat},${lng})["shop"~"agrarian|farm|garden_centre|convenience|general|supermarket|hardware"]["name"];
-      node(around:${radiusM},${lat},${lng})["amenity"~"community_centre|townhall"]["name"];
-      node(around:${radiusM},${lat},${lng})["office"="government"]["name"];
+      node(around:${radiusM},${lat},${lng})["shop"~"chemist|agrarian|farm|garden_centre|farm_machinery|hardware|convenience|general|supermarket|grocery"]["name"];
+      way(around:${radiusM},${lat},${lng})["shop"~"chemist|agrarian|farm|garden_centre|farm_machinery|hardware|convenience|general|supermarket|grocery"]["name"];
     );
     out center 35;
   `.trim();
@@ -218,10 +214,13 @@ async function fetchOverpassNearby(lat, lng, pin, postalMeta) {
       const validItemPin = /^[1-9][0-9]{5}$/.test(itemPin) ? itemPin : pin;
       const phone = String(tags.phone || tags["contact:phone"] || "").trim().slice(0, 32);
 
+      const category = classifyOsmTagsToCategory(tags);
+      if (!category) continue;
+
       items.push({
         id: `osm-${el.type}-${el.id}`,
         name: name.slice(0, 140),
-        category: classifyOsmTagsToCategory(tags),
+        category,
         address: (addrParts.join(", ") || `${postalMeta?.block || postalMeta?.district || "PIN"} ${validItemPin}`).slice(0, 260),
         area: String(tags["addr:suburb"] || tags["addr:village"] || postalMeta?.block || postalMeta?.district || "").slice(0, 100),
         district: String(postalMeta?.district || "").slice(0, 80),
@@ -254,7 +253,7 @@ async function fetchGooglePlacesNearby(lat, lng, pin, postalMeta, apiKey) {
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.location,places.types"
       },
       body: JSON.stringify({
-        includedTypes: ["pharmacy", "grocery_store", "hardware_store", "local_government_office"],
+        includedTypes: ["pharmacy", "grocery_store", "hardware_store"],
         maxResultCount: 20,
         locationRestriction: {
           circle: {
@@ -272,10 +271,11 @@ async function fetchGooglePlacesNearby(lat, lng, pin, postalMeta, apiKey) {
       const types = Array.isArray(p?.types) ? p.types : [];
       const pLat = Number(p?.location?.latitude);
       const pLng = Number(p?.location?.longitude);
-      let category = "GROCERY_GENERAL";
+      let category = null;
       if (types.includes("pharmacy")) category = "MEDICAL_PHARMACY";
-      else if (types.includes("local_government_office")) category = "FARMER_SUPPORT_CENTRE";
       else if (types.includes("hardware_store")) category = "AGRI_EQUIPMENT_SHOP";
+      else if (types.includes("grocery_store")) category = "GROCERY_GENERAL";
+      if (!category) return null;
       return {
         id: `gp-${String(p.id || "").slice(0, 48)}`,
         name: name.slice(0, 140),
@@ -293,7 +293,7 @@ async function fetchGooglePlacesNearby(lat, lng, pin, postalMeta, apiKey) {
         verificationStatus: "GOOGLE_PLACES",
         sourceName: "Google Places API (Server-Side)"
       };
-    }).filter((x) => x.name);
+    }).filter((x) => x && x.name);
     return { ok: true, items };
   } catch (err) {
     return { ok: false, items: [], error: err?.message || "Google Places request failed" };

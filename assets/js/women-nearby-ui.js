@@ -92,6 +92,8 @@ export function renderWomenNearbyServicesSubView(state, lang) {
   ).length;
   const selectedDirUrl = selectedMapItem ? safeUrl(buildDirectionsUrl(selectedMapItem, originCoords)) : "";
 
+  const activeCategoryMeta = category !== "ALL" ? (NEARBY_SERVICE_CATEGORY_MAP[category] || null) : null;
+
   return `
     <div data-wf-section="nearby-services" class="space-y-5">
       <!-- Header Banner -->
@@ -99,22 +101,27 @@ export function renderWomenNearbyServicesSubView(state, lang) {
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="space-y-1">
             <span class="inline-block px-2.5 py-0.5 rounded-full bg-[#14532D] text-white text-[10px] font-extrabold uppercase tracking-wider">
-              ${bn ? "১০০% ফ্রি পরিষেবা • India Post + OpenStreetMap • পশ্চিমবঙ্গ অগ্রাধিকার" : "100% Free Services • India Post + OpenStreetMap • West Bengal Priority"}
+              ${bn ? "১০০% ফ্রি পরিষেবা • India Post + OpenStreetMap • ৬টি দোকান বিভাগ" : "100% Free Services • India Post + OpenStreetMap • 6 Shop Categories"}
             </span>
             <h3 class="font-display text-lg sm:text-xl font-bold text-[#14532D]">
-              ${bn ? "নিকটবর্তী কৃষি ও গ্রামীণ পরিষেবা (Nearby Services)" : "Nearby Services — India Post PIN & OpenStreetMap"}
+              ${bn ? "নিকটবর্তী পরিষেবা (Nearby Services)" : "Nearby Services — 6 Local Shop Categories"}
             </h3>
             <p class="text-xs text-[#334155] leading-relaxed max-w-2xl">
               ${bn
-                ? "৬ সংখ্যার পিন কোড লিখে ওষুধের দোকান, সার-বীজ-কীটনাশক, কৃষি যন্ত্রপাতি, মুদিখানা ও কৃষক সহায়তা কেন্দ্র খুঁজুন। GPS ছাড়াই এবং কোনো পেইড API কী ছাড়াই সম্পূর্ণ কাজ করে।"
-                : "Search Medical Stores, Fertilizer, Seed, Pesticide & Agricultural Equipment Shops, Grocery Stores & Farmer Support Centres by 6-digit PIN Code using India Post + OpenStreetMap. Works without GPS or paid API keys."}
+                ? "৬ সংখ্যার পিন কোড লিখে ওষুধের দোকান, সারের দোকান, বীজের দোকান, কীটনাশকের দোকান, মুদিখানা দোকান এবং কৃষি যন্ত্রপাতির দোকান খুঁজুন। GPS বা কোনো পেইড Google Places API কী ছাড়াই সম্পূর্ণ কাজ করে।"
+                : "Search Medical Stores, Fertilizer Shops, Seed Shops, Pesticide Shops, Grocery Shops, and Agricultural Equipment Shops by 6-digit PIN Code using India Post + OpenStreetMap. Works without GPS or paid API keys."}
             </p>
           </div>
-          ${state.isAdmin ? `
-            <button type="button" data-nav="admin" data-open-admin-sub="women-cms" data-open-wcms-section="nearby-admin" class="min-h-[40px] px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold shrink-0">
-              Admin Verify Listings ↗
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <button type="button" data-wf-tab="shg" class="min-h-[40px] px-3.5 py-2 rounded-xl bg-fuchsia-50 hover:bg-fuchsia-100 border border-fuchsia-200 text-fuchsia-950 text-xs font-extrabold">
+              🤝 ${bn ? "SHG অনুসন্ধান দেখুন →" : "Go to SHG Search →"}
             </button>
-          ` : ""}
+            ${state.isAdmin ? `
+              <button type="button" data-nav="admin" data-open-admin-sub="women-cms" data-open-wcms-section="nearby-admin" class="min-h-[40px] px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold">
+                Admin Verify Listings ↗
+              </button>
+            ` : ""}
+          </div>
         </div>
       </div>
 
@@ -251,23 +258,70 @@ export function renderWomenNearbyServicesSubView(state, lang) {
           </div>
         `}
 
-        <!-- All 7 Primary Nearby Services Categories -->
-        <div class="flex flex-wrap gap-1.5">
-          <button type="button" data-wf-nearby-cat="ALL" class="px-3 py-1.5 min-h-[38px] rounded-xl text-xs font-extrabold ${
-            category === "ALL" ? "bg-[#14532D] text-white" : "bg-[#F4F9F5] border border-[#CDE0D3] text-[#14532D]"
-          }">${bn ? "সব ৭টি বিভাগ" : "All 7 Categories"}</button>
-          ${NEARBY_SERVICE_CATEGORIES.map((c) => `
-            <button type="button" data-wf-nearby-cat="${escapeHtml(c.key)}" class="px-3 py-1.5 min-h-[38px] rounded-xl text-xs font-bold ${
-              category === c.key ? "bg-[#14532D] text-white" : "bg-white border border-[#CDE0D3] text-[#14532D] hover:bg-[#ECFDF5]"
-            }">${c.icon} ${escapeHtml(bn ? c.bn : c.en)}</button>
-          `).join("")}
+        <!-- Dedicated Selectable Cards for Exactly the 6 Nearby Services Shop Categories -->
+        <div data-wf-nearby-cat-grid="1" class="space-y-2.5 pt-1">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-extrabold text-[#14532D]">
+              ${bn ? "দোকানের বিভাগ নির্বাচন করুন (৬টি বিভাগ):" : "Select a Nearby Services Category (6 Shop Categories):"}
+            </div>
+            <button type="button" data-wf-nearby-cat="ALL" class="px-3 py-1.5 min-h-[34px] rounded-xl text-[11px] font-extrabold transition-colors ${
+              category === "ALL" ? "bg-[#14532D] text-white shadow-sm" : "bg-[#F4F9F5] border border-[#CDE0D3] text-[#14532D] hover:bg-[#DCFCE7]"
+            }">
+              ${bn ? `সব ৬টি বিভাগ (${filtered.totalBeforeCategory ?? filtered.allResults.length})` : `All 6 Categories (${filtered.totalBeforeCategory ?? filtered.allResults.length})`}
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            ${NEARBY_SERVICE_CATEGORIES.map((c) => {
+              const isSelected = category === c.key;
+              const catCount = filtered.categoryCounts?.[c.key] ?? 0;
+              return `
+                <button
+                  type="button"
+                  data-wf-nearby-cat="${escapeHtml(c.key)}"
+                  data-wf-nearby-cat-card="${escapeHtml(c.key)}"
+                  aria-pressed="${isSelected ? "true" : "false"}"
+                  class="text-left p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between gap-2 min-h-[104px] ${
+                    isSelected
+                      ? "bg-[#14532D] border-[#14532D] text-white shadow-md"
+                      : "bg-white border-[#D9EAE0] hover:border-[#15803D] hover:bg-[#F8FBF8] text-[#132219]"
+                  }"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-xl leading-none" aria-hidden="true">${c.icon}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      isSelected ? "bg-white/20 text-white" : "bg-[#ECFDF5] text-[#14532D] border border-[#BBF7D0]"
+                    }">${catCount}</span>
+                  </div>
+                  <div class="space-y-0.5">
+                    <div class="text-xs sm:text-sm font-extrabold leading-snug">${escapeHtml(bn ? c.bn : c.en)}</div>
+                    <div class="text-[10px] leading-snug ${isSelected ? "text-[#DCFCE7]" : "text-[#496052]"}">${escapeHtml(bn ? c.descBn : c.descEn)}</div>
+                  </div>
+                </button>
+              `;
+            }).join("")}
+          </div>
         </div>
+
+        ${activeCategoryMeta ? `
+          <div data-wf-active-cat-banner="${escapeHtml(activeCategoryMeta.key)}" class="rounded-xl bg-[#ECFDF5] border border-[#BBF7D0] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="font-extrabold text-[#14532D]">
+              ${activeCategoryMeta.icon} ${bn ? `নির্বাচিত বিভাগ: ${escapeHtml(activeCategoryMeta.bn)}` : `Viewing Category: ${escapeHtml(activeCategoryMeta.en)}`}
+              <span class="font-bold text-[#15803D]">(${filtered.allResults.length})</span>
+            </div>
+            <button type="button" data-wf-nearby-cat="ALL" class="px-2.5 py-1 rounded-lg bg-white border border-[#CDE0D3] text-[#14532D] text-[11px] font-extrabold">
+              ${bn ? "সব ৬টি বিভাগ দেখুন" : "Show All 6 Categories"}
+            </button>
+          </div>
+        ` : ""}
 
         <input
           id="wfNearbySearch"
           type="search"
           value="${escapeHtml(search)}"
-          placeholder="${bn ? "দোকানের নাম, এলাকা বা ঠিকানা দিয়ে খুঁজুন..." : "Filter results by shop name, village, road or landmark..."}"
+          placeholder="${activeCategoryMeta
+            ? (bn ? `${activeCategoryMeta.bn} খুঁজুন (নাম, গ্রাম, বাজার বা রাস্তা)...` : `Search ${activeCategoryMeta.en} by shop name, village, market or road...`)
+            : (bn ? "যেকোনো দোকানের নাম, এলাকা বা ঠিকানা দিয়ে খুঁজুন..." : "Search shops across all 6 categories by name, village, road or landmark...")}"
           class="w-full px-3.5 py-2.5 min-h-[44px] rounded-xl border border-[#CDE0D3] text-sm bg-white"
         />
       </div>
@@ -521,7 +575,7 @@ function renderNearbyContributorForm(state, lang, activePin) {
       <div class="flex items-center justify-between gap-2">
         <div>
           <h4 class="text-sm sm:text-base font-extrabold text-[#14532D]">
-            ${bn ? "স্থানীয় দোকান বা সহায়তা কেন্দ্র জমা দিন (অ্যাডমিন অনুমোদন সাপেক্ষে)" : "Submit a Local Business or Support Centre (Admin Approval Required)"}
+            ${bn ? "স্থানীয় দোকান জমা দিন (অ্যাডমিন অনুমোদন সাপেক্ষে)" : "Submit a Local Shop (Admin Approval Required)"}
           </h4>
           <p class="text-[11px] text-[#496052]">
             ${bn ? "জমা দেওয়া তথ্য ব্যক্তিগত ও অপেক্ষমাণ থাকবে এবং অ্যাডমিন অনুমোদনের পরই জনসাধারণের তালিকায় প্রকাশিত হবে।" : "Submitted records stay strictly private & pending until an authorized Admin verifies and publishes them."}

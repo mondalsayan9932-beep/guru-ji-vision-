@@ -478,7 +478,7 @@ function renderAdminNearbyServicesSection(state, allNearby) {
           <button id="awnCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
         </div>
         <p class="text-[11px] text-[#496052]">
-          Enter only verified local shops, pharmacies, agri input centres or support hubs. Never add unverified or placeholder addresses.
+          Enter only verified local shops across the 6 Nearby Services categories (Medical Store, Fertilizer Shop, Seed Shop, Pesticide Shop, Grocery Shop, Agricultural Equipment Shop). Never add unverified or placeholder addresses.
         </p>
         <input id="awnEditId" type="hidden" value="" />
         <input id="awnName" type="text" required minlength="2" maxlength="140" placeholder="Shop / Organization Name (English) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" />

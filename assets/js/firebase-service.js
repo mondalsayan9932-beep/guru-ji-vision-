@@ -3040,10 +3040,12 @@ class FirebaseService {
     if (!this.ready || !uid) throw new Error("Sign-in required to submit a listing.");
     const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const validCats = [
-      "MEDICAL_PHARMACY", "FERTILIZER_SHOP", "SEED_SHOP", "PESTICIDE_SHOP",
-      "AGRI_INPUT_SHOP", "GROCERY_GENERAL", "AGRI_EQUIPMENT_SHOP",
-      "SHG_GROUP", "FARMER_SUPPORT_CENTRE"
+      "MEDICAL_PHARMACY", "FERTILIZER_SHOP", "SEED_SHOP",
+      "PESTICIDE_SHOP", "GROCERY_GENERAL", "AGRI_EQUIPMENT_SHOP"
     ];
+    if (!validCats.includes(data.category)) {
+      throw new Error("Please select one of the 6 valid Nearby Services shop categories.");
+    }
     const cleanPin = String(data.pinCode || "").replace(/\s+/g, "").trim();
     if (!/^[1-9][0-9]{5}$/.test(cleanPin)) throw new Error("Please enter a valid 6-digit PIN Code.");
 
@@ -3061,7 +3063,7 @@ class FirebaseService {
     const base = {
       name: String(data.name || "").trim().slice(0, 140),
       nameBn: String(data.nameBn || "").trim().slice(0, 180),
-      category: validCats.includes(data.category) ? data.category : "FARMER_SUPPORT_CENTRE",
+      category: data.category,
       address: String(data.address || "").trim().slice(0, 280),
       area: String(data.area || "").trim().slice(0, 120),
       district: String(data.district || "Nadia").trim().slice(0, 80),

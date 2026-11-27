@@ -1,4 +1,4 @@
-const CACHE_NAME = "guruji-vision-static-v24";
+const CACHE_NAME = "guruji-vision-static-v25";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -54,7 +54,9 @@ const STATIC_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS).catch(() => {}))
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(STATIC_ASSETS).catch(() => {}))
+      .then(() => self.skipWaiting())
   );
 });
 
