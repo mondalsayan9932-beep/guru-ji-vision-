@@ -2229,6 +2229,182 @@ test("Phase 3 Student Zone Education CMS: Admin CRUD & publish/unpublish across 
   await assertSucceeds(adminDb.collection("studyMaterials").doc("video_agronomy_1").delete());
 });
 
+test("Phase 4 Women Farmer Zone: YouTube Learning Library, Learning Centre & Scheme Discovery Review Queue Rules", async () => {
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, {
+    email: "student@agri.edu.in",
+    email_verified: true,
+  }).firestore();
+  const farmerDb = testEnv.authenticatedContext(FARMER_UID, {
+    email: "farmer@wb.in",
+    email_verified: true,
+  }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const ts = pastTime(4000);
+
+  // 1. /womenVideos — Admin creates reference video St_38fwwE1M as DRAFT (published: false)
+  const vidRef = adminDb.collection("womenVideos").doc("wf_ref_st38fwwe1m");
+  await assertSucceeds(
+    vidRef.set({
+      title: "Women Farmer Training & Modern Agriculture Reference",
+      titleBn: "নারী কৃষক প্রশিক্ষণ ও আধুনিক কৃষি রেফারেন্স",
+      description: "Curated training video for Women Farmers and Students.",
+      descriptionBn: "নারী কৃষক ও শিক্ষার্থীদের জন্য যাচাইকৃত ভিডিও।",
+      category: "WOMEN_FARMER_TRAINING",
+      language: "BILINGUAL",
+      youtubeUrl: "https://youtu.be/St_38fwwE1M?si=GtlQBXUWONw_vCkN",
+      videoId: "St_38fwwE1M",
+      thumbnailUrl: "https://i.ytimg.com/vi/St_38fwwE1M/hqdefault.jpg",
+      sourceName: "Curated Reference Video (YouTube)",
+      audience: "BOTH",
+      lastVerifiedDate: "2026-03-25",
+      published: false,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Draft video MUST be invisible to Guests, Students & Farmers
+  await assertFails(guestDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").get());
+  await assertFails(studentDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").get());
+  await assertFails(farmerDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").get());
+
+  // Admin publishes -> now readable by Women Farmers, Students & Guests
+  await assertSucceeds(vidRef.update({ published: true, updatedAt: pastTime(2000) }));
+  await assertSucceeds(guestDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").get());
+  await assertSucceeds(studentDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").get());
+  await assertSucceeds(farmerDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").get());
+
+  // Non-Admin CANNOT create, modify, or delete videos
+  await assertFails(
+    farmerDb.collection("womenVideos").doc("wf_unauth_vid").set({
+      title: "Unauthorized Video",
+      category: "HORTICULTURE",
+      language: "BN",
+      youtubeUrl: "https://youtu.be/St_38fwwE1M",
+      videoId: "St_38fwwE1M",
+      audience: "BOTH",
+      published: true,
+      createdBy: FARMER_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(farmerDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").update({ published: false, updatedAt: pastTime(1000) }));
+  await assertFails(studentDb.collection("womenVideos").doc("wf_ref_st38fwwe1m").delete());
+
+  // Malicious non-YouTube URL or invalid category MUST be rejected even for Admin
+  await assertFails(
+    adminDb.collection("womenVideos").doc("wf_bad_url").set({
+      title: "Bad URL Test",
+      category: "HORTICULTURE",
+      language: "EN",
+      youtubeUrl: "https://evil.example.com/watch?v=St_38fwwE1M",
+      videoId: "St_38fwwE1M",
+      audience: "BOTH",
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(
+    adminDb.collection("womenVideos").doc("wf_bad_cat").set({
+      title: "Bad Category Test",
+      category: "RANDOM_INVALID_CAT",
+      language: "EN",
+      youtubeUrl: "https://youtu.be/St_38fwwE1M",
+      videoId: "St_38fwwE1M",
+      audience: "BOTH",
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 2. /womenLearningResources — Admin creates bilingual Learning Centre guide as draft -> publish
+  const learnRef = adminDb.collection("womenLearningResources").doc("wf_learn_wb_shg");
+  await assertSucceeds(
+    learnRef.set({
+      pillar: "ENTREPRENEURSHIP_GUIDANCE",
+      title: "West Bengal Anandadhara SHG Food Processing Guide",
+      titleBn: "পশ্চিমবঙ্গ আনন্দধারা SHG খাদ্য প্রক্রিয়াকরণ নির্দেশিকা",
+      summary: "Verified steps for women SHGs to apply for PMFME Seed Capital through WBSRLM.",
+      summaryBn: "WBSRLM-এর মাধ্যমে নারী SHG সদস্যদের PMFME সিড ক্যাপিটাল আবেদনের নিয়ম।",
+      keyPointsEn: ["Register with village Sangha", "Complete Panchasutra grading"],
+      keyPointsBn: ["গ্রামের সংঘে যুক্ত হন", "পঞ্চসূত্র গ্রেডিং সম্পন্ন করুন"],
+      officialSourceName: "WBSRLM Anandadhara & PMFME MoFPI",
+      officialSourceUrl: "https://pmfme.mofpi.gov.in/",
+      lastVerifiedDate: "2026-03-25",
+      published: false,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  await assertFails(guestDb.collection("womenLearningResources").doc("wf_learn_wb_shg").get());
+  await assertSucceeds(learnRef.update({ published: true, updatedAt: pastTime(1500) }));
+  await assertSucceeds(guestDb.collection("womenLearningResources").doc("wf_learn_wb_shg").get());
+  await assertFails(farmerDb.collection("womenLearningResources").doc("wf_learn_wb_shg").delete());
+
+  // Invalid pillar or non-HTTPS source URL MUST fail
+  await assertFails(
+    adminDb.collection("womenLearningResources").doc("wf_learn_bad").set({
+      pillar: "INVALID_PILLAR",
+      title: "Invalid Pillar",
+      summary: "Should fail schema validation",
+      officialSourceName: "Test",
+      officialSourceUrl: "https://pmfme.mofpi.gov.in/",
+      lastVerifiedDate: "2026-03-25",
+      published: true,
+      createdBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // 3. /womenSchemeDiscoveryQueue — Discovered official scheme MUST enter PENDING_REVIEW before publication
+  const qRef = adminDb.collection("womenSchemeDiscoveryQueue").doc("wf_disc_pib_1");
+  await assertSucceeds(
+    qRef.set({
+      title: "Cabinet approves expansion of Women SHG Agri Drone & Horticulture Cluster Support",
+      sourceName: "PIB — Ministry of Agriculture & Farmers Welfare (Govt. of India)",
+      officialSourceUrl: "https://pib.gov.in/PressReleasePage.aspx?PRID=2026001",
+      publicationDate: "2026-03-25",
+      suggestedCategory: "WOMEN_FARMER",
+      suggestedGovtLevel: "CENTRAL",
+      suggestedState: "All India",
+      womenRelevanceTag: "WOMEN_FOCUSED",
+      discoveryMethod: "RSS_FEED",
+      reviewStatus: "PENDING_REVIEW",
+      dedupeKey: "https://pib.gov.in/pressreleasepage.aspx?prid=2026001",
+      summary: "Official PIB release queued for Admin verification.",
+      reviewedBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Pending discovery items MUST be invisible to public/non-admins
+  await assertFails(guestDb.collection("womenSchemeDiscoveryQueue").doc("wf_disc_pib_1").get());
+  await assertFails(farmerDb.collection("womenSchemeDiscoveryQueue").doc("wf_disc_pib_1").get());
+  await assertFails(farmerDb.collection("womenSchemeDiscoveryQueue").doc("wf_disc_pib_1").update({ reviewStatus: "APPROVED_PUBLISHED", updatedAt: pastTime(1000) }));
+
+  // Admin approves -> readable; Admin can clean up all 3 collections
+  await assertSucceeds(qRef.update({ reviewStatus: "APPROVED_PUBLISHED", updatedAt: pastTime(900) }));
+  await assertSucceeds(guestDb.collection("womenSchemeDiscoveryQueue").doc("wf_disc_pib_1").get());
+
+  await assertSucceeds(vidRef.delete());
+  await assertSucceeds(learnRef.delete());
+  await assertSucceeds(qRef.delete());
+});
+
 
 
 

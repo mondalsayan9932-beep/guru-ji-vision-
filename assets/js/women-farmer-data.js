@@ -19,6 +19,7 @@ import {
 // eligibility to women farmers / women Self Help Groups (SHGs).
 export const OFFICIALLY_WOMEN_DEDICATED_SCHEME_IDS = new Set([
   "mksp-day-nrlm",
+  "wb-anandadhara-wbsrlm",
   "namo-drone-didi"
 ]);
 
@@ -26,7 +27,8 @@ export const OFFICIALLY_WOMEN_DEDICATED_SCHEME_IDS = new Set([
 // where official guidelines explicitly provide enhanced subsidy/priority for women.
 export const WOMEN_PRIORITY_ENHANCED_SCHEME_IDS = new Set([
   "pmmsy-fisheries", // Up to 60% subsidy for women/SC/ST vs 40% general
-  "smam-farm-machinery", // Higher assistance brackets for women/SC/ST/small farmers
+  "smam-machinery", // Higher assistance brackets for women/SC/ST/small farmers
+  "pmfme-micro-food-processing", // Dedicated Seed Capital for Women SHG members
   "fpo-10000" // Special encouragement for women-led FPOs under the 10,000 FPO scheme
 ]);
 
@@ -143,7 +145,7 @@ export const WOMEN_FARMER_DASHBOARD_AREAS = [
     badgeEn: "KCC & SHG Credit",
     badgeBn: "কম সুদে ঋণ",
     actionType: "wf-scheme-cat",
-    actionValue: "AGRICULTURAL_LOANS_CREDIT"
+    actionValue: "AGRI_LOANS_CREDIT"
   },
   {
     id: "shg_livelihood",
@@ -155,7 +157,7 @@ export const WOMEN_FARMER_DASHBOARD_AREAS = [
     badgeEn: "SHG & Anandadhara",
     badgeBn: "স্বনির্ভর গোষ্ঠী",
     actionType: "wf-scheme-detail",
-    actionValue: "mksp-day-nrlm"
+    actionValue: "wb-anandadhara-wbsrlm"
   },
   {
     id: "crop_cultivation",
@@ -191,7 +193,7 @@ export const WOMEN_FARMER_DASHBOARD_AREAS = [
     badgeEn: "Dairy & Poultry",
     badgeBn: "পশুপালন",
     actionType: "wf-scheme-cat",
-    actionValue: "ANIMAL_HUSBANDRY_DAIRY"
+    actionValue: "DAIRY_FARMING"
   },
   {
     id: "fisheries",
@@ -203,7 +205,7 @@ export const WOMEN_FARMER_DASHBOARD_AREAS = [
     badgeEn: "PMMSY • 60% Women Subsidy",
     badgeBn: "মৎস্য ভর্তুকি",
     actionType: "wf-scheme-cat",
-    actionValue: "FISHERIES"
+    actionValue: "FISHERIES_AQUACULTURE"
   },
   {
     id: "agri_business",
@@ -387,19 +389,37 @@ export function getWomenSchemeClassification(scheme) {
   return { eligible: false, tier: "NOT_APPLICABLE" };
 }
 
+function scoreWomenSchemePriority(scheme, classification) {
+  const st = String(scheme?.applicableState || "").toLowerCase();
+  const isWB = st.includes("west bengal");
+  const isCentral = scheme?.govtLevel === "CENTRAL" || st.includes("all india");
+  let score = 0;
+  if (isWB) score += 40; // West Bengal Government priority
+  if (classification.tier === "WOMEN_DEDICATED") score += 35;
+  else if (classification.tier === "GENERAL_WOMEN_PRIORITY") score += 20;
+  if (isCentral) score += 15; // Applicable Central Government priority
+  return score;
+}
+
 /**
  * Returns women-eligible schemes directly from Phase 5's merged database
- * without duplicating any scheme records.
+ * without duplicating any scheme records, prioritizing West Bengal & applicable
+ * Central Government schemes cleanly.
  * @param {Array} cloudSchemes - state.agricultureSchemes
- * @param {Object} filters - { mode: 'ALL'|'WOMEN_DEDICATED'|'GENERAL_ELIGIBLE', stateName, category, search }
+ * @param {Object} filters - { mode: 'ALL'|'WB_PRIORITY'|'CENTRAL_ONLY'|'WOMEN_DEDICATED'|'GENERAL_ELIGIBLE', stateName, category, search }
  */
 export function getWomenFarmerSchemes(cloudSchemes = [], filters = {}) {
   const mode = filters.mode || "ALL";
   const allPublicSchemes = mergeAgricultureSchemes(cloudSchemes, false);
 
+  const effectiveState =
+    mode === "WB_PRIORITY" && (!filters.stateName || filters.stateName === "ALL")
+      ? "West Bengal"
+      : (filters.stateName || "ALL");
+
   // Apply Phase 5's verified state/category/search filter first (zero duplicated logic!)
   const preFiltered = filterAgricultureSchemes(allPublicSchemes, {
-    stateName: filters.stateName || "ALL",
+    stateName: effectiveState,
     category: filters.category || "ALL",
     search: filters.search || "",
     womenOnly: true
@@ -410,12 +430,18 @@ export function getWomenFarmerSchemes(cloudSchemes = [], filters = {}) {
       scheme,
       classification: getWomenSchemeClassification(scheme)
     }))
-    .filter(({ classification }) => {
+    .filter(({ scheme, classification }) => {
       if (!classification.eligible) return false;
       if (mode === "WOMEN_DEDICATED") return classification.tier === "WOMEN_DEDICATED";
       if (mode === "GENERAL_ELIGIBLE") return classification.tier !== "WOMEN_DEDICATED";
+      if (mode === "CENTRAL_ONLY") return scheme.govtLevel === "CENTRAL";
+      if (mode === "WB_PRIORITY") {
+        const st = String(scheme.applicableState || "").toLowerCase();
+        return st.includes("west bengal") || scheme.govtLevel === "CENTRAL";
+      }
       return true;
-    });
+    })
+    .sort((a, b) => scoreWomenSchemePriority(b.scheme, b.classification) - scoreWomenSchemePriority(a.scheme, a.classification));
 }
 
 // ----------------------------------------------------------------------------

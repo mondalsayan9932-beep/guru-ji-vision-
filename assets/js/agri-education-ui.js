@@ -40,6 +40,10 @@ import {
   extractYouTubeInfo,
   resolveMockTestQuestions
 } from "./edu-cms-utils.js";
+import {
+  WOMEN_VIDEO_CATEGORY_MAP,
+  mergeWomenVideos
+} from "./women-learning-data.js";
 
 function resolveEduLang(state) {
   const pref = state.edu?.lang;
@@ -260,6 +264,68 @@ function renderVideoLearningSubView(state, lang, allMaterials, savedVideoIds) {
           }).join("")}
         </div>
       `}
+
+      ${(() => {
+        const sharedWomenVideos = mergeWomenVideos(state.womenVideos || [], false)
+          .filter((v) => v.audience === "BOTH")
+          .filter((v) => {
+            if (langFilter !== "ALL" && v.language !== langFilter) return false;
+            if (!q) return true;
+            const hay = `${v.title} ${v.titleBn} ${v.description} ${v.descriptionBn} ${v.category} ${v.sourceName}`.toLowerCase();
+            return hay.includes(q);
+          });
+        if (!sharedWomenVideos.length) return "";
+        return `
+          <div class="pt-4 border-t border-[#D9EAE0] space-y-3" data-student-shared-women-videos="1">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 class="text-sm sm:text-base font-extrabold text-[#14532D]">
+                  ${bn ? "নারী কৃষক ও গ্রামীণ কৃষি শিক্ষামূলক ভিডিও" : "Women Farmer & Rural Agriculture Videos"}
+                </h4>
+                <p class="text-[11px] text-[#496052]">
+                  ${bn ? "নারী কৃষক জোন থেকে প্রকাশিত যাচাইকৃত কৃষি ও প্রশিক্ষণ ভিডিও — শিক্ষার্থীদের জন্যও উন্মুক্ত।" : "Verified practical farming, scheme & entrepreneurship videos shared from Women Farmer Zone for both Women Farmers & Students."}
+                </p>
+              </div>
+              <button type="button" data-nav="women-farmer" class="px-3 py-1.5 rounded-xl bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-900 text-xs font-extrabold">
+                ${bn ? "নারী কৃষক লাইব্রেরি দেখুন →" : "Full Women Farmer Library →"}
+              </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              ${sharedWomenVideos.map((v) => {
+                const yt = extractYouTubeInfo(v.youtubeUrl);
+                const thumb = safeUrl(v.thumbnailUrl || (yt.ok ? yt.thumbnailUrl : ""));
+                const watchHref = safeUrl(yt.ok ? yt.watchUrl : v.youtubeUrl);
+                const catMeta = WOMEN_VIDEO_CATEGORY_MAP[v.category] || { en: v.category, bn: v.category };
+                const title = bn && v.titleBn ? v.titleBn : v.title;
+                return `
+                  <article class="gv-card overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
+                    <div>
+                      <div class="relative aspect-video bg-slate-900 overflow-hidden">
+                        ${thumb ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" loading="lazy" />` : ""}
+                        <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-fuchsia-900/90 text-white text-[10px] font-extrabold">${escapeHtml(bn ? catMeta.bn : catMeta.en)}</span>
+                      </div>
+                      <div class="p-4 space-y-1.5">
+                        <h5 class="text-sm font-extrabold text-[#132219] leading-snug line-clamp-2">${escapeHtml(title)}</h5>
+                        ${v.description ? `<p class="text-xs text-[#496052] line-clamp-2">${escapeHtml(bn && v.descriptionBn ? v.descriptionBn : v.description)}</p>` : ""}
+                      </div>
+                    </div>
+                    <div class="px-4 pb-4 flex flex-wrap gap-2">
+                      ${yt.ok ? `
+                        <button type="button" data-edu-play-video="${escapeHtml(yt.watchUrl)}" data-edu-play-title="${escapeHtml(title)}" class="flex-1 min-h-[40px] px-3 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold">
+                          ▶ ${bn ? "ভিডিও দেখুন" : "Watch Video"}
+                        </button>
+                      ` : ""}
+                      ${watchHref ? `
+                        <a href="${escapeHtml(watchHref)}" target="_blank" rel="noopener noreferrer" class="min-h-[40px] inline-flex items-center justify-center px-3 py-2 rounded-xl bg-[#EDF4EE] text-[#14532D] text-xs font-extrabold">YouTube ↗</a>
+                      ` : ""}
+                    </div>
+                  </article>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `;
+      })()}
     </div>
   `;
 }

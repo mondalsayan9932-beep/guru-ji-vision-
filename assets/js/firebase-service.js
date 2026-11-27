@@ -634,7 +634,8 @@ class FirebaseService {
     const requiredPublicKeys = [
       "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
       "announcements", "meetings", "professors", "firestoreMarketPrices", "agricultureSchemes",
-      "universitySyllabi", "discoveredStudyResources", "mockTests", "appSettings"
+      "universitySyllabi", "discoveredStudyResources", "mockTests",
+      "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue", "appSettings"
     ];
     // Prevent duplicate tear-down and re-subscription when the public query scope has not changed
     if (this.publicSubScopeKey === scopeKey && requiredPublicKeys.every((k) => this.activeUnsubs.has(k))) {
@@ -815,6 +816,50 @@ class FirebaseService {
         updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
       })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       onUpdate("mockTests", list, true);
+    }, () => {}));
+
+    // Phase 4: Women Farmer YouTube Learning Library (/womenVideos)
+    const wVidQ = isAdmin
+      ? query(collection(this.db, "womenVideos"), limit(200))
+      : query(collection(this.db, "womenVideos"), where("published", "==", true), limit(200));
+    this.setSub("womenVideos", onSnapshot(wVidQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt),
+        fromCloud: true
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("womenVideos", list, true);
+    }, () => {}));
+
+    // Phase 4: Women Farmer Learning Centre Guides (/womenLearningResources)
+    const wLearnQ = isAdmin
+      ? query(collection(this.db, "womenLearningResources"), limit(200))
+      : query(collection(this.db, "womenLearningResources"), where("published", "==", true), limit(200));
+    this.setSub("womenLearningResources", onSnapshot(wLearnQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt),
+        fromCloud: true
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("womenLearningResources", list, true);
+    }, () => {}));
+
+    // Phase 4: Women Farmer Automatic Scheme Discovery Queue (/womenSchemeDiscoveryQueue)
+    const wDiscQ = isAdmin
+      ? query(collection(this.db, "womenSchemeDiscoveryQueue"), limit(200))
+      : query(collection(this.db, "womenSchemeDiscoveryQueue"), where("reviewStatus", "==", "APPROVED_PUBLISHED"), limit(100));
+    this.setSub("womenSchemeDiscoveryQueue", onSnapshot(wDiscQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => String(b.publicationDate || "").localeCompare(String(a.publicationDate || "")) || b.updatedAtMs - a.updatedAtMs);
+      onUpdate("womenSchemeDiscoveryQueue", list, true);
     }, () => {}));
 
     // App Settings (/appSettings/global — public read for WhatsApp Helpline & Notices)
@@ -2693,6 +2738,146 @@ class FirebaseService {
   async deleteMockTest(id) {
     if (!this.ready || !id) return;
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "mockTests", id));
+  }
+
+  // --------------------------------------------------------------------------
+  // 13. PHASE 4: WOMEN FARMER YOUTUBE LIBRARY, LEARNING CENTRE & DISCOVERY QUEUE
+  // --------------------------------------------------------------------------
+  async saveWomenVideo(uid, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validCats = [
+      "WOMEN_FARMER_TRAINING", "GOVERNMENT_SCHEMES", "MODERN_FARMING", "ORGANIC_FARMING",
+      "HORTICULTURE", "DAIRY_LIVESTOCK", "POULTRY_FISHERIES", "ENTREPRENEURSHIP",
+      "SHG_FPO", "FINANCIAL_LITERACY"
+    ];
+    const validLangs = ["EN", "BN", "HI", "BILINGUAL"];
+    const base = {
+      title: String(data.title || "").trim().slice(0, 160),
+      titleBn: String(data.titleBn || "").trim().slice(0, 200),
+      description: String(data.description || "").trim().slice(0, 1000),
+      descriptionBn: String(data.descriptionBn || "").trim().slice(0, 1200),
+      category: validCats.includes(data.category) ? data.category : "WOMEN_FARMER_TRAINING",
+      language: validLangs.includes(data.language) ? data.language : "BILINGUAL",
+      youtubeUrl: String(data.youtubeUrl || "").trim().slice(0, 300),
+      videoId: String(data.videoId || "").trim().slice(0, 11),
+      thumbnailUrl: String(data.thumbnailUrl || "").trim().slice(0, 400),
+      sourceName: String(data.sourceName || "Verified Agricultural Video").trim().slice(0, 160),
+      audience: data.audience === "WOMEN_FARMER" ? "WOMEN_FARMER" : "BOTH",
+      lastVerifiedDate: String(data.lastVerifiedDate || new Date().toISOString().slice(0, 10)).trim().slice(0, 20),
+      published: data.published !== false,
+      updatedAt: serverTimestamp()
+    };
+    if (editId) {
+      await updateDoc(doc(this.db, "womenVideos", editId), base);
+    } else {
+      await addDoc(collection(this.db, "womenVideos"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
+    }
+  }
+
+  async toggleWomenVideoPublished(id, published) {
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "womenVideos", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteWomenVideo(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "womenVideos", id));
+  }
+
+  async saveWomenLearningResource(uid, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validPillars = [
+      "GOVT_SCHEME_GUIDANCE", "AGRI_TECHNIQUES", "CROP_PRODUCTION", "TRAINING_RESOURCES",
+      "ENTREPRENEURSHIP_GUIDANCE", "FINANCIAL_LITERACY", "GOVT_EDU_VIDEOS"
+    ];
+    const base = {
+      pillar: validPillars.includes(data.pillar) ? data.pillar : "GOVT_SCHEME_GUIDANCE",
+      title: String(data.title || "").trim().slice(0, 180),
+      titleBn: String(data.titleBn || "").trim().slice(0, 220),
+      summary: String(data.summary || "").trim().slice(0, 1200),
+      summaryBn: String(data.summaryBn || "").trim().slice(0, 1500),
+      keyPointsEn: (Array.isArray(data.keyPointsEn) ? data.keyPointsEn : []).map((x) => String(x || "").trim().slice(0, 300)).filter(Boolean).slice(0, 12),
+      keyPointsBn: (Array.isArray(data.keyPointsBn) ? data.keyPointsBn : []).map((x) => String(x || "").trim().slice(0, 350)).filter(Boolean).slice(0, 12),
+      officialSourceName: String(data.officialSourceName || "Official Government / ICAR Source").trim().slice(0, 180),
+      officialSourceUrl: String(data.officialSourceUrl || "").trim().slice(0, 400),
+      lastVerifiedDate: String(data.lastVerifiedDate || new Date().toISOString().slice(0, 10)).trim().slice(0, 20),
+      published: data.published !== false,
+      updatedAt: serverTimestamp()
+    };
+    if (editId) {
+      await updateDoc(doc(this.db, "womenLearningResources", editId), base);
+    } else {
+      await addDoc(collection(this.db, "womenLearningResources"), { ...base, createdBy: uid, createdAt: serverTimestamp() });
+    }
+  }
+
+  async toggleWomenLearningResourcePublished(id, published) {
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    await updateDoc(doc(this.db, "womenLearningResources", id), {
+      published: Boolean(published),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteWomenLearningResource(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "womenLearningResources", id));
+  }
+
+  async saveDiscoveredWomenScheme(uid, data, editId = "") {
+    if (!this.ready || !uid) throw new Error("Admin sign-in required.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validMethods = ["RSS_FEED", "PUBLIC_API", "ADMIN_SUBMITTED"];
+    const validStatuses = ["PENDING_REVIEW", "APPROVED_PUBLISHED", "REJECTED"];
+    const validLevels = ["CENTRAL", "STATE", "DISTRICT"];
+    const officialSourceUrl = String(data.officialSourceUrl || "").trim().slice(0, 400);
+    const title = String(data.title || "").trim().slice(0, 180);
+    const dedupeKey = String(data.dedupeKey || `${officialSourceUrl.toLowerCase()}|${title.toLowerCase()}`).trim().slice(0, 240);
+    const editable = {
+      title,
+      sourceName: String(data.sourceName || "Official Government Source").trim().slice(0, 160),
+      officialSourceUrl,
+      publicationDate: String(data.publicationDate || new Date().toISOString().slice(0, 10)).trim().slice(0, 30),
+      suggestedCategory: String(data.suggestedCategory || "WOMEN_FARMER").trim().slice(0, 50),
+      suggestedGovtLevel: validLevels.includes(data.suggestedGovtLevel) ? data.suggestedGovtLevel : "CENTRAL",
+      suggestedState: String(data.suggestedState || "All India").trim().slice(0, 80),
+      womenRelevanceTag: data.womenRelevanceTag === "WOMEN_FOCUSED" ? "WOMEN_FOCUSED" : "WOMEN_ELIGIBLE_GENERAL",
+      reviewStatus: validStatuses.includes(data.reviewStatus) ? data.reviewStatus : "PENDING_REVIEW",
+      summary: String(data.summary || "").trim().slice(0, 600),
+      reviewedBy: uid,
+      updatedAt: serverTimestamp()
+    };
+    if (editId) {
+      await updateDoc(doc(this.db, "womenSchemeDiscoveryQueue", editId), editable);
+    } else {
+      await addDoc(collection(this.db, "womenSchemeDiscoveryQueue"), {
+        ...editable,
+        dedupeKey,
+        discoveryMethod: validMethods.includes(data.discoveryMethod) ? data.discoveryMethod : "ADMIN_SUBMITTED",
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async updateDiscoveredWomenSchemeStatus(uid, id, reviewStatus) {
+    if (!this.ready || !uid || !id) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const status = ["PENDING_REVIEW", "APPROVED_PUBLISHED", "REJECTED"].includes(reviewStatus) ? reviewStatus : "PENDING_REVIEW";
+    await updateDoc(doc(this.db, "womenSchemeDiscoveryQueue", id), {
+      reviewStatus: status,
+      reviewedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteDiscoveredWomenScheme(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "womenSchemeDiscoveryQueue", id));
   }
 }
 

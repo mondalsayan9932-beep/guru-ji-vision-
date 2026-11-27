@@ -2449,6 +2449,217 @@ export const VERIFIED_AGRICULTURE_SCHEMES = [
     officialSourceUrl: "https://www.myscheme.gov.in/",
     officialSourceName: "MyScheme Official National Portal (Govt. of India)",
     published: true
+  },
+  {
+    id: "wb-anandadhara-wbsrlm",
+    name: "Anandadhara — West Bengal State Rural Livelihoods Mission (WBSRLM / DAY-NRLM)",
+    nameBn: "আনন্দধারা — পশ্চিমবঙ্গ রাজ্য গ্রামীণ জীবিকা মিশন (WBSRLM / DAY-NRLM)",
+    category: "WOMEN_FARMER",
+    secondaryCategories: ["RURAL_LIVELIHOOD", "AGRI_LOANS_CREDIT", "FPO", "TRAINING_SKILL"],
+    womenFarmerEligible: true,
+    govtLevel: "STATE",
+    applicableState: "West Bengal",
+    applicableRegion: "All Districts & Blocks of West Bengal (State Implementation of DAY-NRLM)",
+    applicableRegionBn: "পশ্চিমবঙ্গের সকল জেলা ও ব্লক (DAY-NRLM-এর রাজ্য রূপায়ণ)",
+    applicableDistricts: [],
+    purpose: "Dedicated West Bengal Government programme under the Panchayats & Rural Development Department to organize rural women into Self Help Groups (SHGs), Sanghas, and Mahila Kisan livelihood clusters for sustainable farming, horticulture, livestock, and rural enterprises.",
+    purposeBn: "পশ্চিমবঙ্গ সরকারের পঞ্চায়েত ও গ্রামোন্নয়ন দপ্তরের অধীনে গ্রামীণ নারীদের স্বনির্ভর গোষ্ঠী (SHG), সংঘ ও মহিলা কিষাণ জীবিকা গোষ্ঠীতে সংগঠিত করে টেকসই চাষাবাদ, উদ্যানপালন, পশুপালন ও গ্রামীণ উদ্যোগে সহায়তা করা।",
+    benefits: "SHG institutional support, Revolving Fund (RF) & Community Investment Fund (CIF) per official WBSRLM/NRLM norms, SHG Bank Linkage credit access, Krishi Sakhi / Pashu Sakhi training, and support for women-led Producer Groups & agro-enterprises. Verify exact current fund slabs at your Block Mission Management Unit (BMMU).",
+    benefitsBn: "সরকারি নিয়ম অনুযায়ী স্বনির্ভর গোষ্ঠীর জন্য রিভলভিং ফান্ড (RF), কমিউনিটি ইনভেস্টমেন্ট ফান্ড (CIF), ব্যাংক লিঙ্কেজ ঋণ, কৃষি সখী ও পশু সখী প্রশিক্ষণ এবং নারী-নেতৃত্বাধীন উৎপাদক গোষ্ঠী (Producer Group) গঠনে সহায়তা। বর্তমান অনুদানের পরিমাণ ব্লক মিশন ম্যানেজমেন্ট ইউনিট (BMMU)-এ যাচাই করুন।",
+    eligibility: {
+      eligibleCategories: "Rural women households in West Bengal organized into recognized Self Help Groups (SHGs) under WBSRLM / Anandadhara.",
+      eligibleCategoriesBn: "পশ্চিমবঙ্গের গ্রামীণ পরিবারের মহিলারা, যাঁরা WBSRLM / আনন্দধারার অধীনে স্বীকৃত স্বনির্ভর গোষ্ঠীর (SHG) সদস্য।",
+      landholding: "Landholding not mandatory — landless, marginal, small, and tenant women cultivators are eligible through SHGs.",
+      landholdingBn: "জমির মালিকানা বাধ্যতামূলক নয় — ভূমিহীন, প্রান্তিক, ক্ষুদ্র ও ভাগচাষী নারী কৃষকরা স্বনির্ভর গোষ্ঠীর মাধ্যমে যোগ্য।",
+      tenantFarmers: "Women tenant farmers & sharecroppers are eligible via village SHGs.",
+      tenantFarmersBn: "নারী ভাগচাষী ও লিজ চাষীরা গ্রামের স্বনির্ভর গোষ্ঠীর মাধ্যমে সুবিধা পেতে পারেন।",
+      womenFarmers: "Dedicated women SHG & Mahila Kisan empowerment mission in West Bengal.",
+      womenFarmersBn: "পশ্চিমবঙ্গে নারী স্বনির্ভর গোষ্ঠী ও মহিলা কিষাণ ক্ষমতায়নের বিশেষ সরকারি মিশন।",
+      ageLimit: "Adult rural women eligible for SHG membership as per WBSRLM guidelines.",
+      ageLimitBn: "WBSRLM নির্দেশিকা অনুযায়ী প্রাপ্তবয়স্ক গ্রামীণ মহিলারা SHG সদস্য হওয়ার যোগ্য।",
+      incomeLimit: "Targeted primarily at rural poor & vulnerable households identified under SECC / Participatory Identification of Poor (PIP).",
+      incomeLimitBn: "মূলত গ্রামীণ আর্থিকভাবে দুর্বল ও অগ্রাধিকারভুক্ত পরিবারের মহিলাদের জন্য।",
+      residency: "Permanent rural residents of West Bengal.",
+      residencyBn: "পশ্চিমবঙ্গের গ্রামীণ এলাকার স্থায়ী বাসিন্দা।"
+    },
+    whoCanApply: [
+      "Rural women in West Bengal joining or forming a recognized Anandadhara SHG",
+      "Women cultivators, vegetable growers, dairy/poultry rearers, and artisan groups affiliated with village Sanghas"
+    ],
+    whoCanApplyBn: [
+      "পশ্চিমবঙ্গের গ্রামীণ মহিলারা যাঁরা স্বীকৃত আনন্দধারা স্বনির্ভর গোষ্ঠীর (SHG) সদস্য",
+      "গ্রামের সংঘের অন্তর্ভুক্ত নারী কৃষক, সবজি চাষী, পশুপালক ও ক্ষুদ্র কৃষি উদ্যোক্তা গোষ্ঠী"
+    ],
+    whoCannotApply: [
+      "Non-residents of rural West Bengal or unregistered informal groups without SHG bank account & grading"
+    ],
+    whoCannotApplyBn: [
+      "পশ্চিমবঙ্গের গ্রামীণ এলাকার বাইরের বাসিন্দা বা নিবন্ধন ও গ্রেডিং-বিহীন দল"
+    ],
+    requiredDocuments: [
+      { en: "Aadhaar Card & West Bengal Rural Residency Proof", bn: "আধার কার্ড ও গ্রামীণ বসবাসের প্রমাণপত্র", mandatory: true },
+      { en: "Active SHG Membership Record & Sangha Resolution", bn: "সক্রিয় স্বনির্ভর গোষ্ঠীর (SHG) সদস্য নথি ও সংঘের রেজোলিউশন", mandatory: true },
+      { en: "SHG Bank Account & Individual Bank Passbook", bn: "স্বনির্ভর গোষ্ঠীর ব্যাংক অ্যাকাউন্ট ও ব্যক্তিগত পাসবই", mandatory: true },
+      { en: "SHG Grading / Panchasutra Compliance Record (for CIF / Bank Linkage)", bn: "পঞ্চসূত্র ও SHG গ্রেডিং নথি (CIF ও ব্যাংক ঋণের জন্য)", mandatory: false }
+    ],
+    applicationProcess: "Enroll in a village SHG under the local Gram Panchayat Sangha → complete Panchasutra savings & grading → submit SHG livelihood/farm micro-credit plan (MCP) through your Block Mission Management Unit (BMMU) / WBSRLM portal.",
+    applicationProcessBn: "স্থানীয় গ্রাম পঞ্চায়েত সংঘের অধীনে স্বনির্ভর গোষ্ঠীতে (SHG) যুক্ত হন → পঞ্চসূত্র সঞ্চয় ও গ্রেডিং সম্পন্ন করুন → ব্লক মিশন ম্যানেজমেন্ট ইউনিট (BMMU) বা WBSRLM পোর্টালের মাধ্যমে কৃষি জীবিকা ও মাইক্রো-ক্রেডিট প্ল্যান (MCP) জমা দিন।",
+    officialPortalUrl: "https://wbprd.gov.in/",
+    offlineProcess: "Visit your Gram Panchayat Sangha office, Block Development Office (BDO), or Block Mission Management Unit (BMMU — Anandadhara) for SHG registration, Krishi Sakhi training & bank linkage.",
+    offlineProcessBn: "গ্রাম পঞ্চায়েত সংঘ অফিস, ব্লক উন্নয়ন অফিস (BDO) বা ব্লক মিশন ম্যানেজমেন্ট ইউনিট (BMMU — আনন্দধারা)-এ সরাসরি যোগাযোগ করে SHG নিবন্ধন, কৃষি সখী প্রশিক্ষণ ও ব্যাংক ঋণের আবেদন করুন।",
+    department: "West Bengal State Rural Livelihoods Mission (WBSRLM), Panchayats & Rural Development Dept., Govt. of West Bengal",
+    departmentBn: "পশ্চিমবঙ্গ রাজ্য গ্রামীণ জীবিকা মিশন (WBSRLM), পঞ্চায়েত ও গ্রামোন্নয়ন দপ্তর, পশ্চিমবঙ্গ সরকার",
+    helpline: "Contact District Mission Management Unit (DMMU) / BMMU or WB Duare Sarkar / Bangla Sahayata Kendra",
+    helplineBn: "জেলা মিশন ম্যানেজমেন্ট ইউনিট (DMMU) / BMMU অথবা বাংলা সহায়তা কেন্দ্রে যোগাযোগ করুন",
+    helplineTel: "",
+    deadline: "Ongoing enrolment & SHG livelihood support year-round (subject to annual BMMU plans)",
+    deadlineBn: "সারা বছর চলমান প্রকল্প (বার্ষিক BMMU পরিকল্পনা অনুযায়ী)",
+    status: "ACTIVE",
+    lastVerifiedDate: "2026-03-25",
+    officialSourceUrl: "https://aajeevika.gov.in/",
+    officialSourceName: "WBSRLM Anandadhara / DAY-NRLM Official Portal",
+    published: true
+  },
+  {
+    id: "pmfme-micro-food-processing",
+    name: "PMFME — Pradhan Mantri Formalisation of Micro Food Processing Enterprises Scheme",
+    nameBn: "পিএমএফএমই (PMFME) — ক্ষুদ্র খাদ্য প্রক্রিয়াকরণ উদ্যোগের আনুষ্ঠানিকীকরণ প্রকল্প",
+    category: "AGRI_ENTREPRENEURSHIP",
+    secondaryCategories: ["WOMEN_FARMER", "FPO", "HORTICULTURE", "DAIRY_FARMING"],
+    womenFarmerEligible: true,
+    govtLevel: "CENTRAL",
+    applicableState: "All India",
+    applicableRegion: "All States & UTs including West Bengal (State Nodal Agency implementation)",
+    applicableRegionBn: "পশ্চিমবঙ্গ সহ ভারতের সকল রাজ্য ও কেন্দ্রশাসিত অঞ্চল",
+    applicableDistricts: [],
+    purpose: "Centrally Sponsored Scheme by the Ministry of Food Processing Industries (MoFPI) to support micro food processing entrepreneurs, Women SHG members, FPOs, and cooperatives in upgrading or setting up farm-produce processing units (spices, pickles, dal/flour milling, dairy, honey, horticulture & fish processing).",
+    purposeBn: "ভারত সরকারের খাদ্য প্রক্রিয়াকরণ শিল্প মন্ত্রকের (MoFPI) প্রকল্প — ক্ষুদ্র খাদ্য প্রক্রিয়াকরণ উদ্যোক্তা, নারী স্বনির্ভর গোষ্ঠীর (SHG) সদস্য, FPO ও সমবায়গুলিকে মসলা, আচার, ডাল-আটা মিল, দুগ্ধ, মধু, ফল-সবজি ও মাছ প্রক্রিয়াকরণ ইউনিট গড়তে সহায়তা করে।",
+    benefits: "Credit-linked capital subsidy for eligible individual micro-enterprises & FPO/SHG/cooperative units, dedicated Seed Capital support for eligible Women SHG members routed via SRLM/Anandadhara, common infrastructure support, branding/marketing, and free capacity-building training. Check latest official subsidy ceilings on pmfme.mofpi.gov.in.",
+    benefitsBn: "যোগ্য ব্যক্তিগত ক্ষুদ্র উদ্যোক্তা, FPO, SHG ও সমবায়ের জন্য ব্যাংক ঋণ-ভিত্তিক মূলধনী ভর্তুকি, SRLM/আনন্দধারার মাধ্যমে নারী SHG সদস্যদের জন্য সিড ক্যাপিটাল সহায়তা, কমন ইনফ্রাস্ট্রাকচার, ব্র্যান্ডিং-মার্কেটিং ও বিনামূল্যে প্রশিক্ষণ। সর্বশেষ ভর্তুকির সীমা pmfme.mofpi.gov.in পোর্টালে যাচাই করুন।",
+    eligibility: {
+      eligibleCategories: "Individual micro food processing entrepreneurs, Women Self Help Group (SHG) members, Farmer Producer Organizations (FPOs), and Producer Cooperatives.",
+      eligibleCategoriesBn: "ব্যক্তিগত ক্ষুদ্র খাদ্য প্রক্রিয়াকরণ উদ্যোক্তা, নারী স্বনির্ভর গোষ্ঠীর (SHG) সদস্য, FPO এবং উৎপাদক সমবায়।",
+      landholding: "Agricultural land ownership not required — valid premises/lease/unit location proof is required.",
+      landholdingBn: "চাষের জমির মালিকানা বাধ্যতামূলক নয় — প্রক্রিয়াকরণ ইউনিটের বৈধ স্থান বা ভাড়ার নথি প্রয়োজন।",
+      tenantFarmers: "Landless & tenant women farmers engaged in food processing or SHG activities are eligible.",
+      tenantFarmersBn: "খাদ্য প্রক্রিয়াকরণ বা স্বনির্ভর গোষ্ঠীর সঙ্গে যুক্ত ভূমিহীন ও ভাগচাষী নারী কৃষকরাও আবেদন করতে পারেন।",
+      womenFarmers: "Dedicated Seed Capital component for Women SHG members under DAY-NRLM / WBSRLM Anandadhara, plus full eligibility for individual & FPO grants.",
+      womenFarmersBn: "DAY-NRLM / WBSRLM আনন্দধারার অধীনে নারী SHG সদস্যদের জন্য বিশেষ সিড ক্যাপিটাল সুবিধা এবং ব্যক্তিগত ও FPO ভর্তুকিতে সম্পূর্ণ যোগ্য।",
+      ageLimit: "18 years and above for individual applicants.",
+      ageLimitBn: "ব্যক্তিগত আবেদনকারীর বয়স ন্যূনতম ১৮ বছর।",
+      incomeLimit: "No fixed income ceiling; applies to micro-scale food processing units under MoFPI criteria.",
+      incomeLimitBn: "নির্দিষ্ট আয়ের সীমা নেই; MoFPI নিয়ম অনুযায়ী ক্ষুদ্র খাদ্য প্রক্রিয়াকরণ ইউনিটের জন্য প্রযোজ্য।",
+      residency: "All States & UTs of India (including West Bengal through State Nodal Agency / District Resource Persons).",
+      residencyBn: "পশ্চিমবঙ্গ সহ ভারতের সকল রাজ্য ও কেন্দ্রশাসিত অঞ্চল।"
+    },
+    whoCanApply: [
+      "Women SHG members applying for Seed Capital through SRLM / WBSRLM Anandadhara",
+      "Women agricultural entrepreneurs setting up or upgrading micro food, spice, dairy, horticulture, or fish processing units",
+      "Women-led FPOs and rural Producer Cooperatives"
+    ],
+    whoCanApplyBn: [
+      "SRLM / WBSRLM আনন্দধারার মাধ্যমে সিড ক্যাপিটালের জন্য আবেদনকারী নারী SHG সদস্য",
+      "মসলা, আচার, দুগ্ধ, ফল-সবজি বা মাছ প্রক্রিয়াকরণ ইউনিট গড়তে ইচ্ছুক নারী কৃষি উদ্যোক্তা",
+      "নারী পরিচালিত FPO এবং গ্রামীণ উৎপাদক সমবায়"
+    ],
+    whoCannotApply: [
+      "Non-food manufacturing businesses or enterprises exceeding micro-enterprise investment criteria under official guidelines"
+    ],
+    whoCannotApplyBn: [
+      "খাদ্য প্রক্রিয়াকরণের বাইরের ব্যবসা বা সরকারি ক্ষুদ্র-উদ্যোগের সীমার বাইরের বড় প্রতিষ্ঠান"
+    ],
+    requiredDocuments: [
+      { en: "Aadhaar Card, PAN Card & Bank Account Details", bn: "আধার কার্ড, প্যান কার্ড ও ব্যাংক অ্যাকাউন্টের তথ্য", mandatory: true },
+      { en: "Detailed Project Report (DPR) & Machinery Quotation (assisted by District Resource Person)", bn: "প্রকল্প প্রতিবেদন (DPR) ও যন্ত্রপাতির কোটেশন (জেলা রিসোর্স পারসনের সহায়তায়)", mandatory: true },
+      { en: "FSSAI Registration / Udyam Registration (as applicable to unit stage)", bn: "FSSAI রেজিস্ট্রেশন / উদয়ম (Udyam) নিবন্ধন (প্রযোজ্য ক্ষেত্রে)", mandatory: false },
+      { en: "SHG Membership & MIS ID (for Women SHG Seed Capital)", bn: "SHG সদস্য নথি ও MIS আইডি (নারী SHG সিড ক্যাপিটালের জন্য)", mandatory: false }
+    ],
+    applicationProcess: "Apply online on the official PMFME MIS portal (pmfme.mofpi.gov.in) for individual/FPO credit-linked subsidy with assistance from District Resource Persons (DRPs). For Women SHG Seed Capital, submit through your village SHG / BMMU / WBSRLM Anandadhara MIS.",
+    applicationProcessBn: "ব্যক্তিগত বা FPO ঋণ-ভিত্তিক ভর্তুকির জন্য জেলা রিসোর্স পারসনের (DRP) সহায়তায় pmfme.mofpi.gov.in পোর্টালে অনলাইন আবেদন করুন। নারী SHG সিড ক্যাপিটালের জন্য গ্রাম SHG / BMMU / WBSRLM আনন্দধারার মাধ্যমে আবেদন করুন।",
+    officialPortalUrl: "https://pmfme.mofpi.gov.in/",
+    offlineProcess: "Contact your District Industries Centre (DIC), District Food Processing Officer, or Block Mission Management Unit (WBSRLM) for free handholding by PMFME District Resource Persons.",
+    offlineProcessBn: "জেলা শিল্প কেন্দ্র (DIC), জেলা খাদ্য প্রক্রিয়াকরণ অফিস বা ব্লক মিশন ম্যানেজমেন্ট ইউনিট (WBSRLM)-এ যোগাযোগ করে PMFME জেলা রিসোর্স পারসনের বিনামূল্যে সহায়তা নিন।",
+    department: "Ministry of Food Processing Industries (MoFPI), Govt. of India & State Nodal Agencies (WB Food Processing Industries & Horticulture Dept.)",
+    departmentBn: "খাদ্য প্রক্রিয়াকরণ শিল্প মন্ত্রক (MoFPI), ভারত সরকার এবং পশ্চিমবঙ্গ খাদ্য প্রক্রিয়াকরণ ও উদ্যানপালন দপ্তর",
+    helpline: "PMFME Official Portal Support & State Nodal Agency (pmfme.mofpi.gov.in)",
+    helplineBn: "PMFME অফিশিয়াল পোর্টাল সহায়তা ও রাজ্য নোডাল এজেন্সি (pmfme.mofpi.gov.in)",
+    helplineTel: "",
+    deadline: "Active ongoing applications via official PMFME portal (verify current financial year window on portal)",
+    deadlineBn: "অফিশিয়াল PMFME পোর্টালে আবেদন চলমান (বর্তমান অর্থবর্ষের সময়সীমা পোর্টালে যাচাই করুন)",
+    status: "ACTIVE",
+    lastVerifiedDate: "2026-03-25",
+    officialSourceUrl: "https://pmfme.mofpi.gov.in/",
+    officialSourceName: "PMFME Official Portal (Ministry of Food Processing Industries, Govt. of India)",
+    published: true
+  },
+  {
+    id: "wb-matir-srishti-allied",
+    name: "West Bengal Matir Srishti & State Horticulture, Livestock & Fisheries Farmer Support",
+    nameBn: "পশ্চিমবঙ্গ মাটির সৃষ্টি এবং রাজ্য উদ্যানপালন, পশুপালন ও মৎস্য চাষ সহায়তা",
+    category: "HORTICULTURE",
+    secondaryCategories: ["FISHERIES_AQUACULTURE", "POULTRY_FARMING", "DAIRY_FARMING", "WOMEN_FARMER", "RURAL_LIVELIHOOD"],
+    womenFarmerEligible: true,
+    govtLevel: "STATE",
+    applicableState: "West Bengal",
+    applicableRegion: "West Bengal (Matir Srishti in dryland/western districts; ARD, Fisheries & Horticulture schemes across all WB districts)",
+    applicableRegionBn: "পশ্চিমবঙ্গ (শুষ্ক/পশ্চিমাঞ্চল জেলায় মাটির সৃষ্টি; সকল জেলায় রাজ্য উদ্যানপালন, পশুপালন ও মৎস্য দপ্তরের প্রকল্প)",
+    applicableDistricts: ["Bankura", "Purulia", "Birbhum", "Jhargram", "Paschim Bardhaman", "Paschim Medinipur"],
+    purpose: "West Bengal Government convergence initiative (Matir Srishti) and State Allied Departments (Horticulture, Animal Resources Development & Fisheries) helping rural farmers, women farmers, and Self Help Groups convert fallow land and develop income-generating horticulture, vegetable, pisciculture, backyard poultry, goatery, and dairy units.",
+    purposeBn: "পশ্চিমবঙ্গ সরকারের সমন্বিত উদ্যোগ (মাটির সৃষ্টি) এবং রাজ্য উদ্যানপালন, প্রাণিসম্পদ বিকাশ ও মৎস্য দপ্তরের মাধ্যমে গ্রামীণ কৃষক, নারী কৃষক ও স্বনির্ভর গোষ্ঠীকে পতিত জমিতে উদ্যানপালন, সবজি চাষ, পুকুর মাছ চাষ, হাঁস-মুরগি, ছাগল ও দুগ্ধ পালনের মাধ্যমে আয় বৃদ্ধিতে সহায়তা করা।",
+    benefits: "Convergence support for land development, water harvesting/farm ponds, fruit & vegetable plantation, backyard poultry/duckery/goatery training & inputs, and fish fingerling/aquaculture support through official West Bengal Government department programmes. Exact unit subsidies and beneficiary quotas vary by district and financial year — verify directly at Block offices.",
+    benefitsBn: "জমি উন্নয়ন, জল সংরক্ষণ ও পুকুর খনন, ফল ও সবজি চাষ, হাঁস-মুরগি ও ছাগল পালনের প্রশিক্ষণ-উপকরণ এবং মাছের পোনা ও মৎস্য চাষে পশ্চিমবঙ্গ সরকারের সংশ্লিষ্ট দপ্তরের সহায়তা। জেলা ও অর্থবর্ষ অনুযায়ী বর্তমান ভর্তুকির হার সরাসরি ব্লক অফিসে যাচাই করুন।",
+    eligibility: {
+      eligibleCategories: "Small & marginal farmers, women farmers, and recognized rural Self Help Groups (SHGs) in West Bengal.",
+      eligibleCategoriesBn: "পশ্চিমবঙ্গের ক্ষুদ্র ও প্রান্তিক কৃষক, নারী কৃষক এবং স্বীকৃত গ্রামীণ স্বনির্ভর গোষ্ঠী (SHG)।",
+      landholding: "Applicable to small/marginal landholders, fallow-land clusters (for Matir Srishti), and landless SHG members for backyard poultry/livestock/leased-pond aquaculture where permitted.",
+      landholdingBn: "ক্ষুদ্র-প্রান্তিক জমির মালিক, পতিত জমির ক্লাস্টার (মাটির সৃষ্টি) এবং অনুমোদিত ক্ষেত্রে ভূমিহীন SHG সদস্যদের হাঁস-মুরগি, ছাগল পালন বা লিজ পুকুরে মাছ চাষের জন্য প্রযোজ্য।",
+      tenantFarmers: "Women SHGs & tenant/group cultivators can participate in allied poultry, livestock, and collective water-body/cluster programmes as per state department rules.",
+      tenantFarmersBn: "রাজ্য দপ্তরের নিয়ম অনুযায়ী নারী SHG ও যৌথ/ভাগচাষীরা হাঁস-মুরগি, পশুপালন ও সমবায় মৎস্য/ক্লাস্টার প্রকল্পে অংশগ্রহণ করতে পারেন।",
+      womenFarmers: "Women farmers and Women SHGs are actively included and prioritized in village livelihood clusters, poultry, dairy, and horticulture programmes.",
+      womenFarmersBn: "নারী কৃষক ও নারী স্বনির্ভর গোষ্ঠীগুলিকে গ্রামভিত্তিক উদ্যানপালন, হাঁস-মুরগি, দুগ্ধ ও মৎস্য জীবিকা ক্লাস্টারে অগ্রাধিকার দেওয়া হয়।",
+      ageLimit: "Adult resident farmers / SHG members as per respective West Bengal department guidelines.",
+      ageLimitBn: "সংশ্লিষ্ট পশ্চিমবঙ্গ দপ্তরের নির্দেশিকা অনুযায়ী প্রাপ্তবয়স্ক কৃষক ও SHG সদস্য।",
+      incomeLimit: "Priority to rural small/marginal farming households and SHGs.",
+      incomeLimitBn: "গ্রামীণ ক্ষুদ্র-প্রান্তিক কৃষক পরিবার ও স্বনির্ভর গোষ্ঠীর অগ্রাধিকার।",
+      residency: "Permanent residents of West Bengal (Matir Srishti specifically covers designated dryland districts; ARD/Fisheries/Horticulture cover all WB districts).",
+      residencyBn: "পশ্চিমবঙ্গের স্থায়ী বাসিন্দা (মাটির সৃষ্টি নির্দিষ্ট পশ্চিমাঞ্চল জেলায়; পশুপালন/মৎস্য/উদ্যানপালন সকল জেলায় প্রযোজ্য)।"
+    },
+    whoCanApply: [
+      "Women farmers and Women SHGs in West Bengal interested in horticulture, vegetable clusters, poultry, goatery, dairy, or pond fisheries",
+      "Farmer collectives in Bankura, Purulia, Birbhum, Jhargram, Paschim Bardhaman & Paschim Medinipur under Matir Srishti"
+    ],
+    whoCanApplyBn: [
+      "পশ্চিমবঙ্গের নারী কৃষক ও স্বনির্ভর গোষ্ঠী যাঁরা উদ্যানপালন, সবজি চাষ, হাঁস-মুরগি, ছাগল, দুগ্ধ বা পুকুর মাছ চাষে আগ্রহী",
+      "বাঁকুড়া, পুরুলিয়া, বীরভূম, ঝাড়গ্রাম, পশ্চিম বর্ধমান ও পশ্চিম মেদিনীপুরের মাটির সৃষ্টি ক্লাস্টারের কৃষক গোষ্ঠী"
+    ],
+    whoCannotApply: [
+      "Applicants outside West Bengal or applicants not meeting respective district/block scheme guidelines"
+    ],
+    whoCannotApplyBn: [
+      "পশ্চিমবঙ্গের বাইরের আবেদনকারী বা সংশ্লিষ্ট জেলা/ব্লক দপ্তরের শর্ত পূরণ না করা আবেদনকারী"
+    ],
+    requiredDocuments: [
+      { en: "Aadhaar Card / Voter ID & West Bengal Residency Proof", bn: "আধার কার্ড / ভোটার কার্ড ও পশ্চিমবঙ্গের বসবাসের প্রমাণ", mandatory: true },
+      { en: "Bank Passbook (Aadhaar-seeded for DBT where applicable)", bn: "ব্যাংক পাসবই (প্রযোজ্য ক্ষেত্রে আধার সংযুক্ত)", mandatory: true },
+      { en: "Land Record (Porcha) / Pond Lease Document / SHG Resolution (as applicable to component)", bn: "জমির পর্চা / পুকুরের লিজ নথি / SHG রেজোলিউশন (প্রকল্প অনুযায়ী)", mandatory: false }
+    ],
+    applicationProcess: "Check official West Bengal department portals (Matir Katha: matirkatha.net, Animal Resources Development: wbard.gov.in, Fisheries: wbfisheries.wb.gov.in) or apply through your Block Assistant Director of Agriculture (ADA), Block Livestock Development Officer (BLDO), Fishery Extension Officer (FEO), or Bangla Sahayata Kendra (BSK).",
+    applicationProcessBn: "পশ্চিমবঙ্গ সরকারের অফিশিয়াল পোর্টাল (মাটির কথা: matirkatha.net, প্রাণিসম্পদ বিকাশ: wbard.gov.in, মৎস্য দপ্তর: wbfisheries.wb.gov.in) দেখুন অথবা ব্লক কৃষি অফিস (ADA), ব্লক প্রাণিসম্পদ উন্নয়ন আধিকারিক (BLDO), মৎস্য সম্প্রসারণ আধিকারিক (FEO) বা বাংলা সহায়তা কেন্দ্রে (BSK) আবেদন করুন।",
+    officialPortalUrl: "https://matirkatha.net/",
+    offlineProcess: "Apply offline at your Block Agriculture Office (ADA), Block Livestock Development Office (BLDO), Block Fishery Extension Office (FEO), Gram Panchayat, or Bangla Sahayata Kendra (BSK).",
+    offlineProcessBn: "ব্লক কৃষি অফিস (ADA), ব্লক প্রাণিসম্পদ অফিস (BLDO), ব্লক মৎস্য অফিস (FEO), গ্রাম পঞ্চায়েত বা বাংলা সহায়তা কেন্দ্রে (BSK) সরাসরি আবেদন জমা দিন।",
+    department: "Departments of Agriculture, Horticulture, Animal Resources Development & Fisheries, Govt. of West Bengal",
+    departmentBn: "কৃষি, উদ্যানপালন, প্রাণিসম্পদ বিকাশ ও মৎস্য দপ্তর, পশ্চিমবঙ্গ সরকার",
+    helpline: "Matir Katha / Kisan Call Centre 1800-180-1551 & Block ADA/BLDO/FEO Offices",
+    helplineBn: "মাটির কথা / কিষাণ কল সেন্টার ১৮০০-১৮০-১৫৫১ এবং ব্লক ADA/BLDO/FEO অফিস",
+    helplineTel: "18001801551",
+    deadline: "Component-wise & seasonal — check current district notifications at Block offices or official WB portals",
+    deadlineBn: "প্রকল্প ও মরসুম ভিত্তিক — ব্লক অফিস বা পশ্চিমবঙ্গ সরকারি পোর্টালে বর্তমান বিজ্ঞপ্তি যাচাই করুন",
+    status: "ACTIVE",
+    lastVerifiedDate: "2026-03-25",
+    officialSourceUrl: "https://matirkatha.net/",
+    officialSourceName: "Matir Katha — Dept. of Agriculture & Allied Departments, Govt. of West Bengal",
+    published: true
   }
 ];
 

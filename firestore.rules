@@ -458,6 +458,71 @@ service cloud.firestore {
         isValidTimestamp(data.updatedAt);
     }
 
+    // --- PHASE 4: WOMEN FARMER ZONE YOUTUBE LIBRARY, LEARNING CENTRE & SCHEME DISCOVERY VALIDATORS ---
+    function isValidWomenVideo(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        (!('titleBn' in data) || (data.titleBn is string && data.titleBn.size() <= 200)) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+        (!('descriptionBn' in data) || (data.descriptionBn is string && data.descriptionBn.size() <= 1200)) &&
+        data.category in [
+          'WOMEN_FARMER_TRAINING', 'GOVERNMENT_SCHEMES', 'MODERN_FARMING', 'ORGANIC_FARMING',
+          'HORTICULTURE', 'DAIRY_LIVESTOCK', 'POULTRY_FISHERIES', 'ENTREPRENEURSHIP',
+          'SHG_FPO', 'FINANCIAL_LITERACY'
+        ] &&
+        data.language in ['EN', 'BN', 'HI', 'BILINGUAL'] &&
+        data.youtubeUrl is string && data.youtubeUrl.size() >= 15 && data.youtubeUrl.size() <= 300 &&
+        data.youtubeUrl.matches('^https://(www\\.|m\\.)?(youtube\\.com|youtu\\.be|youtube-nocookie\\.com)/.*$') &&
+        data.videoId is string && data.videoId.matches('^[a-zA-Z0-9_-]{11}$') &&
+        (!('thumbnailUrl' in data) || (data.thumbnailUrl is string && data.thumbnailUrl.size() <= 400)) &&
+        (!('sourceName' in data) || (data.sourceName is string && data.sourceName.size() <= 160)) &&
+        data.audience in ['WOMEN_FARMER', 'BOTH'] &&
+        (!('lastVerifiedDate' in data) || (data.lastVerifiedDate is string && data.lastVerifiedDate.size() <= 20)) &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWomenLearningResource(data) {
+      return data.pillar in [
+          'GOVT_SCHEME_GUIDANCE', 'AGRI_TECHNIQUES', 'CROP_PRODUCTION', 'TRAINING_RESOURCES',
+          'ENTREPRENEURSHIP_GUIDANCE', 'FINANCIAL_LITERACY', 'GOVT_EDU_VIDEOS'
+        ] &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 180 &&
+        (!('titleBn' in data) || (data.titleBn is string && data.titleBn.size() <= 220)) &&
+        data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 1200 &&
+        (!('summaryBn' in data) || (data.summaryBn is string && data.summaryBn.size() <= 1500)) &&
+        (!('keyPointsEn' in data) || (data.keyPointsEn is list && data.keyPointsEn.size() <= 12)) &&
+        (!('keyPointsBn' in data) || (data.keyPointsBn is list && data.keyPointsBn.size() <= 12)) &&
+        data.officialSourceName is string && data.officialSourceName.size() >= 2 && data.officialSourceName.size() <= 180 &&
+        data.officialSourceUrl is string && data.officialSourceUrl.size() <= 400 &&
+        (data.officialSourceUrl == '' || data.officialSourceUrl.matches('^https://.*$')) &&
+        data.lastVerifiedDate is string && data.lastVerifiedDate.size() >= 8 && data.lastVerifiedDate.size() <= 20 &&
+        data.published is bool &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWomenSchemeDiscovery(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 180 &&
+        data.sourceName is string && data.sourceName.size() >= 2 && data.sourceName.size() <= 160 &&
+        data.officialSourceUrl is string && data.officialSourceUrl.size() >= 10 && data.officialSourceUrl.size() <= 400 &&
+        data.officialSourceUrl.matches('^https?://.*$') &&
+        data.publicationDate is string && data.publicationDate.size() >= 4 && data.publicationDate.size() <= 30 &&
+        data.suggestedCategory is string && data.suggestedCategory.size() >= 2 && data.suggestedCategory.size() <= 50 &&
+        data.suggestedGovtLevel in ['CENTRAL', 'STATE', 'DISTRICT'] &&
+        data.suggestedState is string && data.suggestedState.size() >= 2 && data.suggestedState.size() <= 80 &&
+        data.womenRelevanceTag in ['WOMEN_FOCUSED', 'WOMEN_ELIGIBLE_GENERAL'] &&
+        data.discoveryMethod in ['RSS_FEED', 'PUBLIC_API', 'ADMIN_SUBMITTED'] &&
+        data.reviewStatus in ['PENDING_REVIEW', 'APPROVED_PUBLISHED', 'REJECTED'] &&
+        data.dedupeKey is string && data.dedupeKey.size() >= 3 && data.dedupeKey.size() <= 240 &&
+        (!('summary' in data) || (data.summary is string && data.summary.size() <= 600)) &&
+        (!('reviewedBy' in data) || (data.reviewedBy is string && data.reviewedBy.size() <= 128)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
     function isValidCareerOpportunity(data) {
       return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
         data.organization is string && data.organization.size() >= 2 && data.organization.size() <= 120 &&
@@ -2359,6 +2424,111 @@ service cloud.firestore {
         ]);
 
       allow delete: if isSignedIn() && isValidId(testId) && isAdmin();
+    }
+
+    // --- PHASE 4: WOMEN FARMER YOUTUBE LEARNING LIBRARY (Public Read when Published, Admin-Only Write) ---
+    match /womenVideos/{videoId} {
+      allow get: if isValidId(videoId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(videoId) &&
+        isAdmin() &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'title', 'category', 'language', 'youtubeUrl', 'videoId', 'audience',
+          'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'title', 'titleBn', 'description', 'descriptionBn', 'category', 'language',
+          'youtubeUrl', 'videoId', 'thumbnailUrl', 'sourceName', 'audience',
+          'lastVerifiedDate', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidWomenVideo(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(videoId) &&
+        isAdmin() &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidWomenVideo(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'titleBn', 'description', 'descriptionBn', 'category', 'language',
+          'youtubeUrl', 'videoId', 'thumbnailUrl', 'sourceName', 'audience',
+          'lastVerifiedDate', 'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(videoId) && isAdmin();
+    }
+
+    // --- PHASE 4: WOMEN FARMER LEARNING CENTRE GUIDES (Public Read when Published, Admin-Only Write) ---
+    match /womenLearningResources/{resourceId} {
+      allow get: if isValidId(resourceId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(resourceId) &&
+        isAdmin() &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'pillar', 'title', 'summary', 'officialSourceName', 'officialSourceUrl',
+          'lastVerifiedDate', 'published', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'pillar', 'title', 'titleBn', 'summary', 'summaryBn', 'keyPointsEn', 'keyPointsBn',
+          'officialSourceName', 'officialSourceUrl', 'lastVerifiedDate', 'published',
+          'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidWomenLearningResource(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(resourceId) &&
+        isAdmin() &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidWomenLearningResource(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'pillar', 'title', 'titleBn', 'summary', 'summaryBn', 'keyPointsEn', 'keyPointsBn',
+          'officialSourceName', 'officialSourceUrl', 'lastVerifiedDate', 'published', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(resourceId) && isAdmin();
+    }
+
+    // --- PHASE 4: AUTOMATIC SCHEME DISCOVERY ADMIN REVIEW QUEUE (Admin Review Before Publication) ---
+    match /womenSchemeDiscoveryQueue/{itemId} {
+      allow get: if isValidId(itemId) && (existing().reviewStatus == 'APPROVED_PUBLISHED' || isAdmin());
+      allow list: if existing().reviewStatus == 'APPROVED_PUBLISHED' || isAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(itemId) &&
+        isAdmin() &&
+        incoming().keys().hasAll([
+          'title', 'sourceName', 'officialSourceUrl', 'publicationDate',
+          'suggestedCategory', 'suggestedGovtLevel', 'suggestedState',
+          'womenRelevanceTag', 'discoveryMethod', 'reviewStatus', 'dedupeKey',
+          'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'title', 'sourceName', 'officialSourceUrl', 'publicationDate',
+          'suggestedCategory', 'suggestedGovtLevel', 'suggestedState',
+          'womenRelevanceTag', 'discoveryMethod', 'reviewStatus', 'dedupeKey',
+          'summary', 'reviewedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidWomenSchemeDiscovery(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(itemId) &&
+        isAdmin() &&
+        incoming().createdAt == existing().createdAt &&
+        isValidWomenSchemeDiscovery(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'sourceName', 'officialSourceUrl', 'publicationDate',
+          'suggestedCategory', 'suggestedGovtLevel', 'suggestedState',
+          'womenRelevanceTag', 'reviewStatus', 'summary', 'reviewedBy', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(itemId) && isAdmin();
     }
   }
 }

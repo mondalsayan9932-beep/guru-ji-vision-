@@ -32,6 +32,15 @@ import {
   getDiscussionCategoryMeta,
   getWomenFarmerSchemes
 } from "./women-farmer-data.js";
+import {
+  mergeWomenLearningResources,
+  mergeWomenVideos
+} from "./women-learning-data.js";
+import {
+  renderWomenLearningCentreSubView,
+  renderWomenSchemeDetailPanel,
+  renderWomenYouTubeLibrarySubView
+} from "./women-learning-ui.js";
 
 function resolveLang(state) {
   const wfLang = state.womenFarmer?.lang;
@@ -165,7 +174,7 @@ function renderDashboardSubView(state, lang, stats) {
 function renderSchemesSubView(state, lang) {
   const bn = lang === "BN";
   const wf = state.womenFarmer || {};
-  const mode = wf.schemeMode || "ALL";
+  const mode = wf.schemeMode || "WB_PRIORITY";
   const stateFilter = wf.schemeState || "ALL";
   const catFilter = wf.schemeCategory || "ALL";
   const search = wf.schemeSearch || "";
@@ -177,9 +186,16 @@ function renderSchemesSubView(state, lang) {
     search
   });
 
-  const allCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "ALL" }).length;
+  const allWomenList = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "ALL" });
+  const allCount = allWomenList.length;
+  const wbPriorityCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "WB_PRIORITY" }).length;
+  const centralCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "CENTRAL_ONLY" }).length;
   const dedicatedCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "WOMEN_DEDICATED" }).length;
   const generalCount = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "GENERAL_ELIGIBLE" }).length;
+
+  const selectedEntry = wf.selectedSchemeId
+    ? allWomenList.find((x) => x.scheme.id === wf.selectedSchemeId)
+    : null;
 
   return `
     <div class="space-y-4">
@@ -187,27 +203,35 @@ function renderSchemesSubView(state, lang) {
       <div class="rounded-2xl border border-emerald-200 bg-[#ECFDF5] p-4 space-y-1">
         <div class="text-xs sm:text-sm font-extrabold text-[#14532D]">
           ${bn
-            ? "যাচাইকৃত সরকারি প্রকল্পের সরাসরি সংযোগ (Phase 5 ডাটাবেস)"
-            : "Connected Directly to Verified Government Schemes Centre (Zero Duplication)"}
+            ? "পশ্চিমবঙ্গ ও কেন্দ্রীয় সরকারের যাচাইকৃত কৃষি প্রকল্প (একক ডাটাবেস)"
+            : "West Bengal & Central Government Verified Schemes (Single Source of Truth)"}
         </div>
         <p class="text-xs text-[#334155] leading-relaxed">
           ${bn
-            ? "এখানে শুধুমাত্র সরকারি নিয়মে নারী-নির্ধারিত প্রকল্পগুলোকেই 'নারী কৃষক বিশেষ প্রকল্প' হিসেবে দেখানো হয়েছে। অন্যান্য সাধারণ কৃষি প্রকল্পগুলোকে স্পষ্টভাবে 'সাধারণ কৃষি প্রকল্প • নারী কৃষকরা আবেদনযোগ্য' হিসেবে চিহ্নিত করা হয়েছে।"
-            : "Only schemes officially dedicated to women farmers or women SHGs are labeled 'Women-Focused / Dedicated'. All general agricultural schemes open to women are clearly labeled as 'General Scheme • Women Farmers Eligible' or 'Higher Women Priority/Subsidy'."}
+            ? "এখানে পশ্চিমবঙ্গ সরকার ও কেন্দ্রীয় সরকারের নারী-যোগ্য প্রকল্পগুলো অগ্রাধিকার ভিত্তিতে দেখানো হয়েছে। শুধুমাত্র সরকারি নিয়মে নারী-নির্ধারিত প্রকল্পগুলোকেই 'নারী কৃষক বিশেষ প্রকল্প' এবং সাধারণ প্রকল্পগুলোকে 'সাধারণ কৃষি প্রকল্প • নারী কৃষকরা আবেদনযোগ্য' হিসেবে চিহ্নিত করা হয়েছে।"
+            : "Prioritizes West Bengal Government and applicable Central Government schemes for women farmers, SHGs, FPOs, horticulture, dairy, poultry & fisheries. General schemes open to women are accurately labeled — never falsely marked women-exclusive."}
         </p>
       </div>
 
+      ${selectedEntry ? renderWomenSchemeDetailPanel(selectedEntry.scheme, selectedEntry.classification, lang) : ""}
+
       <!-- Mode Pills -->
       <div class="flex flex-wrap gap-2">
-        <button type="button" data-wf-scheme-mode="ALL" class="px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-extrabold transition-colors ${
-          mode === "ALL" ? "bg-[#14532D] text-white shadow-sm" : "bg-white border border-[#CDE0D3] text-[#14532D] hover:bg-[#ECFDF5]"
-        }">${bn ? `সব নারী-যোগ্য প্রকল্প (${allCount})` : `All Women-Eligible Schemes (${allCount})`}</button>
+        <button type="button" data-wf-scheme-mode="WB_PRIORITY" class="px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-extrabold transition-colors ${
+          mode === "WB_PRIORITY" ? "bg-[#14532D] text-white shadow-sm" : "bg-white border border-[#CDE0D3] text-[#14532D] hover:bg-[#ECFDF5]"
+        }">${bn ? `পশ্চিমবঙ্গ + কেন্দ্রীয় অগ্রাধিকার (${wbPriorityCount})` : `West Bengal + Central Priority (${wbPriorityCount})`}</button>
         <button type="button" data-wf-scheme-mode="WOMEN_DEDICATED" class="px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-extrabold transition-colors ${
           mode === "WOMEN_DEDICATED" ? "bg-fuchsia-800 text-white shadow-sm" : "bg-white border border-fuchsia-200 text-fuchsia-900 hover:bg-fuchsia-50"
-        }">${bn ? `শুধু নারী-বিশেষ প্রকল্প (${dedicatedCount})` : `Women-Dedicated Schemes (${dedicatedCount})`}</button>
+        }">${bn ? `শুধু নারী-বিশেষ প্রকল্প (${dedicatedCount})` : `Women-Dedicated (${dedicatedCount})`}</button>
+        <button type="button" data-wf-scheme-mode="CENTRAL_ONLY" class="px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-extrabold transition-colors ${
+          mode === "CENTRAL_ONLY" ? "bg-[#14532D] text-white shadow-sm" : "bg-white border border-[#CDE0D3] text-[#14532D] hover:bg-[#ECFDF5]"
+        }">${bn ? `কেন্দ্রীয় সরকার (${centralCount})` : `Central Govt (${centralCount})`}</button>
         <button type="button" data-wf-scheme-mode="GENERAL_ELIGIBLE" class="px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-extrabold transition-colors ${
           mode === "GENERAL_ELIGIBLE" ? "bg-[#14532D] text-white shadow-sm" : "bg-white border border-[#CDE0D3] text-[#14532D] hover:bg-[#ECFDF5]"
-        }">${bn ? `সাধারণ কৃষি প্রকল্পে নারী যোগ্য (${generalCount})` : `General Agri Schemes Eligible for Women (${generalCount})`}</button>
+        }">${bn ? `সাধারণ প্রকল্পে নারী যোগ্য (${generalCount})` : `General Eligible (${generalCount})`}</button>
+        <button type="button" data-wf-scheme-mode="ALL" class="px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-extrabold transition-colors ${
+          mode === "ALL" ? "bg-[#14532D] text-white shadow-sm" : "bg-white border border-[#CDE0D3] text-[#14532D] hover:bg-[#ECFDF5]"
+        }">${bn ? `সকল রাজ্য (${allCount})` : `All States (${allCount})`}</button>
       </div>
 
       <!-- Search, State & Category Filters -->
@@ -716,16 +740,22 @@ export function renderWomenFarmerZoneView(state) {
   const allWomenSchemes = getWomenFarmerSchemes(state.agricultureSchemes || [], { mode: "ALL" });
   const dedicatedSchemes = allWomenSchemes.filter((x) => x.classification.tier === "WOMEN_DEDICATED").length;
   const discussionPosts = filterWomenDiscussions(state.communityPosts || [], { category: "ALL" }, Boolean(state.isAdmin));
+  const totalVideos = mergeWomenVideos(state.womenVideos || [], false).length;
+  const totalLearning = mergeWomenLearningResources(state.womenLearningResources || [], false).length;
 
   const stats = {
     totalEligibleSchemes: allWomenSchemes.length,
     dedicatedSchemes,
-    discussionCount: discussionPosts.length
+    discussionCount: discussionPosts.length,
+    totalVideos,
+    totalLearning
   };
 
   const tabs = [
     { key: "dashboard", en: "15 Support Areas", bn: "১৫টি সহায়তা কেন্দ্র" },
     { key: "schemes", en: `Govt Schemes (${stats.totalEligibleSchemes})`, bn: `সরকারি প্রকল্প (${stats.totalEligibleSchemes})` },
+    { key: "learning", en: `Learning Centre (${stats.totalLearning})`, bn: `লার্নিং সেন্টার (${stats.totalLearning})` },
+    { key: "videos", en: `YouTube Library (${stats.totalVideos})`, bn: `ভিডিও লাইব্রেরি (${stats.totalVideos})` },
     { key: "discussion", en: `Discussion Board (${stats.discussionCount})`, bn: `আলোচনা বোর্ড (${stats.discussionCount})` },
     { key: "rights", en: "Rights & Helplines", bn: "অধিকার ও হেল্পলাইন" }
   ];
@@ -747,11 +777,18 @@ export function renderWomenFarmerZoneView(state) {
             </h2>
             <p class="text-xs sm:text-sm text-[#DCFCE7]/95 max-w-2xl">
               ${bn
-                ? "নারী কৃষকদের সরকারি প্রকল্প, কৃষি প্রশিক্ষণ, স্বনির্ভর গোষ্ঠী (SHG), নারী FPO, পশুপালন, মৎস্য, অধিকার, হেল্পলাইন এবং নিরাপদ আলোচনা বোর্ড।"
-                : "Government schemes, agricultural training, SHG & women-led FPO guidance, crop/dairy/fisheries support, rights, official helplines & community discussion board."}
+                ? "পশ্চিমবঙ্গ ও কেন্দ্রীয় সরকারি প্রকল্প, লার্নিং সেন্টার, YouTube ভিডিও লাইব্রেরি, স্বনির্ভর গোষ্ঠী (SHG), নারী FPO, পশুপালন, মৎস্য, অধিকার, হেল্পলাইন ও আলোচনা বোর্ড।"
+                : "West Bengal & Central government schemes, bilingual Learning Centre, 10-category YouTube Video Library, SHG & women FPO guidance, rights, helplines & discussion board."}
             </p>
           </div>
-          ${renderBilingualBar(lang)}
+          <div class="flex flex-wrap items-center gap-2">
+            ${state.isAdmin ? `
+              <button type="button" data-nav="admin" data-open-admin-sub="women-cms" class="px-3 py-1.5 min-h-[36px] rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0C3B20] text-xs font-extrabold">
+                Admin CMS ↗
+              </button>
+            ` : ""}
+            ${renderBilingualBar(lang)}
+          </div>
         </div>
       </section>
 
@@ -764,7 +801,7 @@ export function renderWomenFarmerZoneView(state) {
           <button
             type="button"
             data-wf-tab="${t.key}"
-            class="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-colors ${
+            class="flex-1 sm:flex-none min-h-[44px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-colors ${
               activeTab === t.key
                 ? "bg-[#14532D] text-white shadow-sm"
                 : "text-[#14532D] hover:bg-white/70"
@@ -776,6 +813,8 @@ export function renderWomenFarmerZoneView(state) {
       <!-- Active Sub-View -->
       ${activeTab === "dashboard" ? renderDashboardSubView(state, lang, stats) : ""}
       ${activeTab === "schemes" ? renderSchemesSubView(state, lang) : ""}
+      ${activeTab === "learning" ? renderWomenLearningCentreSubView(state, lang) : ""}
+      ${activeTab === "videos" ? renderWomenYouTubeLibrarySubView(state, lang) : ""}
       ${activeTab === "discussion" ? renderDiscussionSubView(state, lang) : ""}
       ${activeTab === "rights" ? renderRightsAndHelplinesSubView(lang) : ""}
 

@@ -14,12 +14,20 @@ import { filterWomenDiscussions } from "./women-farmer-data.js";
 
 export function createInitialWomenFarmerState() {
   return {
-    subTab: "dashboard", // "dashboard" | "schemes" | "discussion" | "rights"
+    subTab: "dashboard", // "dashboard" | "schemes" | "learning" | "videos" | "discussion" | "rights"
     lang: "", // "" inherits app lang, or explicit "EN" | "BN"
-    schemeMode: "ALL", // "ALL" | "WOMEN_DEDICATED" | "GENERAL_ELIGIBLE"
+    schemeMode: "WB_PRIORITY", // "WB_PRIORITY" | "WOMEN_DEDICATED" | "CENTRAL_ONLY" | "GENERAL_ELIGIBLE" | "ALL"
     schemeState: "ALL",
     schemeCategory: "ALL",
     schemeSearch: "",
+    selectedSchemeId: "",
+    learningPillar: "ALL",
+    learningSearch: "",
+    videoCategory: "ALL",
+    videoLanguage: "ALL",
+    videoSearch: "",
+    activeVideoUrl: "",
+    activeVideoTitle: "",
     discussionCategory: "ALL",
     discussionSearch: "",
     editingPostId: "",
@@ -130,7 +138,9 @@ export function bindWomenFarmerEvents({
   document.addEventListener("click", async (e) => {
     const target = e.target.closest(
       "[data-wf-lang], [data-wf-tab], [data-wf-area-action], [data-wf-scheme-mode], " +
-      "[data-wf-reset-scheme-filters], [data-wf-open-scheme-detail], [data-wf-disc-cat], " +
+      "[data-wf-reset-scheme-filters], [data-wf-open-scheme-detail], [data-wf-close-scheme-detail], " +
+      "[data-wf-learning-pillar], [data-wf-reset-learning], [data-wf-video-cat], [data-wf-reset-videos], " +
+      "[data-wf-play-video], [data-wf-close-video], [data-wf-disc-cat], " +
       "[data-wf-like-post], [data-wf-toggle-comments], [data-wf-edit-post], [data-wf-cancel-edit-post], " +
       "[data-wf-del-post], [data-wf-mod-post], [data-wf-report-post], [data-wf-reply-comment], " +
       "[data-wf-cancel-reply], [data-wf-edit-comment], [data-wf-cancel-edit-comment], " +
@@ -172,13 +182,10 @@ export function bindWomenFarmerEvents({
         unsubscribeAllVisiblePostLikes();
         renderActiveView();
       } else if (action === "wf-scheme-detail") {
-        if (state.farmerFinance) {
-          state.farmerFinance.subTab = "schemes";
-          state.farmerFinance.selectedSchemeId = val;
-        }
+        wf.subTab = "schemes";
+        wf.selectedSchemeId = val || "";
         unsubscribeAllVisiblePostLikes();
-        state.lastZone = "women-farmer";
-        navigateTo("farmer-finance");
+        renderActiveView();
       } else if (action === "wf-discussion") {
         wf.subTab = "discussion";
         wf.discussionCategory = val || "ALL";
@@ -197,35 +204,73 @@ export function bindWomenFarmerEvents({
       return;
     }
 
-    // 4. Scheme mode & reset
+    // 4. Scheme mode, reset & inline 15-field Scheme Detail view
     if (target.dataset.wfSchemeMode) {
       wf.schemeMode = target.dataset.wfSchemeMode;
+      wf.selectedSchemeId = "";
       renderActiveView();
       return;
     }
     if (target.dataset.wfResetSchemeFilters) {
-      wf.schemeMode = "ALL";
+      wf.schemeMode = "WB_PRIORITY";
       wf.schemeState = "ALL";
       wf.schemeCategory = "ALL";
       wf.schemeSearch = "";
+      wf.selectedSchemeId = "";
       renderActiveView();
       return;
     }
 
-    // 5. Open full Phase 5 Scheme Detail Page directly (Zero Duplication!)
+    // 5. Open full 15-field bilingual Scheme Detail inline right inside Women Farmer Zone
     if (target.dataset.wfOpenSchemeDetail) {
-      const schemeId = target.dataset.wfOpenSchemeDetail;
-      if (state.farmerFinance) {
-        state.farmerFinance.subTab = "schemes";
-        state.farmerFinance.selectedSchemeId = schemeId;
-        if (wf.lang === "BN" || wf.lang === "EN") {
-          state.farmerFinance.schemeLang = wf.lang;
-        }
-      }
-      unsubscribeAllVisiblePostLikes();
-      state.lastZone = "women-farmer";
-      navigateTo("farmer-finance");
+      wf.subTab = "schemes";
+      wf.selectedSchemeId = target.dataset.wfOpenSchemeDetail;
+      renderActiveView();
       window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    if (target.dataset.wfCloseSchemeDetail) {
+      wf.selectedSchemeId = "";
+      renderActiveView();
+      return;
+    }
+
+    // 5B. Learning Centre pillar filter & reset
+    if (target.dataset.wfLearningPillar) {
+      wf.learningPillar = target.dataset.wfLearningPillar;
+      renderActiveView();
+      return;
+    }
+    if (target.dataset.wfResetLearning) {
+      wf.learningPillar = "ALL";
+      wf.learningSearch = "";
+      renderActiveView();
+      return;
+    }
+
+    // 5C. YouTube Learning Library category filter, reset & safe inline video modal
+    if (target.dataset.wfVideoCat) {
+      wf.videoCategory = target.dataset.wfVideoCat;
+      renderActiveView();
+      return;
+    }
+    if (target.dataset.wfResetVideos) {
+      wf.videoCategory = "ALL";
+      wf.videoLanguage = "ALL";
+      wf.videoSearch = "";
+      renderActiveView();
+      return;
+    }
+    if (target.dataset.wfPlayVideo) {
+      wf.activeVideoUrl = target.dataset.wfPlayVideo;
+      wf.activeVideoTitle = target.dataset.wfPlayTitle || "Women Farmer Educational Video";
+      renderActiveView();
+      return;
+    }
+    if (target.dataset.wfCloseVideo) {
+      wf.activeVideoUrl = "";
+      wf.activeVideoTitle = "";
+      renderActiveView();
       return;
     }
 
@@ -450,6 +495,20 @@ export function bindWomenFarmerEvents({
       renderSearchPreservingFocus("wfDiscussionSearch", start, end);
       return;
     }
+    if (e.target.id === "wfLearningSearch") {
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      wf.learningSearch = e.target.value;
+      renderSearchPreservingFocus("wfLearningSearch", start, end);
+      return;
+    }
+    if (e.target.id === "wfVideoSearch") {
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      wf.videoSearch = e.target.value;
+      renderSearchPreservingFocus("wfVideoSearch", start, end);
+      return;
+    }
   });
 
   document.addEventListener("change", (e) => {
@@ -463,6 +522,19 @@ export function bindWomenFarmerEvents({
       wf.schemeCategory = e.target.value || "ALL";
       renderActiveView();
       return;
+    }
+    if (e.target.id === "wfVideoLanguage") {
+      wf.videoLanguage = e.target.value || "ALL";
+      renderActiveView();
+      return;
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && state.womenFarmer?.activeVideoUrl) {
+      state.womenFarmer.activeVideoUrl = "";
+      state.womenFarmer.activeVideoTitle = "";
+      renderActiveView();
     }
   });
 

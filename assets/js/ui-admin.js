@@ -19,6 +19,7 @@ import {
   QUESTION_PROVENANCE_META
 } from "./agri-education-data.js";
 import { renderAdminEducationCmsView } from "./edu-cms-admin-ui.js";
+import { renderAdminWomenCmsView } from "./women-cms-admin-ui.js";
 
 // ----------------------------------------------------------------------------
 // 1. ADMIN DASHBOARD
@@ -48,6 +49,7 @@ export function renderAdminView(state) {
   const sub = ["materials", "quizzes", "syllabus-discovery"].includes(rawSub) ? "edu-cms" : rawSub;
   const tabs = [
     ["edu-cms", "Education CMS"],
+    ["women-cms", "Women Farmer CMS"],
     ["notices", "Notices"],
     ["market", "Market Prices"],
     ["schemes", "Govt Schemes"],
@@ -86,6 +88,7 @@ export function renderAdminView(state) {
       </div>
 
       ${sub === "edu-cms" ? renderAdminEducationCmsView(state) : ""}
+      ${sub === "women-cms" ? renderAdminWomenCmsView(state) : ""}
       ${sub === "notices" ? renderAdminNotices(state) : ""}
       ${sub === "market" ? renderAdminMarketPrices(state) : ""}
       ${sub === "schemes" ? renderAdminSchemes(state) : ""}

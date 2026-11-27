@@ -72,6 +72,10 @@ import {
   createInitialWomenFarmerState
 } from "./women-farmer-controller.js";
 import {
+  bindWomenCmsEvents,
+  createInitialWomenCmsState
+} from "./women-cms-controller.js";
+import {
   filterQuizQuestions,
   mergeQuizQuestions,
   mergeStudyMaterials,
@@ -204,8 +208,12 @@ const state = {
   // Farmer Financial Support & Rights Module State (Private records cleared on logout!)
   farmerFinance: createInitialFarmerFinanceState(),
 
-  // Women Farmer Zone & Discussion Board State (Phase 6)
+  // Women Farmer Zone, Learning Centre, YouTube Library & Discovery Queue State (Phase 6 + Phase 4)
+  womenVideos: [],
+  womenLearningResources: [],
+  womenSchemeDiscoveryQueue: [],
   womenFarmer: createInitialWomenFarmerState(),
+  womenCms: createInitialWomenCmsState(),
 
   // Agriculture Education Hub & Phase 3 CMS State (Notes, Videos, MCQs, Mock Tests, PYQs, Syllabus, Resources & Bookmarks)
   universitySyllabi: [],
@@ -506,7 +514,8 @@ const ROUTE_DATA_DEPS = {
     "firestoreMarketPrices", "agricultureSchemes", "meetings", "communityPosts", "professors"
   ]),
   "women-farmer": new Set([
-    "agricultureSchemes", "communityPosts", "meetings"
+    "agricultureSchemes", "communityPosts", "meetings",
+    "womenVideos", "womenLearningResources"
   ]),
   "skill-zone": new Set([
     "studyMaterials", "quizzes", "mockTests", "careerOpportunities", "meetings", "communityPosts", "professors"
@@ -516,7 +525,7 @@ const ROUTE_DATA_DEPS = {
   marketplace: new Set([]),
   student: new Set([
     "studyMaterials", "quizzes", "mockTests", "quizAttempts",
-    "universitySyllabi", "discoveredStudyResources", "studyBookmarks"
+    "universitySyllabi", "discoveredStudyResources", "studyBookmarks", "womenVideos"
   ]),
   farmer: new Set(["appSettings", "farmerQueries"]),
   "farmer-finance": new Set(["firestoreMarketPrices", "agricultureSchemes"]),
@@ -536,7 +545,8 @@ const ROUTE_DATA_DEPS = {
   admin: new Set([
     "appSettings", "studyMaterials", "quizzes", "mockTests", "universitySyllabi", "discoveredStudyResources",
     "announcements", "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
-    "agricultureSchemes", "agricultureSchemeHistory", "communityPosts"
+    "agricultureSchemes", "agricultureSchemeHistory", "communityPosts",
+    "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue"
   ]),
   owner: new Set([
     "appSettings", "ownerUsers", "ownerAdmins", "ownerActivities",
@@ -3349,6 +3359,12 @@ bindAgriEducationEvents({
   openAuthModal
 });
 bindEduCmsEvents({
+  state,
+  renderActiveView,
+  showToast,
+  withBusySubmit
+});
+bindWomenCmsEvents({
   state,
   renderActiveView,
   showToast,
