@@ -24,6 +24,12 @@ import {
   mergeWomenLearningResources,
   mergeWomenVideos
 } from "./women-learning-data.js";
+import {
+  NEARBY_SERVICE_CATEGORIES,
+  NEARBY_SERVICE_CATEGORY_MAP,
+  SHG_GOVT_SUPPORT_OPTIONS,
+  getVerificationBadgeMeta
+} from "./women-nearby-data.js";
 
 const DEFAULT_SOURCE_CAPABILITIES = [
   { name: "PIB — Ministry of Agriculture & Farmers Welfare (Official RSS)", mode: "AUTOMATIC", notes: "Discovers new Central agri & women-farmer announcements for Admin Review." },
@@ -50,10 +56,16 @@ export function renderAdminWomenCmsView(state) {
   const allLearning = mergeWomenLearningResources(state.womenLearningResources || [], true);
   const queue = Array.isArray(state.womenSchemeDiscoveryQueue) ? state.womenSchemeDiscoveryQueue : [];
   const pendingCount = queue.filter((q) => q.reviewStatus === "PENDING_REVIEW").length;
+  const allNearby = Array.isArray(state.nearbyServiceListings) ? state.nearbyServiceListings : [];
+  const pendingNearbyCount = allNearby.filter((n) => n.verificationStatus === "PENDING_REVIEW").length;
+  const allShgs = Array.isArray(state.shgDirectoryListings) ? state.shgDirectoryListings : [];
+  const pendingShgCount = allShgs.filter((s) => s.verificationStatus === "PENDING_REVIEW").length;
 
   const subTabs = [
     ["videos", `YouTube Library (${allVideos.length})`],
     ["learning", `Learning Centre (${allLearning.length})`],
+    ["nearby-admin", `Nearby Services (${allNearby.length}${pendingNearbyCount ? ` • ${pendingNearbyCount} Pending` : ""})`],
+    ["shg-admin", `SHG Directory (${allShgs.length}${pendingShgCount ? ` • ${pendingShgCount} Pending` : ""})`],
     ["discovery", `Auto Discovery & Queue (${pendingCount} Pending)`],
     ["schemes", `WB & Central Schemes (${womenSchemes.length})`]
   ];
@@ -64,7 +76,7 @@ export function renderAdminWomenCmsView(state) {
         <div>
           <h3 class="font-display text-lg font-bold text-[#14532D]">Women Farmer Zone Content Studio</h3>
           <p class="text-xs text-[#496052]">
-            Manage West Bengal &amp; Central women-eligible schemes, 10-category YouTube Learning Library, 7-pillar Learning Centre, and Automatic Official Discovery Review Queue.
+            Manage West Bengal &amp; Central women-eligible schemes, 10-category YouTube Library, 7-pillar Learning Centre, Admin-Verified Nearby Services, SHG Directory &amp; Official Discovery Queue.
           </p>
         </div>
         <button type="button" data-nav="women-farmer" class="min-h-[40px] px-3.5 py-2 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-xs font-extrabold shrink-0">
@@ -86,6 +98,8 @@ export function renderAdminWomenCmsView(state) {
 
       ${section === "videos" ? renderAdminWomenVideosSection(state, allVideos) : ""}
       ${section === "learning" ? renderAdminWomenLearningSection(state, allLearning) : ""}
+      ${section === "nearby-admin" ? renderAdminNearbyServicesSection(state, allNearby) : ""}
+      ${section === "shg-admin" ? renderAdminShgDirectorySection(state, allShgs) : ""}
       ${section === "discovery" ? renderAdminSchemeDiscoverySection(state, queue, allSchemes) : ""}
       ${section === "schemes" ? renderAdminWomenSchemesQuickSection(state, womenSchemes) : ""}
     </div>
@@ -440,6 +454,216 @@ function renderAdminWomenSchemesQuickSection(state, womenSchemes) {
             </div>
           `;
         }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// E. ADMIN NEARBY SERVICES VERIFICATION & DIRECTORY MANAGER (PHASE 5)
+// ----------------------------------------------------------------------------
+function renderAdminNearbyServicesSection(state, allNearby) {
+  const sorted = [...allNearby].sort((a, b) => {
+    const rank = (x) => (x.verificationStatus === "PENDING_REVIEW" ? 0 : x.verificationStatus === "ADMIN_VERIFIED" ? 1 : 2);
+    return rank(a) - rank(b);
+  });
+  const pendingCount = sorted.filter((x) => x.verificationStatus === "PENDING_REVIEW").length;
+  const verifiedCount = sorted.filter((x) => x.verificationStatus === "ADMIN_VERIFIED" && x.published).length;
+
+  return `
+    <div data-admin-nearby-section="1" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <form id="adminNearbyForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
+        <div class="flex items-center justify-between gap-2">
+          <h4 class="text-base font-extrabold text-[#14532D]">Add / Verify Local Business (WB)</h4>
+          <button id="awnCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
+        </div>
+        <p class="text-[11px] text-[#496052]">
+          Enter only verified local shops, pharmacies, agri input centres or support hubs. Never add unverified or placeholder addresses.
+        </p>
+        <input id="awnEditId" type="hidden" value="" />
+        <input id="awnName" type="text" required minlength="2" maxlength="140" placeholder="Shop / Organization Name (English) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
+        <input id="awnNameBn" type="text" maxlength="180" placeholder="Bengali Name (বাংলা নাম — optional)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <div class="grid grid-cols-2 gap-2">
+          <select id="awnCategory" class="px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+            ${NEARBY_SERVICE_CATEGORIES.map((c) => `<option value="${escapeHtml(c.key)}">${escapeHtml(c.en)}</option>`).join("")}
+          </select>
+          <input id="awnPin" type="text" inputmode="numeric" required maxlength="6" pattern="[1-9][0-9]{5}" placeholder="6-Digit PIN *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs font-bold" />
+        </div>
+        <input id="awnAddress" type="text" required minlength="3" maxlength="280" placeholder="Full Street / Village / Bazar Address *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <div class="grid grid-cols-2 gap-2">
+          <input id="awnArea" type="text" maxlength="100" placeholder="Area / Block / Town" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awnDistrict" type="text" maxlength="80" value="Nadia" placeholder="District (e.g., Nadia)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <input id="awnPhone" type="tel" maxlength="32" placeholder="Verified Phone Number (optional)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <div class="grid grid-cols-2 gap-2">
+          <input id="awnLat" type="number" step="any" placeholder="Latitude (optional, e.g. 22.975)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awnLng" type="number" step="any" placeholder="Longitude (optional, e.g. 88.434)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <textarea id="awnNotes" rows="2" maxlength="500" placeholder="Verified services / opening notes (optional)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+        <label class="flex items-center gap-2 text-xs font-bold text-[#14532D] pt-1">
+          <input id="awnPublished" type="checkbox" checked class="w-4 h-4 accent-[#14532D]" />
+          Mark Admin Verified &amp; Publish immediately
+        </label>
+        <button type="submit" class="w-full min-h-[44px] py-2.5 rounded-xl bg-[#14532D] hover:bg-[#0C3B20] text-white text-sm font-extrabold">
+          Save Verified Business
+        </button>
+      </form>
+
+      <div class="lg:col-span-7 gv-card p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h4 class="text-base font-extrabold text-[#14532D]">Nearby Services Verification Queue &amp; Directory (${sorted.length})</h4>
+          <span class="text-[11px] font-bold text-[#496052]">${pendingCount} Pending • ${verifiedCount} Verified Live</span>
+        </div>
+
+        ${sorted.length === 0 ? `
+          <p class="text-xs text-[#64748B]">No rural businesses submitted or verified yet. Add a verified local shop using the form on the left, or review contributor submissions here.</p>
+        ` : `
+          <div class="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+            ${sorted.map((item) => {
+              const cat = NEARBY_SERVICE_CATEGORY_MAP[item.category] || { en: item.category };
+              const badge = getVerificationBadgeMeta(item.verificationStatus);
+              return `
+                <div class="p-3.5 rounded-2xl border ${item.verificationStatus === "PENDING_REVIEW" ? "bg-amber-50/70 border-amber-300" : "bg-[#F8FBF8] border-[#E2ECE5]"} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="min-w-0 space-y-1">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${escapeHtml(badge.cls)}">${escapeHtml(badge.en)}</span>
+                      <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[10px] font-bold text-[#14532D]">${escapeHtml(cat.en)}</span>
+                      <span class="px-2 py-0.5 rounded-full bg-[#EDF4EE] text-[10px] font-extrabold text-[#14532D]">PIN ${escapeHtml(item.pinCode || "")}</span>
+                      ${item.published ? `<span class="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold">Public Live</span>` : `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">Hidden</span>`}
+                    </div>
+                    <div class="text-sm font-extrabold text-[#132219]">${escapeHtml(item.name || "")}</div>
+                    <div class="text-[11px] text-[#475569]">${escapeHtml(item.address || "")}${item.district ? ` • ${escapeHtml(item.district)}` : ""}</div>
+                    ${item.phone ? `<div class="text-[11px] font-bold text-[#14532D]">📞 ${escapeHtml(item.phone)}</div>` : ""}
+                    ${item.submittedByName ? `<div class="text-[10px] text-[#64748B]">Submitted by: ${escapeHtml(item.submittedByName)}</div>` : ""}
+                  </div>
+                  <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                    ${!(item.verificationStatus === "ADMIN_VERIFIED" && item.published) ? `
+                      <button type="button" data-wcms-verify-nearby="${escapeHtml(item.id)}" data-status="ADMIN_VERIFIED" data-pub="1" class="px-2.5 py-1.5 rounded-lg bg-[#14532D] text-white text-[11px] font-extrabold">
+                        ✓ Verify &amp; Publish
+                      </button>
+                    ` : `
+                      <button type="button" data-wcms-verify-nearby="${escapeHtml(item.id)}" data-status="ADMIN_VERIFIED" data-pub="0" class="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-900 text-[11px] font-extrabold">
+                        Unpublish
+                      </button>
+                    `}
+                    ${item.verificationStatus !== "REJECTED" ? `
+                      <button type="button" data-wcms-verify-nearby="${escapeHtml(item.id)}" data-status="REJECTED" data-pub="0" class="px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-800 text-[11px] font-extrabold">
+                        Reject
+                      </button>
+                    ` : ""}
+                    <button type="button" data-wcms-edit-nearby="${escapeHtml(item.id)}" class="px-2.5 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-[11px] font-extrabold">Edit</button>
+                    <button type="button" data-wcms-del-nearby="${escapeHtml(item.id)}" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-extrabold">Delete</button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// F. ADMIN SHG DIRECTORY VERIFICATION & MANAGER (PHASE 5)
+// ----------------------------------------------------------------------------
+function renderAdminShgDirectorySection(state, allShgs) {
+  const sorted = [...allShgs].sort((a, b) => {
+    const rank = (x) => (x.verificationStatus === "PENDING_REVIEW" ? 0 : x.verificationStatus === "ADMIN_VERIFIED" ? 1 : 2);
+    return rank(a) - rank(b);
+  });
+  const pendingCount = sorted.filter((x) => x.verificationStatus === "PENDING_REVIEW").length;
+  const verifiedCount = sorted.filter((x) => x.verificationStatus === "ADMIN_VERIFIED" && x.published).length;
+
+  return `
+    <div data-admin-shg-section="1" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <form id="adminShgForm" class="lg:col-span-5 gv-card p-5 space-y-2.5 h-fit">
+        <div class="flex items-center justify-between gap-2">
+          <h4 class="text-base font-extrabold text-[#14532D]">Add / Verify Women SHG (WB)</h4>
+          <button id="awsCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
+        </div>
+        <p class="text-[11px] text-[#496052]">
+          Verify SHG registration, village Sangha/Anandadhara alignment &amp; contact consent before publishing publicly.
+        </p>
+        <input id="awsEditId" type="hidden" value="" />
+        <input id="awsName" type="text" required minlength="2" maxlength="150" placeholder="SHG Name (English) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
+        <input id="awsNameBn" type="text" maxlength="190" placeholder="SHG Bengali Name (বাংলা নাম)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <div class="grid grid-cols-2 gap-2">
+          <input id="awsArea" type="text" required minlength="2" maxlength="120" placeholder="Village / Block / Area *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awsDistrict" type="text" required minlength="2" maxlength="80" value="Nadia" placeholder="District *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <input id="awsAddress" type="text" required minlength="3" maxlength="280" placeholder="Full Address *" class="col-span-2 px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awsPin" type="text" inputmode="numeric" required maxlength="6" pattern="[1-9][0-9]{5}" placeholder="6-Digit PIN *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs font-bold" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="awsContactName" type="text" maxlength="80" placeholder="Leader / Contact Name" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awsContactPhone" type="tel" maxlength="32" placeholder="Verified Contact Phone" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <input id="awsActivities" type="text" required placeholder="Activities (comma-separated, e.g., Vegetables, Pickles) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <input id="awsServices" type="text" placeholder="Services Offered (comma-separated)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <textarea id="awsEnterprise" rows="2" maxlength="600" placeholder="Women Entrepreneurship &amp; Product Details" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+        <select id="awsGovtSupport" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
+          ${SHG_GOVT_SUPPORT_OPTIONS.map((opt) => `<option value="${escapeHtml(opt.en)}">${escapeHtml(opt.en)}</option>`).join("")}
+        </select>
+        <label class="flex items-center gap-2 text-xs font-bold text-[#14532D] pt-1">
+          <input id="awsPublished" type="checkbox" checked class="w-4 h-4 accent-[#14532D]" />
+          Mark Admin Verified &amp; Publish immediately
+        </label>
+        <button type="submit" class="w-full min-h-[44px] py-2.5 rounded-xl bg-fuchsia-800 hover:bg-fuchsia-900 text-white text-sm font-extrabold">
+          Save Verified SHG
+        </button>
+      </form>
+
+      <div class="lg:col-span-7 gv-card p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h4 class="text-base font-extrabold text-[#14532D]">SHG Verification Queue &amp; Directory (${sorted.length})</h4>
+          <span class="text-[11px] font-bold text-[#496052]">${pendingCount} Pending • ${verifiedCount} Verified Live</span>
+        </div>
+
+        ${sorted.length === 0 ? `
+          <p class="text-xs text-[#64748B]">No Self Help Groups listed yet. Add a verified West Bengal women SHG using the form on the left, or approve contributor SHG submissions here.</p>
+        ` : `
+          <div class="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+            ${sorted.map((shg) => {
+              const badge = getVerificationBadgeMeta(shg.verificationStatus);
+              return `
+                <div class="p-3.5 rounded-2xl border ${shg.verificationStatus === "PENDING_REVIEW" ? "bg-amber-50/70 border-amber-300" : "bg-[#F8FBF8] border-[#E2ECE5]"} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="min-w-0 space-y-1">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${escapeHtml(badge.cls)}">${escapeHtml(badge.en)}</span>
+                      <span class="px-2 py-0.5 rounded-full bg-[#EDF4EE] text-[10px] font-extrabold text-[#14532D]">PIN ${escapeHtml(shg.pinCode || "")}</span>
+                      <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[10px] font-bold text-[#14532D]">${escapeHtml(shg.district || "")}</span>
+                      ${shg.published ? `<span class="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold">Public Live</span>` : `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">Hidden</span>`}
+                    </div>
+                    <div class="text-sm font-extrabold text-[#132219]">${escapeHtml(shg.shgName || "")}</div>
+                    <div class="text-[11px] text-[#475569]">${escapeHtml(shg.area || "")} — ${escapeHtml(shg.address || "")}</div>
+                    ${Array.isArray(shg.activities) && shg.activities.length ? `<div class="text-[10px] font-bold text-fuchsia-900">Activities: ${escapeHtml(shg.activities.join(", "))}</div>` : ""}
+                    ${shg.govtSupport ? `<div class="text-[10px] text-[#14532D]">Support: ${escapeHtml(shg.govtSupport)}</div>` : ""}
+                  </div>
+                  <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                    ${!(shg.verificationStatus === "ADMIN_VERIFIED" && shg.published) ? `
+                      <button type="button" data-wcms-verify-shg="${escapeHtml(shg.id)}" data-status="ADMIN_VERIFIED" data-pub="1" class="px-2.5 py-1.5 rounded-lg bg-[#14532D] text-white text-[11px] font-extrabold">
+                        ✓ Verify &amp; Publish
+                      </button>
+                    ` : `
+                      <button type="button" data-wcms-verify-shg="${escapeHtml(shg.id)}" data-status="ADMIN_VERIFIED" data-pub="0" class="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-900 text-[11px] font-extrabold">
+                        Unpublish
+                      </button>
+                    `}
+                    ${shg.verificationStatus !== "REJECTED" ? `
+                      <button type="button" data-wcms-verify-shg="${escapeHtml(shg.id)}" data-status="REJECTED" data-pub="0" class="px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-800 text-[11px] font-extrabold">
+                        Reject
+                      </button>
+                    ` : ""}
+                    <button type="button" data-wcms-edit-shg="${escapeHtml(shg.id)}" class="px-2.5 py-1.5 rounded-lg bg-[#EDF4EE] text-[#14532D] text-[11px] font-extrabold">Edit</button>
+                    <button type="button" data-wcms-del-shg="${escapeHtml(shg.id)}" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-extrabold">Delete</button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `}
       </div>
     </div>
   `;

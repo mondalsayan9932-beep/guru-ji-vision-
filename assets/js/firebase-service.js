@@ -635,7 +635,8 @@ class FirebaseService {
       "studyMaterials", "quizzes", "careerOpportunities", "communityPosts",
       "announcements", "meetings", "professors", "firestoreMarketPrices", "agricultureSchemes",
       "universitySyllabi", "discoveredStudyResources", "mockTests",
-      "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue", "appSettings"
+      "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue",
+      "nearbyServiceListings", "shgDirectoryListings", "appSettings"
     ];
     // Prevent duplicate tear-down and re-subscription when the public query scope has not changed
     if (this.publicSubScopeKey === scopeKey && requiredPublicKeys.every((k) => this.activeUnsubs.has(k))) {
@@ -862,6 +863,44 @@ class FirebaseService {
       onUpdate("womenSchemeDiscoveryQueue", list, true);
     }, () => {}));
 
+    // Phase 5: Women Farmer Nearby Services Directory (/nearbyServiceListings)
+    const nearbyQ = isAdmin
+      ? query(collection(this.db, "nearbyServiceListings"), limit(300))
+      : query(
+          collection(this.db, "nearbyServiceListings"),
+          where("verificationStatus", "==", "ADMIN_VERIFIED"),
+          where("published", "==", true),
+          limit(250)
+        );
+    this.setSub("nearbyServiceListings", onSnapshot(nearbyQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("nearbyServiceListings", list, true);
+    }, () => {}));
+
+    // Phase 5: Women Farmer SHG Directory (/shgDirectoryListings)
+    const shgQ = isAdmin
+      ? query(collection(this.db, "shgDirectoryListings"), limit(300))
+      : query(
+          collection(this.db, "shgDirectoryListings"),
+          where("verificationStatus", "==", "ADMIN_VERIFIED"),
+          where("published", "==", true),
+          limit(250)
+        );
+    this.setSub("shgDirectoryListings", onSnapshot(shgQ, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdAtMs: getTimestampMs(d.data().createdAt),
+        updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+      })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+      onUpdate("shgDirectoryListings", list, true);
+    }, () => {}));
+
     // App Settings (/appSettings/global — public read for WhatsApp Helpline & Notices)
     this.setSub("appSettings", onSnapshot(doc(this.db, "appSettings", "global"), (snap) => {
       if (snap.exists()) {
@@ -881,7 +920,10 @@ class FirebaseService {
     this.subscribePublicCollections({ isAdmin, isSuperAdmin, isAuthorizedMeetingHost, onUpdate });
 
     const privKey = `${uid}|${Boolean(isAdmin)}`;
-    const requiredPrivateKeys = ["farmerQueries", "quizAttempts", "studyBookmarks"];
+    const requiredPrivateKeys = [
+      "farmerQueries", "quizAttempts", "studyBookmarks",
+      "myPendingNearbyListings", "myPendingShgListings"
+    ];
     if (this.privateSubKey === privKey && requiredPrivateKeys.every((k) => this.activeUnsubs.has(k))) {
       return;
     }
@@ -913,6 +955,33 @@ class FirebaseService {
       })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       onUpdate("studyBookmarks", list);
     }, () => {}));
+
+    // Phase 5: Contributor's own pending Nearby Services & SHG submissions (strictly private to submitter + Admin)
+    this.setSub("myPendingNearbyListings", onSnapshot(
+      query(collection(this.db, "nearbyServiceListings"), where("submittedBy", "==", uid), limit(50)),
+      (snap) => {
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+        })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        onUpdate("myPendingNearbyListings", list);
+      },
+      () => {}
+    ));
+
+    this.setSub("myPendingShgListings", onSnapshot(
+      query(collection(this.db, "shgDirectoryListings"), where("submittedBy", "==", uid), limit(50)),
+      (snap) => {
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          updatedAtMs: getTimestampMs(d.data().updatedAt || d.data().createdAt)
+        })).sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        onUpdate("myPendingShgListings", list);
+      },
+      () => {}
+    ));
   }
 
   // --------------------------------------------------------------------------
@@ -2878,6 +2947,162 @@ class FirebaseService {
   async deleteDiscoveredWomenScheme(id) {
     if (!this.ready || !id) return;
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "womenSchemeDiscoveryQueue", id));
+  }
+
+  // --------------------------------------------------------------------------
+  // 14. PHASE 5: WOMEN FARMER NEARBY SERVICES & SHG DIRECTORY
+  // --------------------------------------------------------------------------
+  async saveNearbyServiceListing(uid, submitterName, data, { isAdmin = false, editId = "" } = {}) {
+    if (!this.ready || !uid) throw new Error("Sign-in required to submit a listing.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const validCats = [
+      "MEDICAL_PHARMACY", "FERTILIZER_SHOP", "SEED_SHOP", "PESTICIDE_SHOP",
+      "AGRI_INPUT_SHOP", "GROCERY_GENERAL", "AGRI_EQUIPMENT_SHOP",
+      "SHG_GROUP", "FARMER_SUPPORT_CENTRE"
+    ];
+    const cleanPin = String(data.pinCode || "").replace(/\s+/g, "").trim();
+    if (!/^[1-9][0-9]{5}$/.test(cleanPin)) throw new Error("Please enter a valid 6-digit PIN Code.");
+
+    const latNum = data.lat !== "" && data.lat !== null && data.lat !== undefined ? Number(data.lat) : null;
+    const lngNum = data.lng !== "" && data.lng !== null && data.lng !== undefined ? Number(data.lng) : null;
+    const validLat = latNum !== null && Number.isFinite(latNum) && latNum >= 6 && latNum <= 38 ? latNum : null;
+    const validLng = lngNum !== null && Number.isFinite(lngNum) && lngNum >= 67 && lngNum <= 98 ? lngNum : null;
+
+    const status = isAdmin
+      ? (["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(data.verificationStatus) ? data.verificationStatus : "ADMIN_VERIFIED")
+      : "PENDING_REVIEW";
+    const published = isAdmin ? (status === "ADMIN_VERIFIED" && data.published !== false) : false;
+
+    const base = {
+      name: String(data.name || "").trim().slice(0, 140),
+      nameBn: String(data.nameBn || "").trim().slice(0, 180),
+      category: validCats.includes(data.category) ? data.category : "AGRI_INPUT_SHOP",
+      address: String(data.address || "").trim().slice(0, 280),
+      area: String(data.area || "").trim().slice(0, 120),
+      district: String(data.district || "Nadia").trim().slice(0, 80),
+      state: String(data.state || "West Bengal").trim().slice(0, 60),
+      pinCode: cleanPin,
+      phone: String(data.phone || "").trim().slice(0, 32),
+      notes: String(data.notes || "").trim().slice(0, 500),
+      lat: validLat,
+      lng: validLng,
+      verificationStatus: status,
+      published,
+      verifiedBy: isAdmin && status === "ADMIN_VERIFIED" ? uid : "",
+      lastVerifiedDate: isAdmin && status === "ADMIN_VERIFIED"
+        ? String(data.lastVerifiedDate || new Date().toISOString().slice(0, 10)).slice(0, 20)
+        : "",
+      updatedAt: serverTimestamp()
+    };
+
+    if (editId) {
+      if (!isAdmin) throw new Error("Only Admins can edit existing listings.");
+      await updateDoc(doc(this.db, "nearbyServiceListings", editId), base);
+    } else {
+      await addDoc(collection(this.db, "nearbyServiceListings"), {
+        ...base,
+        submittedBy: uid,
+        submittedByName: String(submitterName || "Contributor").trim().slice(0, 80),
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async verifyNearbyServiceListing(adminUid, id, { verificationStatus = "ADMIN_VERIFIED", published = true } = {}) {
+    if (!this.ready || !adminUid || !id) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const status = ["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(verificationStatus)
+      ? verificationStatus
+      : "PENDING_REVIEW";
+    const pub = status === "ADMIN_VERIFIED" && Boolean(published);
+    await updateDoc(doc(this.db, "nearbyServiceListings", id), {
+      verificationStatus: status,
+      published: pub,
+      verifiedBy: status === "ADMIN_VERIFIED" ? adminUid : "",
+      lastVerifiedDate: status === "ADMIN_VERIFIED" ? new Date().toISOString().slice(0, 10) : "",
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteNearbyServiceListing(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "nearbyServiceListings", id));
+  }
+
+  async saveShgDirectoryListing(uid, submitterName, data, { isAdmin = false, editId = "" } = {}) {
+    if (!this.ready || !uid) throw new Error("Sign-in required to submit an SHG listing.");
+    const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const cleanPin = String(data.pinCode || "").replace(/\s+/g, "").trim();
+    if (!/^[1-9][0-9]{5}$/.test(cleanPin)) throw new Error("Please enter a valid 6-digit PIN Code.");
+
+    const toList = (raw) =>
+      (Array.isArray(raw) ? raw : String(raw || "").split(/[\n,]+/))
+        .map((x) => String(x || "").trim().slice(0, 120))
+        .filter(Boolean)
+        .slice(0, 12);
+    const activities = toList(data.activities);
+    if (!activities.length) throw new Error("Please specify at least one SHG activity.");
+
+    const status = isAdmin
+      ? (["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(data.verificationStatus) ? data.verificationStatus : "ADMIN_VERIFIED")
+      : "PENDING_REVIEW";
+    const published = isAdmin ? (status === "ADMIN_VERIFIED" && data.published !== false) : false;
+
+    const base = {
+      shgName: String(data.shgName || "").trim().slice(0, 150),
+      shgNameBn: String(data.shgNameBn || "").trim().slice(0, 190),
+      area: String(data.area || "").trim().slice(0, 120),
+      district: String(data.district || "Nadia").trim().slice(0, 80),
+      state: String(data.state || "West Bengal").trim().slice(0, 60),
+      address: String(data.address || "").trim().slice(0, 280),
+      pinCode: cleanPin,
+      contactName: String(data.contactName || "").trim().slice(0, 80),
+      contactPhone: String(data.contactPhone || "").trim().slice(0, 32),
+      activities,
+      services: toList(data.services),
+      entrepreneurshipInfo: String(data.entrepreneurshipInfo || "").trim().slice(0, 600),
+      govtSupport: String(data.govtSupport || "").trim().slice(0, 300),
+      verificationStatus: status,
+      published,
+      verifiedBy: isAdmin && status === "ADMIN_VERIFIED" ? uid : "",
+      lastVerifiedDate: isAdmin && status === "ADMIN_VERIFIED"
+        ? String(data.lastVerifiedDate || new Date().toISOString().slice(0, 10)).slice(0, 20)
+        : "",
+      updatedAt: serverTimestamp()
+    };
+
+    if (editId) {
+      if (!isAdmin) throw new Error("Only Admins can edit existing SHG listings.");
+      await updateDoc(doc(this.db, "shgDirectoryListings", editId), base);
+    } else {
+      await addDoc(collection(this.db, "shgDirectoryListings"), {
+        ...base,
+        submittedBy: uid,
+        submittedByName: String(submitterName || "Contributor").trim().slice(0, 80),
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+
+  async verifyShgDirectoryListing(adminUid, id, { verificationStatus = "ADMIN_VERIFIED", published = true } = {}) {
+    if (!this.ready || !adminUid || !id) throw new Error("Admin sign-in required.");
+    const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
+    const status = ["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(verificationStatus)
+      ? verificationStatus
+      : "PENDING_REVIEW";
+    const pub = status === "ADMIN_VERIFIED" && Boolean(published);
+    await updateDoc(doc(this.db, "shgDirectoryListings", id), {
+      verificationStatus: status,
+      published: pub,
+      verifiedBy: status === "ADMIN_VERIFIED" ? adminUid : "",
+      lastVerifiedDate: status === "ADMIN_VERIFIED" ? new Date().toISOString().slice(0, 10) : "",
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  async deleteShgDirectoryListing(id) {
+    if (!this.ready || !id) return;
+    await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "shgDirectoryListings", id));
   }
 }
 

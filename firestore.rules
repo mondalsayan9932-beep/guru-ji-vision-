@@ -523,6 +523,60 @@ service cloud.firestore {
         isValidTimestamp(data.updatedAt);
     }
 
+    // --- PHASE 5: WOMEN FARMER NEARBY SERVICES & SHG DIRECTORY VALIDATORS ---
+    function isValidNearbyServiceListing(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 140 &&
+        (!('nameBn' in data) || (data.nameBn is string && data.nameBn.size() <= 180)) &&
+        data.category in [
+          'MEDICAL_PHARMACY', 'FERTILIZER_SHOP', 'SEED_SHOP', 'PESTICIDE_SHOP',
+          'AGRI_INPUT_SHOP', 'GROCERY_GENERAL', 'AGRI_EQUIPMENT_SHOP',
+          'SHG_GROUP', 'FARMER_SUPPORT_CENTRE'
+        ] &&
+        data.address is string && data.address.size() >= 3 && data.address.size() <= 280 &&
+        (!('area' in data) || (data.area is string && data.area.size() <= 120)) &&
+        data.district is string && data.district.size() >= 2 && data.district.size() <= 80 &&
+        data.state is string && data.state.size() >= 2 && data.state.size() <= 60 &&
+        data.pinCode is string && data.pinCode.matches('^[1-9][0-9]{5}$') &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 32)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        (!('lat' in data) || data.lat == null || (data.lat is number && data.lat >= 6 && data.lat <= 38)) &&
+        (!('lng' in data) || data.lng == null || (data.lng is number && data.lng >= 67 && data.lng <= 98)) &&
+        data.verificationStatus in ['ADMIN_VERIFIED', 'PENDING_REVIEW', 'REJECTED'] &&
+        data.published is bool &&
+        (data.published == false || data.verificationStatus == 'ADMIN_VERIFIED') &&
+        data.submittedBy is string && data.submittedBy.size() >= 1 && data.submittedBy.size() <= 128 &&
+        (!('submittedByName' in data) || (data.submittedByName is string && data.submittedByName.size() <= 80)) &&
+        (!('verifiedBy' in data) || (data.verifiedBy is string && data.verifiedBy.size() <= 128)) &&
+        (!('lastVerifiedDate' in data) || (data.lastVerifiedDate is string && data.lastVerifiedDate.size() <= 20)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidShgDirectoryListing(data) {
+      return data.shgName is string && data.shgName.size() >= 2 && data.shgName.size() <= 150 &&
+        (!('shgNameBn' in data) || (data.shgNameBn is string && data.shgNameBn.size() <= 190)) &&
+        data.area is string && data.area.size() >= 2 && data.area.size() <= 120 &&
+        data.district is string && data.district.size() >= 2 && data.district.size() <= 80 &&
+        data.state is string && data.state.size() >= 2 && data.state.size() <= 60 &&
+        data.address is string && data.address.size() >= 3 && data.address.size() <= 280 &&
+        data.pinCode is string && data.pinCode.matches('^[1-9][0-9]{5}$') &&
+        (!('contactName' in data) || (data.contactName is string && data.contactName.size() <= 80)) &&
+        (!('contactPhone' in data) || (data.contactPhone is string && data.contactPhone.size() <= 32)) &&
+        data.activities is list && data.activities.size() >= 1 && data.activities.size() <= 12 &&
+        (!('services' in data) || (data.services is list && data.services.size() <= 12)) &&
+        (!('entrepreneurshipInfo' in data) || (data.entrepreneurshipInfo is string && data.entrepreneurshipInfo.size() <= 600)) &&
+        (!('govtSupport' in data) || (data.govtSupport is string && data.govtSupport.size() <= 300)) &&
+        data.verificationStatus in ['ADMIN_VERIFIED', 'PENDING_REVIEW', 'REJECTED'] &&
+        data.published is bool &&
+        (data.published == false || data.verificationStatus == 'ADMIN_VERIFIED') &&
+        data.submittedBy is string && data.submittedBy.size() >= 1 && data.submittedBy.size() <= 128 &&
+        (!('submittedByName' in data) || (data.submittedByName is string && data.submittedByName.size() <= 80)) &&
+        (!('verifiedBy' in data) || (data.verifiedBy is string && data.verifiedBy.size() <= 128)) &&
+        (!('lastVerifiedDate' in data) || (data.lastVerifiedDate is string && data.lastVerifiedDate.size() <= 20)) &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
     function isValidCareerOpportunity(data) {
       return data.title is string && data.title.size() >= 2 && data.title.size() <= 150 &&
         data.organization is string && data.organization.size() >= 2 && data.organization.size() <= 120 &&
@@ -2529,6 +2583,96 @@ service cloud.firestore {
         ]);
 
       allow delete: if isSignedIn() && isValidId(itemId) && isAdmin();
+    }
+
+    // --- PHASE 5: WOMEN FARMER NEARBY SERVICES DIRECTORY (Public Verified Only, Contributor Pending Queue, Admin Verify) ---
+    match /nearbyServiceListings/{listingId} {
+      allow get: if isValidId(listingId) && (
+        (existing().verificationStatus == 'ADMIN_VERIFIED' && existing().published == true) ||
+        isAdmin() ||
+        (isSignedIn() && existing().submittedBy == request.auth.uid)
+      );
+      allow list: if (existing().verificationStatus == 'ADMIN_VERIFIED' && existing().published == true) ||
+        isAdmin() ||
+        (isSignedIn() && existing().submittedBy == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        isValidId(listingId) &&
+        incoming().submittedBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'name', 'category', 'address', 'district', 'state', 'pinCode',
+          'verificationStatus', 'published', 'submittedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'name', 'nameBn', 'category', 'address', 'area', 'district', 'state', 'pinCode',
+          'phone', 'notes', 'lat', 'lng', 'verificationStatus', 'published',
+          'submittedBy', 'submittedByName', 'verifiedBy', 'lastVerifiedDate',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidNearbyServiceListing(incoming()) &&
+        (
+          isAdmin() ||
+          (incoming().verificationStatus == 'PENDING_REVIEW' && incoming().published == false)
+        );
+
+      allow update: if isSignedIn() &&
+        isValidId(listingId) &&
+        isAdmin() &&
+        incoming().submittedBy == existing().submittedBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidNearbyServiceListing(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'nameBn', 'category', 'address', 'area', 'district', 'state', 'pinCode',
+          'phone', 'notes', 'lat', 'lng', 'verificationStatus', 'published',
+          'verifiedBy', 'lastVerifiedDate', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(listingId) && isAdmin();
+    }
+
+    // --- PHASE 5: WOMEN FARMER SHG DIRECTORY (Public Verified Only, Contributor Pending Queue, Admin Verify) ---
+    match /shgDirectoryListings/{shgId} {
+      allow get: if isValidId(shgId) && (
+        (existing().verificationStatus == 'ADMIN_VERIFIED' && existing().published == true) ||
+        isAdmin() ||
+        (isSignedIn() && existing().submittedBy == request.auth.uid)
+      );
+      allow list: if (existing().verificationStatus == 'ADMIN_VERIFIED' && existing().published == true) ||
+        isAdmin() ||
+        (isSignedIn() && existing().submittedBy == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        isValidId(shgId) &&
+        incoming().submittedBy == request.auth.uid &&
+        incoming().keys().hasAll([
+          'shgName', 'area', 'district', 'state', 'address', 'pinCode', 'activities',
+          'verificationStatus', 'published', 'submittedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'shgName', 'shgNameBn', 'area', 'district', 'state', 'address', 'pinCode',
+          'contactName', 'contactPhone', 'activities', 'services', 'entrepreneurshipInfo', 'govtSupport',
+          'verificationStatus', 'published', 'submittedBy', 'submittedByName',
+          'verifiedBy', 'lastVerifiedDate', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidShgDirectoryListing(incoming()) &&
+        (
+          isAdmin() ||
+          (incoming().verificationStatus == 'PENDING_REVIEW' && incoming().published == false)
+        );
+
+      allow update: if isSignedIn() &&
+        isValidId(shgId) &&
+        isAdmin() &&
+        incoming().submittedBy == existing().submittedBy &&
+        incoming().createdAt == existing().createdAt &&
+        isValidShgDirectoryListing(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'shgName', 'shgNameBn', 'area', 'district', 'state', 'address', 'pinCode',
+          'contactName', 'contactPhone', 'activities', 'services', 'entrepreneurshipInfo', 'govtSupport',
+          'verificationStatus', 'published', 'verifiedBy', 'lastVerifiedDate', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(shgId) && isAdmin();
     }
   }
 }

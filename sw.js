@@ -1,4 +1,4 @@
-const CACHE_NAME = "guruji-vision-static-v21";
+const CACHE_NAME = "guruji-vision-static-v22";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -21,6 +21,9 @@ const STATIC_ASSETS = [
   "./assets/js/women-farmer-data.js",
   "./assets/js/women-learning-data.js",
   "./assets/js/women-learning-ui.js",
+  "./assets/js/women-nearby-data.js",
+  "./assets/js/women-nearby-ui.js",
+  "./assets/js/women-nearby-controller.js",
   "./assets/js/women-farmer-ui.js",
   "./assets/js/women-farmer-controller.js",
   "./assets/js/women-cms-admin-ui.js",

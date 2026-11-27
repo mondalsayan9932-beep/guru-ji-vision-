@@ -2405,6 +2405,179 @@ test("Phase 4 Women Farmer Zone: YouTube Learning Library, Learning Centre & Sch
   await assertSucceeds(qRef.delete());
 });
 
+test("Phase 5 Women Farmer Nearby Services & SHG Directory: contributor PENDING_REVIEW stays private until Admin verifies; strict 6-digit PIN & category rules enforced", async () => {
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  const farmerDb = testEnv.authenticatedContext(FARMER_UID, {
+    email: "rahul@farm.in",
+    email_verified: true,
+  }).firestore();
+  const studentDb = testEnv.authenticatedContext(STUDENT_UID, {
+    email: "alice@agri.edu.in",
+    email_verified: true,
+  }).firestore();
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  const ts = pastTime(5000);
+
+  // 1. /nearbyServiceListings — Contributor submits a local business as PENDING_REVIEW (unpublished)
+  const nbRef = farmerDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1");
+  await assertSucceeds(
+    nbRef.set({
+      name: "Kalyani Krishak Beej Bhandar",
+      nameBn: "কল্যাণী কৃষক বীজ ভাণ্ডার",
+      category: "SEED_SHOP",
+      pinCode: "741235",
+      address: "Station Road, Kalyani, Nadia",
+      area: "Kalyani",
+      district: "Nadia",
+      state: "West Bengal",
+      phone: "9830012345",
+      notes: "Certified paddy and vegetable seeds",
+      verificationStatus: "PENDING_REVIEW",
+      published: false,
+      submittedBy: FARMER_UID,
+      submittedByName: "Rahul Das",
+      verifiedBy: "",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Submitter CAN read their own pending submission; Guest & other users CANNOT
+  await assertSucceeds(farmerDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
+  await assertFails(guestDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
+  await assertFails(studentDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
+
+  // Contributor CANNOT self-verify or publish directly
+  await assertFails(
+    farmerDb.collection("nearbyServiceListings").doc("nb_self_verified").set({
+      name: "Fake Self Verified Shop",
+      category: "FERTILIZER_SHOP",
+      pinCode: "741235",
+      address: "Kalyani Market",
+      area: "Kalyani",
+      district: "Nadia",
+      state: "West Bengal",
+      verificationStatus: "ADMIN_VERIFIED",
+      published: true,
+      submittedBy: FARMER_UID,
+      submittedByName: "Rahul Das",
+      verifiedBy: FARMER_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(
+    nbRef.update({ verificationStatus: "ADMIN_VERIFIED", published: true, updatedAt: pastTime(1000) })
+  );
+  await assertFails(nbRef.delete());
+
+  // Invalid 5-digit PIN or invalid category MUST fail even for Admin
+  await assertFails(
+    adminDb.collection("nearbyServiceListings").doc("nb_bad_pin").set({
+      name: "Bad PIN Shop",
+      category: "SEED_SHOP",
+      pinCode: "74123",
+      address: "Kalyani",
+      verificationStatus: "ADMIN_VERIFIED",
+      published: true,
+      submittedBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+  await assertFails(
+    adminDb.collection("nearbyServiceListings").doc("nb_bad_cat").set({
+      name: "Bad Category Shop",
+      category: "INVALID_CATEGORY",
+      pinCode: "741235",
+      address: "Kalyani",
+      verificationStatus: "ADMIN_VERIFIED",
+      published: true,
+      submittedBy: ADMIN_UID,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Admin verifies & publishes -> NOW publicly readable by Guest, Student & Farmer
+  await assertSucceeds(
+    adminDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").update({
+      verificationStatus: "ADMIN_VERIFIED",
+      published: true,
+      verifiedBy: ADMIN_UID,
+      lat: 22.9751,
+      lng: 88.4345,
+      updatedAt: pastTime(1000),
+    })
+  );
+  await assertSucceeds(guestDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
+  await assertSucceeds(studentDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
+
+  // 2. /shgDirectoryListings — Contributor submits an SHG as PENDING_REVIEW -> Admin verifies & publishes
+  const shgRef = studentDb.collection("shgDirectoryListings").doc("shg_nadia_1");
+  await assertSucceeds(
+    shgRef.set({
+      shgName: "Sabuj Sathi Mahila Swanirbhar Dal",
+      shgNameBn: "সবুজ সাথী মহিলা স্বনির্ভর দল",
+      area: "Haringhata Block",
+      district: "Nadia",
+      state: "West Bengal",
+      address: "Subarnapur Village, Haringhata, Nadia",
+      pinCode: "741249",
+      contactName: "Anima Roy",
+      contactPhone: "9830098765",
+      activities: ["Organic Vegetables", "Spice Processing"],
+      services: ["Seed Distribution", "Collective Marketing"],
+      entrepreneurshipInfo: "Packaged turmeric & chilli powder under Anandadhara Sangha",
+      govtSupport: "Anandadhara (WBSRLM — West Bengal)",
+      verificationStatus: "PENDING_REVIEW",
+      published: false,
+      submittedBy: STUDENT_UID,
+      submittedByName: "Alice Sen",
+      verifiedBy: "",
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+
+  // Submitter can read own pending SHG; Guest & other users CANNOT; contributor CANNOT self-publish
+  await assertSucceeds(studentDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
+  await assertFails(guestDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
+  await assertFails(farmerDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
+  await assertFails(
+    shgRef.update({ verificationStatus: "ADMIN_VERIFIED", published: true, updatedAt: pastTime(800) })
+  );
+
+  // Admin cannot publish SHG with verificationStatus != ADMIN_VERIFIED
+  await assertFails(
+    adminDb.collection("shgDirectoryListings").doc("shg_nadia_1").update({
+      verificationStatus: "PENDING_REVIEW",
+      published: true,
+      updatedAt: pastTime(700),
+    })
+  );
+
+  // Admin verifies & publishes SHG -> Guest & Farmer can read it
+  await assertSucceeds(
+    adminDb.collection("shgDirectoryListings").doc("shg_nadia_1").update({
+      verificationStatus: "ADMIN_VERIFIED",
+      published: true,
+      verifiedBy: ADMIN_UID,
+      updatedAt: pastTime(600),
+    })
+  );
+  await assertSucceeds(guestDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
+  await assertSucceeds(farmerDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
+
+  // Admin cleanup succeeds
+  await assertSucceeds(adminDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").delete());
+  await assertSucceeds(adminDb.collection("shgDirectoryListings").doc("shg_nadia_1").delete());
+});
+
+
 
 
 

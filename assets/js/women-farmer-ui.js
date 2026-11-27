@@ -41,6 +41,11 @@ import {
   renderWomenSchemeDetailPanel,
   renderWomenYouTubeLibrarySubView
 } from "./women-learning-ui.js";
+import {
+  renderWomenEnterpriseFinanceSubView,
+  renderWomenNearbyServicesSubView,
+  renderWomenShgDiscoverySubView
+} from "./women-nearby-ui.js";
 
 function resolveLang(state) {
   const wfLang = state.womenFarmer?.lang;
@@ -743,21 +748,32 @@ export function renderWomenFarmerZoneView(state) {
   const totalVideos = mergeWomenVideos(state.womenVideos || [], false).length;
   const totalLearning = mergeWomenLearningResources(state.womenLearningResources || [], false).length;
 
+  const verifiedNearbyCount = (state.nearbyServiceListings || []).filter(
+    (x) => x.verificationStatus === "ADMIN_VERIFIED" && x.published === true
+  ).length;
+  const verifiedShgCount = (state.shgDirectoryListings || []).filter(
+    (x) => x.verificationStatus === "ADMIN_VERIFIED" && x.published === true
+  ).length;
+
   const stats = {
     totalEligibleSchemes: allWomenSchemes.length,
     dedicatedSchemes,
     discussionCount: discussionPosts.length,
     totalVideos,
-    totalLearning
+    totalLearning,
+    verifiedNearbyCount,
+    verifiedShgCount
   };
 
   const tabs = [
-    { key: "dashboard", en: "15 Support Areas", bn: "১৫টি সহায়তা কেন্দ্র" },
     { key: "schemes", en: `Govt Schemes (${stats.totalEligibleSchemes})`, bn: `সরকারি প্রকল্প (${stats.totalEligibleSchemes})` },
+    { key: "videos", en: `Video Learning (${stats.totalVideos})`, bn: `ভিডিও লার্নিং (${stats.totalVideos})` },
     { key: "learning", en: `Learning Centre (${stats.totalLearning})`, bn: `লার্নিং সেন্টার (${stats.totalLearning})` },
-    { key: "videos", en: `YouTube Library (${stats.totalVideos})`, bn: `ভিডিও লাইব্রেরি (${stats.totalVideos})` },
-    { key: "discussion", en: `Discussion Board (${stats.discussionCount})`, bn: `আলোচনা বোর্ড (${stats.discussionCount})` },
-    { key: "rights", en: "Rights & Helplines", bn: "অধিকার ও হেল্পলাইন" }
+    { key: "nearby", en: "Nearby Services", bn: "নিকটবর্তী পরিষেবা" },
+    { key: "shg", en: "SHG Search", bn: "SHG অনুসন্ধান" },
+    { key: "enterprise", en: "Entrepreneurship & Finance", bn: "উদ্যোক্তা ও আর্থিক সহায়তা" },
+    { key: "dashboard", en: "15 Support Areas", bn: "১৫টি সহায়তা কেন্দ্র" },
+    { key: "discussion", en: `Discussion Board (${stats.discussionCount})`, bn: `আলোচনা বোর্ড (${stats.discussionCount})` }
   ];
 
   return `
@@ -777,8 +793,8 @@ export function renderWomenFarmerZoneView(state) {
             </h2>
             <p class="text-xs sm:text-sm text-[#DCFCE7]/95 max-w-2xl">
               ${bn
-                ? "পশ্চিমবঙ্গ ও কেন্দ্রীয় সরকারি প্রকল্প, লার্নিং সেন্টার, YouTube ভিডিও লাইব্রেরি, স্বনির্ভর গোষ্ঠী (SHG), নারী FPO, পশুপালন, মৎস্য, অধিকার, হেল্পলাইন ও আলোচনা বোর্ড।"
-                : "West Bengal & Central government schemes, bilingual Learning Centre, 10-category YouTube Video Library, SHG & women FPO guidance, rights, helplines & discussion board."}
+                ? "পশ্চিমবঙ্গ ও কেন্দ্রীয় সরকারি প্রকল্প, ভিডিও লার্নিং, লার্নিং সেন্টার, পিন কোড ভিত্তিক নিকটবর্তী পরিষেবা, স্বনির্ভর গোষ্ঠী (SHG) অনুসন্ধান, উদ্যোক্তা ও আর্থিক সহায়তা, অধিকার, হেল্পলাইন ও আলোচনা বোর্ড।"
+                : "West Bengal & Central government schemes, Video Learning, Learning Centre, PIN-based Nearby Services, SHG Search, Entrepreneurship & Financial Support, rights, helplines & discussion board."}
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -815,6 +831,9 @@ export function renderWomenFarmerZoneView(state) {
       ${activeTab === "schemes" ? renderSchemesSubView(state, lang) : ""}
       ${activeTab === "learning" ? renderWomenLearningCentreSubView(state, lang) : ""}
       ${activeTab === "videos" ? renderWomenYouTubeLibrarySubView(state, lang) : ""}
+      ${activeTab === "nearby" ? renderWomenNearbyServicesSubView(state, lang) : ""}
+      ${activeTab === "shg" ? renderWomenShgDiscoverySubView(state, lang) : ""}
+      ${activeTab === "enterprise" ? renderWomenEnterpriseFinanceSubView(state, lang) : ""}
       ${activeTab === "discussion" ? renderDiscussionSubView(state, lang) : ""}
       ${activeTab === "rights" ? renderRightsAndHelplinesSubView(lang) : ""}
 

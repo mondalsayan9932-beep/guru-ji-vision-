@@ -76,6 +76,10 @@ import {
   createInitialWomenCmsState
 } from "./women-cms-controller.js";
 import {
+  bindWomenNearbyEvents,
+  createInitialWomenNearbyState
+} from "./women-nearby-controller.js";
+import {
   filterQuizQuestions,
   mergeQuizQuestions,
   mergeStudyMaterials,
@@ -208,12 +212,17 @@ const state = {
   // Farmer Financial Support & Rights Module State (Private records cleared on logout!)
   farmerFinance: createInitialFarmerFinanceState(),
 
-  // Women Farmer Zone, Learning Centre, YouTube Library & Discovery Queue State (Phase 6 + Phase 4)
+  // Women Farmer Zone, Learning Centre, YouTube Library, Discovery Queue & Nearby/SHG State (Phase 6 + Phase 4 + Phase 5)
   womenVideos: [],
   womenLearningResources: [],
   womenSchemeDiscoveryQueue: [],
+  nearbyServiceListings: [],
+  shgDirectoryListings: [],
+  myPendingNearbyListings: [],
+  myPendingShgListings: [],
   womenFarmer: createInitialWomenFarmerState(),
   womenCms: createInitialWomenCmsState(),
+  womenNearby: createInitialWomenNearbyState(),
 
   // Agriculture Education Hub & Phase 3 CMS State (Notes, Videos, MCQs, Mock Tests, PYQs, Syllabus, Resources & Bookmarks)
   universitySyllabi: [],
@@ -403,6 +412,8 @@ function clearPrivateStateOnLogout() {
   state.ownerAuditLogs = [];
   state.agricultureSchemeHistory = [];
   state.studyBookmarks = loadGuestBookmarks();
+  state.myPendingNearbyListings = [];
+  state.myPendingShgListings = [];
   clearFarmerFinancePrivateState(state);
   clearWomenFarmerTransientState(state);
 
@@ -422,6 +433,8 @@ function clearPrivateStateOnLogout() {
         sigKey === "farmerOpeningBalance" ||
         sigKey === "quizAttempts" ||
         sigKey === "studyBookmarks" ||
+        sigKey === "myPendingNearbyListings" ||
+        sigKey === "myPendingShgListings" ||
         sigKey === "studentDoubtThreads" ||
         sigKey === "professorDoubtThreads" ||
         sigKey.startsWith("ff:") ||
@@ -515,7 +528,9 @@ const ROUTE_DATA_DEPS = {
   ]),
   "women-farmer": new Set([
     "agricultureSchemes", "communityPosts", "meetings",
-    "womenVideos", "womenLearningResources"
+    "womenVideos", "womenLearningResources",
+    "nearbyServiceListings", "shgDirectoryListings",
+    "myPendingNearbyListings", "myPendingShgListings"
   ]),
   "skill-zone": new Set([
     "studyMaterials", "quizzes", "mockTests", "careerOpportunities", "meetings", "communityPosts", "professors"
@@ -546,7 +561,8 @@ const ROUTE_DATA_DEPS = {
     "appSettings", "studyMaterials", "quizzes", "mockTests", "universitySyllabi", "discoveredStudyResources",
     "announcements", "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
     "agricultureSchemes", "agricultureSchemeHistory", "communityPosts",
-    "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue"
+    "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue",
+    "nearbyServiceListings", "shgDirectoryListings"
   ]),
   owner: new Set([
     "appSettings", "ownerUsers", "ownerAdmins", "ownerActivities",
@@ -3369,6 +3385,13 @@ bindWomenCmsEvents({
   renderActiveView,
   showToast,
   withBusySubmit
+});
+bindWomenNearbyEvents({
+  state,
+  renderActiveView,
+  showToast,
+  withBusySubmit,
+  openAuthModal
 });
 const initialHash = (window.location.hash || "").replace(/^#/, "");
 if (initialHash && VALID_ROUTES.has(initialHash)) {
