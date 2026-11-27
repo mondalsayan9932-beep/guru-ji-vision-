@@ -529,7 +529,9 @@ function renderAdminNearbyServicesSection(state, allNearby) {
                       <span class="px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${escapeHtml(badge.cls)}">${escapeHtml(badge.en)}</span>
                       <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[10px] font-bold text-[#14532D]">${escapeHtml(cat.en)}</span>
                       <span class="px-2 py-0.5 rounded-full bg-[#EDF4EE] text-[10px] font-extrabold text-[#14532D]">PIN ${escapeHtml(item.pinCode || "")}</span>
+                      ${item.approvalStatus ? `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">${escapeHtml(item.approvalStatus)}</span>` : ""}
                       ${item.published ? `<span class="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold">Public Live</span>` : `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">Hidden</span>`}
+                      ${Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng)) ? `<span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200 text-[10px] font-bold">OSM Map Pin</span>` : ""}
                     </div>
                     <div class="text-sm font-extrabold text-[#132219]">${escapeHtml(item.name || "")}</div>
                     <div class="text-[11px] text-[#475569]">${escapeHtml(item.address || "")}${item.district ? ` • ${escapeHtml(item.district)}` : ""}</div>
@@ -560,6 +562,8 @@ function renderAdminNearbyServicesSection(state, allNearby) {
           </div>
         `}
       </div>
+
+      ${renderDirectoryAuditTrailPanel(state, "NEARBY_SHOP")}
     </div>
   `;
 }
@@ -583,13 +587,17 @@ function renderAdminShgDirectorySection(state, allShgs) {
           <button id="awsCancelEdit" type="button" class="hidden text-xs font-bold text-rose-600">Cancel Edit</button>
         </div>
         <p class="text-[11px] text-[#496052]">
-          Verify SHG registration, village Sangha/Anandadhara alignment &amp; contact consent before publishing publicly.
+          Verify SHG registration, Village / Gram Panchayat / Block alignment &amp; contact consent before publishing publicly.
         </p>
         <input id="awsEditId" type="hidden" value="" />
         <input id="awsName" type="text" required minlength="2" maxlength="150" placeholder="SHG Name (English) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-sm" />
         <input id="awsNameBn" type="text" maxlength="190" placeholder="SHG Bengali Name (বাংলা নাম)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <div class="grid grid-cols-2 gap-2">
-          <input id="awsArea" type="text" required minlength="2" maxlength="120" placeholder="Village / Block / Area *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awsVillage" type="text" required minlength="2" maxlength="120" placeholder="Village / Locality *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awsGramPanchayat" type="text" maxlength="120" placeholder="Gram Panchayat" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="awsBlock" type="text" maxlength="120" placeholder="Block / Municipality" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
           <input id="awsDistrict" type="text" required minlength="2" maxlength="80" value="Nadia" placeholder="District *" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         </div>
         <div class="grid grid-cols-3 gap-2">
@@ -600,11 +608,18 @@ function renderAdminShgDirectorySection(state, allShgs) {
           <input id="awsContactName" type="text" maxlength="80" placeholder="Leader / Contact Name" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
           <input id="awsContactPhone" type="tel" maxlength="32" placeholder="Verified Contact Phone" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         </div>
-        <input id="awsActivities" type="text" required placeholder="Activities (comma-separated, e.g., Vegetables, Pickles) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
-        <input id="awsServices" type="text" placeholder="Services Offered (comma-separated)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <input id="awsActivities" type="text" required placeholder="Main Activities (comma-separated, e.g., Vegetables, Pickles) *" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        <input id="awsServices" type="text" placeholder="Products / Services Offered (comma-separated)" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
         <textarea id="awsEnterprise" rows="2" maxlength="600" placeholder="Women Entrepreneurship &amp; Product Details" class="w-full px-3.5 py-2 rounded-xl border border-[#CDE0D3] text-xs"></textarea>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="awsLat" type="number" step="any" placeholder="Latitude (optional, e.g. 22.975)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+          <input id="awsLng" type="number" step="any" placeholder="Longitude (optional, e.g. 88.434)" class="px-3 py-2 rounded-xl border border-[#CDE0D3] text-xs" />
+        </div>
         <select id="awsGovtSupport" class="w-full px-3 py-2 rounded-xl border border-[#CDE0D3] bg-white text-xs font-bold">
-          ${SHG_GOVT_SUPPORT_OPTIONS.map((opt) => `<option value="${escapeHtml(opt.en)}">${escapeHtml(opt.en)}</option>`).join("")}
+          ${SHG_GOVT_SUPPORT_OPTIONS.map((opt) => {
+            const label = typeof opt === "string" ? opt : (opt?.en || "");
+            return `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`;
+          }).join("")}
         </select>
         <label class="flex items-center gap-2 text-xs font-bold text-[#14532D] pt-1">
           <input id="awsPublished" type="checkbox" checked class="w-4 h-4 accent-[#14532D]" />
@@ -627,6 +642,8 @@ function renderAdminShgDirectorySection(state, allShgs) {
           <div class="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
             ${sorted.map((shg) => {
               const badge = getVerificationBadgeMeta(shg.verificationStatus);
+              const locParts = [shg.village || shg.area, shg.gramPanchayat ? `GP: ${shg.gramPanchayat}` : "", shg.block ? `Block: ${shg.block}` : ""].filter(Boolean);
+              const productsList = Array.isArray(shg.products) && shg.products.length ? shg.products : (Array.isArray(shg.services) ? shg.services : []);
               return `
                 <div class="p-3.5 rounded-2xl border ${shg.verificationStatus === "PENDING_REVIEW" ? "bg-amber-50/70 border-amber-300" : "bg-[#F8FBF8] border-[#E2ECE5]"} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div class="min-w-0 space-y-1">
@@ -634,11 +651,14 @@ function renderAdminShgDirectorySection(state, allShgs) {
                       <span class="px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${escapeHtml(badge.cls)}">${escapeHtml(badge.en)}</span>
                       <span class="px-2 py-0.5 rounded-full bg-[#EDF4EE] text-[10px] font-extrabold text-[#14532D]">PIN ${escapeHtml(shg.pinCode || "")}</span>
                       <span class="px-2 py-0.5 rounded-full bg-white border border-[#CDE0D3] text-[10px] font-bold text-[#14532D]">${escapeHtml(shg.district || "")}</span>
+                      ${shg.approvalStatus ? `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">${escapeHtml(shg.approvalStatus)}</span>` : ""}
                       ${shg.published ? `<span class="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#14532D] text-[10px] font-extrabold">Public Live</span>` : `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">Hidden</span>`}
+                      ${Number.isFinite(Number(shg.lat)) && Number.isFinite(Number(shg.lng)) ? `<span class="px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-800 border border-fuchsia-200 text-[10px] font-bold">OSM Map Pin</span>` : ""}
                     </div>
                     <div class="text-sm font-extrabold text-[#132219]">${escapeHtml(shg.shgName || "")}</div>
-                    <div class="text-[11px] text-[#475569]">${escapeHtml(shg.area || "")} — ${escapeHtml(shg.address || "")}</div>
+                    <div class="text-[11px] text-[#475569]">${escapeHtml(locParts.join(" • ") || shg.address || "")}${shg.address ? ` — ${escapeHtml(shg.address)}` : ""}</div>
                     ${Array.isArray(shg.activities) && shg.activities.length ? `<div class="text-[10px] font-bold text-fuchsia-900">Activities: ${escapeHtml(shg.activities.join(", "))}</div>` : ""}
+                    ${productsList.length ? `<div class="text-[10px] text-[#334155]">Products/Services: ${escapeHtml(productsList.join(", "))}</div>` : ""}
                     ${shg.govtSupport ? `<div class="text-[10px] text-[#14532D]">Support: ${escapeHtml(shg.govtSupport)}</div>` : ""}
                   </div>
                   <div class="flex flex-wrap items-center gap-1.5 shrink-0">
@@ -665,6 +685,78 @@ function renderAdminShgDirectorySection(state, allShgs) {
           </div>
         `}
       </div>
+
+      ${renderDirectoryAuditTrailPanel(state, "SHG")}
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------------
+// G. IMMUTABLE DIRECTORY SUBMISSIONS & ADMIN APPROVAL AUDIT TRAIL
+// ----------------------------------------------------------------------------
+function renderDirectoryAuditTrailPanel(state, entityTypeFilter) {
+  const allLogs = Array.isArray(state.directoryAuditLogs) ? state.directoryAuditLogs : [];
+  const filtered = entityTypeFilter
+    ? allLogs.filter((l) => l.entityType === entityTypeFilter)
+    : allLogs;
+  const visible = filtered.slice(0, 25);
+
+  const actionMeta = (action) => {
+    switch (action) {
+      case "ADMIN_APPROVED":
+        return "bg-emerald-50 text-emerald-900 border-emerald-200";
+      case "ADMIN_PUBLISHED":
+        return "bg-green-50 text-green-900 border-green-200";
+      case "ADMIN_UNPUBLISHED":
+        return "bg-amber-50 text-amber-900 border-amber-200";
+      case "ADMIN_REJECTED":
+      case "ADMIN_DELETED":
+        return "bg-rose-50 text-rose-900 border-rose-200";
+      case "ADMIN_UPDATED":
+        return "bg-sky-50 text-sky-900 border-sky-200";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-200";
+    }
+  };
+
+  return `
+    <div data-directory-audit-trail="${escapeHtml(entityTypeFilter || "ALL")}" class="lg:col-span-12 gv-card p-5 space-y-3 border border-[#D8E7DC]">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h4 class="text-sm font-extrabold text-[#14532D]">
+            Immutable Submissions &amp; Admin Approval Audit Trail (${filtered.length})
+          </h4>
+          <p class="text-[11px] text-[#496052]">
+            Append-only log in Firestore (<code>/directoryAuditLogs</code>) recording community submissions, Admin verifications, publishes, unpublishes, rejections, and deletions.
+          </p>
+        </div>
+        <span class="px-2.5 py-1 rounded-full bg-[#EDF4EE] text-[#14532D] text-[10px] font-extrabold">
+          ${entityTypeFilter === "SHG" ? "SHG Directory Log" : "Nearby Services Log"}
+        </span>
+      </div>
+
+      ${visible.length === 0 ? `
+        <p class="text-xs text-[#64748B]">No audit events recorded yet for this directory. Every submission and Admin review action is logged automatically.</p>
+      ` : `
+        <div class="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+          ${visible.map((log) => {
+            const dt = log.createdAtMs ? new Date(log.createdAtMs).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "";
+            return `
+              <div class="p-2.5 rounded-xl bg-[#F8FBF8] border border-[#E2ECE5] flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <div class="flex flex-wrap items-center gap-1.5 min-w-0">
+                  <span class="px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${actionMeta(log.action)}">${escapeHtml(log.action || "")}</span>
+                  <span class="font-extrabold text-[#132219]">${escapeHtml(log.entityName || log.entityId || "")}</span>
+                  ${log.pinCode ? `<span class="px-1.5 py-0.5 rounded bg-white border border-[#CDE0D3] text-[10px] font-bold text-[#14532D]">PIN ${escapeHtml(log.pinCode)}</span>` : ""}
+                  ${log.summary ? `<span class="text-[#475569]">— ${escapeHtml(log.summary)}</span>` : ""}
+                </div>
+                <div class="text-[10px] text-[#64748B] shrink-0">
+                  ${escapeHtml(log.actorName || "User")}${dt ? ` • ${escapeHtml(dt)}` : ""}
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `}
     </div>
   `;
 }

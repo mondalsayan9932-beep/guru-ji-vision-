@@ -2506,6 +2506,7 @@ test("Phase 5 Women Farmer Nearby Services & SHG Directory: contributor PENDING_
   await assertSucceeds(
     adminDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").update({
       verificationStatus: "ADMIN_VERIFIED",
+      approvalStatus: "APPROVED",
       published: true,
       verifiedBy: ADMIN_UID,
       lat: 22.9751,
@@ -2516,24 +2517,46 @@ test("Phase 5 Women Farmer Nearby Services & SHG Directory: contributor PENDING_
   await assertSucceeds(guestDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
   await assertSucceeds(studentDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
 
-  // 2. /shgDirectoryListings — Contributor submits an SHG as PENDING_REVIEW -> Admin verifies & publishes
+  // Admin can unpublish a verified shop -> Guest & other users lose public read immediately
+  await assertSucceeds(
+    adminDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").update({
+      published: false,
+      approvalStatus: "APPROVED",
+      updatedAt: pastTime(900),
+    })
+  );
+  await assertFails(guestDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").get());
+  await assertSucceeds(
+    adminDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").update({
+      published: true,
+      approvalStatus: "APPROVED",
+      updatedAt: pastTime(850),
+    })
+  );
+
+  // 2. /shgDirectoryListings — Contributor submits an SHG with village, Gram Panchayat, block, products & optional coords
   const shgRef = studentDb.collection("shgDirectoryListings").doc("shg_nadia_1");
   await assertSucceeds(
     shgRef.set({
       shgName: "Sabuj Sathi Mahila Swanirbhar Dal",
       shgNameBn: "সবুজ সাথী মহিলা স্বনির্ভর দল",
-      area: "Haringhata Block",
+      village: "Subarnapur",
+      gramPanchayat: "Biroli GP",
+      block: "Haringhata",
+      area: "Subarnapur, Haringhata",
       district: "Nadia",
       state: "West Bengal",
-      address: "Subarnapur Village, Haringhata, Nadia",
+      address: "Subarnapur Village, Biroli GP, Haringhata, Nadia",
       pinCode: "741249",
       contactName: "Anima Roy",
       contactPhone: "9830098765",
       activities: ["Organic Vegetables", "Spice Processing"],
+      products: ["Turmeric Powder", "Seasonal Vegetables"],
       services: ["Seed Distribution", "Collective Marketing"],
       entrepreneurshipInfo: "Packaged turmeric & chilli powder under Anandadhara Sangha",
       govtSupport: "Anandadhara (WBSRLM — West Bengal)",
       verificationStatus: "PENDING_REVIEW",
+      approvalStatus: "PENDING",
       published: false,
       submittedBy: STUDENT_UID,
       submittedByName: "Alice Sen",
@@ -2560,11 +2583,14 @@ test("Phase 5 Women Farmer Nearby Services & SHG Directory: contributor PENDING_
     })
   );
 
-  // Admin verifies & publishes SHG -> Guest & Farmer can read it
+  // Admin verifies & publishes SHG with verified OSM coordinates -> Guest & Farmer can read it
   await assertSucceeds(
     adminDb.collection("shgDirectoryListings").doc("shg_nadia_1").update({
       verificationStatus: "ADMIN_VERIFIED",
+      approvalStatus: "APPROVED",
       published: true,
+      lat: 22.9522,
+      lng: 88.5588,
       verifiedBy: ADMIN_UID,
       updatedAt: pastTime(600),
     })
@@ -2572,7 +2598,78 @@ test("Phase 5 Women Farmer Nearby Services & SHG Directory: contributor PENDING_
   await assertSucceeds(guestDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
   await assertSucceeds(farmerDb.collection("shgDirectoryListings").doc("shg_nadia_1").get());
 
-  // Admin cleanup succeeds
+  // 3. /directoryAuditLogs — Immutable append-only audit trail for submissions & Admin approvals
+  const subLogRef = farmerDb.collection("directoryAuditLogs").doc("audit_shop_sub_1");
+  await assertSucceeds(
+    subLogRef.set({
+      entityType: "NEARBY_SHOP",
+      entityId: "nb_kalyani_seed_1",
+      entityName: "Kalyani Krishak Beej Bhandar",
+      pinCode: "741235",
+      action: "SHOP_SUBMITTED",
+      actorUid: FARMER_UID,
+      actorName: "Rahul Das",
+      summary: "Community shop submission pending verification",
+      createdAt: ts,
+    })
+  );
+
+  // Contributor CANNOT forge an ADMIN_APPROVED log or spoof another actorUid
+  await assertFails(
+    farmerDb.collection("directoryAuditLogs").doc("audit_forged_approve").set({
+      entityType: "NEARBY_SHOP",
+      entityId: "nb_kalyani_seed_1",
+      entityName: "Kalyani Krishak Beej Bhandar",
+      pinCode: "741235",
+      action: "ADMIN_APPROVED",
+      actorUid: FARMER_UID,
+      actorName: "Rahul Das",
+      summary: "Spoofed approval",
+      createdAt: ts,
+    })
+  );
+  await assertFails(
+    studentDb.collection("directoryAuditLogs").doc("audit_spoof_uid").set({
+      entityType: "SHG",
+      entityId: "shg_nadia_1",
+      entityName: "Sabuj Sathi",
+      pinCode: "741249",
+      action: "SHG_SUBMITTED",
+      actorUid: FARMER_UID,
+      actorName: "Spoof",
+      summary: "",
+      createdAt: ts,
+    })
+  );
+
+  // Admin CAN log ADMIN_APPROVED and read all logs; Guest & unrelated users CANNOT read contributor's log
+  const adminLogRef = adminDb.collection("directoryAuditLogs").doc("audit_admin_approve_1");
+  await assertSucceeds(
+    adminLogRef.set({
+      entityType: "NEARBY_SHOP",
+      entityId: "nb_kalyani_seed_1",
+      entityName: "Kalyani Krishak Beej Bhandar",
+      pinCode: "741235",
+      action: "ADMIN_APPROVED",
+      actorUid: ADMIN_UID,
+      actorName: "Founder Admin",
+      summary: "Verified address and coordinates on ground",
+      createdAt: pastTime(500),
+    })
+  );
+  await assertSucceeds(farmerDb.collection("directoryAuditLogs").doc("audit_shop_sub_1").get());
+  await assertFails(guestDb.collection("directoryAuditLogs").doc("audit_shop_sub_1").get());
+  await assertFails(studentDb.collection("directoryAuditLogs").doc("audit_shop_sub_1").get());
+  await assertSucceeds(adminDb.collection("directoryAuditLogs").doc("audit_shop_sub_1").get());
+  await assertSucceeds(adminDb.collection("directoryAuditLogs").doc("audit_admin_approve_1").get());
+
+  // IMMUTABILITY: Neither contributor nor Admin can update or delete any audit log
+  await assertFails(subLogRef.update({ summary: "Tampered" }));
+  await assertFails(subLogRef.delete());
+  await assertFails(adminLogRef.update({ summary: "Altered audit" }));
+  await assertFails(adminLogRef.delete());
+
+  // Admin cleanup of directory items succeeds
   await assertSucceeds(adminDb.collection("nearbyServiceListings").doc("nb_kalyani_seed_1").delete());
   await assertSucceeds(adminDb.collection("shgDirectoryListings").doc("shg_nadia_1").delete());
 });

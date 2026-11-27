@@ -922,7 +922,8 @@ class FirebaseService {
     const privKey = `${uid}|${Boolean(isAdmin)}`;
     const requiredPrivateKeys = [
       "farmerQueries", "quizAttempts", "studyBookmarks",
-      "myPendingNearbyListings", "myPendingShgListings"
+      "myPendingNearbyListings", "myPendingShgListings",
+      ...(isAdmin ? ["directoryAuditLogs"] : [])
     ];
     if (this.privateSubKey === privKey && requiredPrivateKeys.every((k) => this.activeUnsubs.has(k))) {
       return;
@@ -982,6 +983,24 @@ class FirebaseService {
       },
       () => {}
     ));
+
+    // Phase 5: Immutable Submissions & Admin Approval Audit Trail (/directoryAuditLogs — Admin-only full read)
+    if (isAdmin) {
+      this.setSub("directoryAuditLogs", onSnapshot(
+        query(collection(this.db, "directoryAuditLogs"), limit(120)),
+        (snap) => {
+          const list = snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+            createdAtMs: getTimestampMs(d.data().createdAt)
+          })).sort((a, b) => b.createdAtMs - a.createdAtMs);
+          onUpdate("directoryAuditLogs", list);
+        },
+        () => {}
+      ));
+    } else {
+      this.setSub("directoryAuditLogs", null);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -2950,8 +2969,28 @@ class FirebaseService {
   }
 
   // --------------------------------------------------------------------------
-  // 14. PHASE 5: WOMEN FARMER NEARBY SERVICES & SHG DIRECTORY
+  // 14. PHASE 5: WOMEN FARMER NEARBY SERVICES, SHG DIRECTORY & AUDIT TRAIL
   // --------------------------------------------------------------------------
+  async recordDirectoryAuditLog(actorUid, actorName, { entityType, entityId, entityName, action, pinCode = "", summary = "" }) {
+    if (!this.ready || !actorUid || !entityId) return;
+    try {
+      const { collection, addDoc, serverTimestamp } = this.mods.fsMod;
+      await addDoc(collection(this.db, "directoryAuditLogs"), {
+        entityType: entityType === "SHG" ? "SHG" : "NEARBY_SHOP",
+        entityId: String(entityId).slice(0, 128),
+        entityName: String(entityName || "Directory Entry").trim().slice(0, 160),
+        action,
+        actorUid: String(actorUid).slice(0, 128),
+        actorName: String(actorName || "User").trim().slice(0, 80),
+        pinCode: String(pinCode || "").trim().slice(0, 10),
+        summary: String(summary || "").trim().slice(0, 300),
+        createdAt: serverTimestamp()
+      });
+    } catch (_) {
+      // Non-blocking secondary audit write if offline
+    }
+  }
+
   async saveNearbyServiceListing(uid, submitterName, data, { isAdmin = false, editId = "" } = {}) {
     if (!this.ready || !uid) throw new Error("Sign-in required to submit a listing.");
     const { collection, doc, addDoc, updateDoc, serverTimestamp } = this.mods.fsMod;
@@ -2971,12 +3010,13 @@ class FirebaseService {
     const status = isAdmin
       ? (["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(data.verificationStatus) ? data.verificationStatus : "ADMIN_VERIFIED")
       : "PENDING_REVIEW";
+    const approvalStatus = status === "ADMIN_VERIFIED" ? "APPROVED" : (status === "REJECTED" ? "REJECTED" : "PENDING");
     const published = isAdmin ? (status === "ADMIN_VERIFIED" && data.published !== false) : false;
 
     const base = {
       name: String(data.name || "").trim().slice(0, 140),
       nameBn: String(data.nameBn || "").trim().slice(0, 180),
-      category: validCats.includes(data.category) ? data.category : "AGRI_INPUT_SHOP",
+      category: validCats.includes(data.category) ? data.category : "FARMER_SUPPORT_CENTRE",
       address: String(data.address || "").trim().slice(0, 280),
       area: String(data.area || "").trim().slice(0, 120),
       district: String(data.district || "Nadia").trim().slice(0, 80),
@@ -2987,6 +3027,7 @@ class FirebaseService {
       lat: validLat,
       lng: validLng,
       verificationStatus: status,
+      approvalStatus,
       published,
       verifiedBy: isAdmin && status === "ADMIN_VERIFIED" ? uid : "",
       lastVerifiedDate: isAdmin && status === "ADMIN_VERIFIED"
@@ -2998,35 +3039,72 @@ class FirebaseService {
     if (editId) {
       if (!isAdmin) throw new Error("Only Admins can edit existing listings.");
       await updateDoc(doc(this.db, "nearbyServiceListings", editId), base);
+      await this.recordDirectoryAuditLog(uid, submitterName, {
+        entityType: "NEARBY_SHOP",
+        entityId: editId,
+        entityName: base.name,
+        action: "ADMIN_UPDATED",
+        pinCode: cleanPin,
+        summary: `Admin updated shop (${status}, published=${published}).`
+      });
     } else {
-      await addDoc(collection(this.db, "nearbyServiceListings"), {
+      const ref = await addDoc(collection(this.db, "nearbyServiceListings"), {
         ...base,
         submittedBy: uid,
         submittedByName: String(submitterName || "Contributor").trim().slice(0, 80),
         createdAt: serverTimestamp()
       });
+      await this.recordDirectoryAuditLog(uid, submitterName, {
+        entityType: "NEARBY_SHOP",
+        entityId: ref.id,
+        entityName: base.name,
+        action: isAdmin ? "ADMIN_CREATED" : "SHOP_SUBMITTED",
+        pinCode: cleanPin,
+        summary: isAdmin ? `Admin added verified shop (${base.district}).` : `Community submission queued as PENDING_REVIEW (${base.district}).`
+      });
     }
   }
 
-  async verifyNearbyServiceListing(adminUid, id, { verificationStatus = "ADMIN_VERIFIED", published = true } = {}) {
+  async verifyNearbyServiceListing(adminUid, id, { verificationStatus = "ADMIN_VERIFIED", published = true, actorName = "Admin", entityName = "", pinCode = "" } = {}) {
     if (!this.ready || !adminUid || !id) throw new Error("Admin sign-in required.");
     const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const status = ["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(verificationStatus)
       ? verificationStatus
       : "PENDING_REVIEW";
+    const approvalStatus = status === "ADMIN_VERIFIED" ? "APPROVED" : (status === "REJECTED" ? "REJECTED" : "PENDING");
     const pub = status === "ADMIN_VERIFIED" && Boolean(published);
     await updateDoc(doc(this.db, "nearbyServiceListings", id), {
       verificationStatus: status,
+      approvalStatus,
       published: pub,
       verifiedBy: status === "ADMIN_VERIFIED" ? adminUid : "",
       lastVerifiedDate: status === "ADMIN_VERIFIED" ? new Date().toISOString().slice(0, 10) : "",
       updatedAt: serverTimestamp()
     });
+    const action = status === "REJECTED" ? "ADMIN_REJECTED" : (pub ? "ADMIN_PUBLISHED" : "ADMIN_UNPUBLISHED");
+    await this.recordDirectoryAuditLog(adminUid, actorName, {
+      entityType: "NEARBY_SHOP",
+      entityId: id,
+      entityName: entityName || id,
+      action,
+      pinCode,
+      summary: `Status=${status}, Approval=${approvalStatus}, Published=${pub}.`
+    });
   }
 
-  async deleteNearbyServiceListing(id) {
+  async deleteNearbyServiceListing(id, { adminUid = "", actorName = "Admin", entityName = "", pinCode = "" } = {}) {
     if (!this.ready || !id) return;
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "nearbyServiceListings", id));
+    if (adminUid) {
+      await this.recordDirectoryAuditLog(adminUid, actorName, {
+        entityType: "NEARBY_SHOP",
+        entityId: id,
+        entityName: entityName || id,
+        action: "ADMIN_DELETED",
+        pinCode,
+        summary: "Listing deleted by Admin."
+      });
+    }
   }
 
   async saveShgDirectoryListing(uid, submitterName, data, { isAdmin = false, editId = "" } = {}) {
@@ -3043,26 +3121,44 @@ class FirebaseService {
     const activities = toList(data.activities);
     if (!activities.length) throw new Error("Please specify at least one SHG activity.");
 
+    const latNum = data.lat !== "" && data.lat !== null && data.lat !== undefined ? Number(data.lat) : null;
+    const lngNum = data.lng !== "" && data.lng !== null && data.lng !== undefined ? Number(data.lng) : null;
+    const validLat = latNum !== null && Number.isFinite(latNum) && latNum >= 6 && latNum <= 38 ? latNum : null;
+    const validLng = lngNum !== null && Number.isFinite(lngNum) && lngNum >= 67 && lngNum <= 98 ? lngNum : null;
+
     const status = isAdmin
       ? (["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(data.verificationStatus) ? data.verificationStatus : "ADMIN_VERIFIED")
       : "PENDING_REVIEW";
+    const approvalStatus = status === "ADMIN_VERIFIED" ? "APPROVED" : (status === "REJECTED" ? "REJECTED" : "PENDING");
     const published = isAdmin ? (status === "ADMIN_VERIFIED" && data.published !== false) : false;
+
+    const villageVal = String(data.village || data.area || "").trim().slice(0, 120);
+    const blockVal = String(data.block || "").trim().slice(0, 100);
+    const gpVal = String(data.gramPanchayat || "").trim().slice(0, 120);
+    const areaVal = String(data.area || villageVal || blockVal || "West Bengal").trim().slice(0, 120);
 
     const base = {
       shgName: String(data.shgName || "").trim().slice(0, 150),
       shgNameBn: String(data.shgNameBn || "").trim().slice(0, 190),
-      area: String(data.area || "").trim().slice(0, 120),
+      area: areaVal,
+      village: villageVal,
+      gramPanchayat: gpVal,
+      block: blockVal,
       district: String(data.district || "Nadia").trim().slice(0, 80),
       state: String(data.state || "West Bengal").trim().slice(0, 60),
       address: String(data.address || "").trim().slice(0, 280),
       pinCode: cleanPin,
+      lat: validLat,
+      lng: validLng,
       contactName: String(data.contactName || "").trim().slice(0, 80),
       contactPhone: String(data.contactPhone || "").trim().slice(0, 32),
       activities,
       services: toList(data.services),
+      products: toList(data.products),
       entrepreneurshipInfo: String(data.entrepreneurshipInfo || "").trim().slice(0, 600),
       govtSupport: String(data.govtSupport || "").trim().slice(0, 300),
       verificationStatus: status,
+      approvalStatus,
       published,
       verifiedBy: isAdmin && status === "ADMIN_VERIFIED" ? uid : "",
       lastVerifiedDate: isAdmin && status === "ADMIN_VERIFIED"
@@ -3074,35 +3170,72 @@ class FirebaseService {
     if (editId) {
       if (!isAdmin) throw new Error("Only Admins can edit existing SHG listings.");
       await updateDoc(doc(this.db, "shgDirectoryListings", editId), base);
+      await this.recordDirectoryAuditLog(uid, submitterName, {
+        entityType: "SHG",
+        entityId: editId,
+        entityName: base.shgName,
+        action: "ADMIN_UPDATED",
+        pinCode: cleanPin,
+        summary: `Admin updated SHG (${status}, published=${published}).`
+      });
     } else {
-      await addDoc(collection(this.db, "shgDirectoryListings"), {
+      const ref = await addDoc(collection(this.db, "shgDirectoryListings"), {
         ...base,
         submittedBy: uid,
         submittedByName: String(submitterName || "Contributor").trim().slice(0, 80),
         createdAt: serverTimestamp()
       });
+      await this.recordDirectoryAuditLog(uid, submitterName, {
+        entityType: "SHG",
+        entityId: ref.id,
+        entityName: base.shgName,
+        action: isAdmin ? "ADMIN_CREATED" : "SHG_SUBMITTED",
+        pinCode: cleanPin,
+        summary: isAdmin ? `Admin added verified SHG (${base.district}).` : `Community SHG submission queued as PENDING_REVIEW (${base.district}).`
+      });
     }
   }
 
-  async verifyShgDirectoryListing(adminUid, id, { verificationStatus = "ADMIN_VERIFIED", published = true } = {}) {
+  async verifyShgDirectoryListing(adminUid, id, { verificationStatus = "ADMIN_VERIFIED", published = true, actorName = "Admin", entityName = "", pinCode = "" } = {}) {
     if (!this.ready || !adminUid || !id) throw new Error("Admin sign-in required.");
     const { doc, updateDoc, serverTimestamp } = this.mods.fsMod;
     const status = ["ADMIN_VERIFIED", "PENDING_REVIEW", "REJECTED"].includes(verificationStatus)
       ? verificationStatus
       : "PENDING_REVIEW";
+    const approvalStatus = status === "ADMIN_VERIFIED" ? "APPROVED" : (status === "REJECTED" ? "REJECTED" : "PENDING");
     const pub = status === "ADMIN_VERIFIED" && Boolean(published);
     await updateDoc(doc(this.db, "shgDirectoryListings", id), {
       verificationStatus: status,
+      approvalStatus,
       published: pub,
       verifiedBy: status === "ADMIN_VERIFIED" ? adminUid : "",
       lastVerifiedDate: status === "ADMIN_VERIFIED" ? new Date().toISOString().slice(0, 10) : "",
       updatedAt: serverTimestamp()
     });
+    const action = status === "REJECTED" ? "ADMIN_REJECTED" : (pub ? "ADMIN_PUBLISHED" : "ADMIN_UNPUBLISHED");
+    await this.recordDirectoryAuditLog(adminUid, actorName, {
+      entityType: "SHG",
+      entityId: id,
+      entityName: entityName || id,
+      action,
+      pinCode,
+      summary: `Status=${status}, Approval=${approvalStatus}, Published=${pub}.`
+    });
   }
 
-  async deleteShgDirectoryListing(id) {
+  async deleteShgDirectoryListing(id, { adminUid = "", actorName = "Admin", entityName = "", pinCode = "" } = {}) {
     if (!this.ready || !id) return;
     await this.mods.fsMod.deleteDoc(this.mods.fsMod.doc(this.db, "shgDirectoryListings", id));
+    if (adminUid) {
+      await this.recordDirectoryAuditLog(adminUid, actorName, {
+        entityType: "SHG",
+        entityId: id,
+        entityName: entityName || id,
+        action: "ADMIN_DELETED",
+        pinCode,
+        summary: "SHG listing deleted by Admin."
+      });
+    }
   }
 }
 

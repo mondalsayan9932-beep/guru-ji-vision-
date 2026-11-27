@@ -1,34 +1,40 @@
 // ============================================================================
-// GURU JI VISION — WOMEN FARMER NEARBY SERVICES & SHG DISCOVERY DATA (PHASE 5)
+// GURU JI VISION — WOMEN FARMER NEARBY SERVICES & SHG DISCOVERY DATA (FREE APIs)
 // ============================================================================
+// - 100% Free-First Architecture: India Post PIN Code API + OpenStreetMap
+//   (Leaflet.js tiles & OSRM directions) + Admin-verified Firestore Directory.
+// - NO paid Google Maps or GOOGLE_PLACES_API_KEY required.
 // - Initially focused on West Bengal (PIN range 700001–743711) with full
 //   support for any valid 6-digit Indian PIN Code.
-// - Works 100% independently of GPS (manual 6-digit PIN Code search +
-//   surrounding PIN Code suggestions).
 // - ZERO FABRICATION: Never invents fake shop names, SHG names, addresses,
-//   phone numbers, or coordinates. All verified listings come from Admin-verified
-//   Firestore records or real public map/postal APIs via secure Netlify Function.
+//   phone numbers, PIN Code data, or coordinates.
+// - NEVER assumes nearby PIN Codes are geographically close merely because
+//   their numbers are consecutive; only uses verified district postal hubs &
+//   same-district verified listings.
+// - NEVER claims a shop is nearby based only on its PIN Code; distance is
+//   calculated ONLY when verified latitude & longitude coordinates exist.
 // ============================================================================
 
 export const NEARBY_SERVICE_CATEGORIES = [
-  { key: "MEDICAL_PHARMACY", en: "Medical Stores / Pharmacies", bn: "ওষুধের দোকান / ফার্মেসি", icon: "💊" },
-  { key: "FERTILIZER_SHOP", en: "Fertilizer Shops", bn: "সারের দোকান", icon: "🧪" },
-  { key: "SEED_SHOP", en: "Seed Shops", bn: "বীজের দোকান", icon: "🌱" },
-  { key: "PESTICIDE_SHOP", en: "Pesticide Shops", bn: "কীটনাশকের দোকান", icon: "🛡️" },
-  { key: "AGRI_INPUT_SHOP", en: "Agricultural Input Shops", bn: "কৃষি উপকরণের দোকান", icon: "🌾" },
-  { key: "GROCERY_GENERAL", en: "Grocery / General Stores", bn: "মুদিখানা / সাধারণ দোকান", icon: "🛒" },
-  { key: "AGRI_EQUIPMENT_SHOP", en: "Agricultural Equipment Shops", bn: "কৃষি যন্ত্রপাতির দোকান", icon: "🚜" },
-  { key: "SHG_GROUP", en: "Self Help Groups (SHGs)", bn: "স্বনির্ভর গোষ্ঠী (SHG)", icon: "🤝" },
-  { key: "FARMER_SUPPORT_CENTRE", en: "Farmer Support Centres", bn: "কৃষক সহায়তা কেন্দ্র", icon: "🏛️" }
+  { key: "MEDICAL_PHARMACY", en: "Medical Store / Pharmacy", bn: "ওষুধের দোকান / ফার্মেসি", icon: "💊" },
+  { key: "FERTILIZER_SHOP", en: "Fertilizer Shop", bn: "সারের দোকান", icon: "🧪" },
+  { key: "SEED_SHOP", en: "Seed Shop", bn: "বীজের দোকান", icon: "🌱" },
+  { key: "PESTICIDE_SHOP", en: "Pesticide Shop", bn: "কীটনাশকের দোকান", icon: "🛡️" },
+  { key: "AGRI_EQUIPMENT_SHOP", en: "Agricultural Equipment Shop", bn: "কৃষি যন্ত্রপাতির দোকান", icon: "🚜" },
+  { key: "GROCERY_GENERAL", en: "Grocery / General Store", bn: "মুদিখানা / সাধারণ দোকান", icon: "🛒" },
+  { key: "FARMER_SUPPORT_CENTRE", en: "Farmer Support Centre", bn: "কৃষক সহায়তা কেন্দ্র", icon: "🏛️" }
 ];
 
-export const NEARBY_SERVICE_CATEGORY_MAP = Object.fromEntries(
-  NEARBY_SERVICE_CATEGORIES.map((c) => [c.key, c])
-);
+// Backward-compatible map (retains legacy AGRI_INPUT_SHOP / SHG_GROUP labels for any pre-existing records)
+export const NEARBY_SERVICE_CATEGORY_MAP = {
+  ...Object.fromEntries(NEARBY_SERVICE_CATEGORIES.map((c) => [c.key, c])),
+  AGRI_INPUT_SHOP: { key: "AGRI_INPUT_SHOP", en: "Agricultural Input Shop", bn: "কৃষি উপকরণের দোকান", icon: "🌾" },
+  SHG_GROUP: { key: "SHG_GROUP", en: "Self Help Group (SHG)", bn: "স্বনির্ভর গোষ্ঠী (SHG)", icon: "🤝" }
+};
 
 export const NEARBY_SERVICE_CATEGORY_KEYS = NEARBY_SERVICE_CATEGORIES.map((c) => c.key);
 
-// Real West Bengal Agricultural District PIN Hubs (strictly postal PIN reference — NO fabricated businesses)
+// Verified West Bengal Agricultural District PIN Hubs (strictly postal reference — NO fabricated businesses)
 export const WEST_BENGAL_PIN_HUBS = [
   { pin: "741235", areaEn: "Kalyani, Nadia", areaBn: "কল্যাণী, নদিয়া", district: "Nadia", nearby: ["741252", "741245", "741234", "741251"] },
   { pin: "741101", areaEn: "Krishnanagar, Nadia", areaBn: "কৃষ্ণনগর, নদিয়া", district: "Nadia", nearby: ["741102", "741103", "741125", "741126"] },
@@ -80,8 +86,8 @@ export function validatePinCode(raw = "") {
       valid: false,
       pin: "",
       isWestBengal: false,
-      errorEn: "Please enter a 6-digit PIN Code (e.g., 741235 for Kalyani, West Bengal).",
-      errorBn: "অনুগ্রহ করে একটি ৬ সংখ্যার পিন কোড লিখুন (যেমন: কল্যাণীর জন্য 741235)।"
+      errorEn: "Please enter a 6-digit Indian PIN Code (e.g., 741235 for Kalyani, West Bengal).",
+      errorBn: "অনুগ্রহ করে একটি ৬ সংখ্যার ভারতীয় পিন কোড লিখুন (যেমন: কল্যাণীর জন্য 741235)।"
     };
   }
   if (!/^[1-9][0-9]{5}$/.test(cleaned)) {
@@ -105,14 +111,16 @@ export function validatePinCode(raw = "") {
 }
 
 // ----------------------------------------------------------------------------
-// 2. SURROUNDING PIN CODE SUGGESTIONS (WORKS EVEN WITHOUT GPS OR API)
+// 2. DISTRICT-VERIFIED NEARBY PIN SUGGESTIONS
+//    (NEVER assumes consecutive PIN numbers are geographically close!)
 // ----------------------------------------------------------------------------
-export function getSurroundingPinSuggestions(pin, existingPins = []) {
+export function getSurroundingPinSuggestions(pin, verifiedItemsOrPins = [], resolvedDistrict = "") {
   const v = validatePinCode(pin);
   if (!v.valid) return [];
-  const pinNum = parseInt(v.pin, 10);
+
   const suggestions = [];
   const seen = new Set([v.pin]);
+  const normDistrict = String(resolvedDistrict || "").trim().toLowerCase();
 
   const add = (p, labelEn = "", labelBn = "") => {
     const pStr = String(p || "").trim();
@@ -121,38 +129,37 @@ export function getSurroundingPinSuggestions(pin, existingPins = []) {
     suggestions.push({ pin: pStr, labelEn, labelBn });
   };
 
-  // 1) Exact match or same-prefix West Bengal Hub neighbors
+  // 1) Verified West Bengal District Postal Hubs matching exact PIN or hub nearby list
   const exactHub = WEST_BENGAL_PIN_HUBS.find((h) => h.pin === v.pin || h.nearby.includes(v.pin));
+  const activeDistrict = normDistrict || String(exactHub?.district || "").toLowerCase();
+
   if (exactHub) {
     add(exactHub.pin, exactHub.areaEn, exactHub.areaBn);
     for (const np of exactHub.nearby) {
-      add(np, `${exactHub.district} Nearby PIN`, `${exactHub.district} পার্শ্ববর্তী পিন`);
+      add(np, `${exactHub.district} Postal Area`, `${exactHub.district} ডাক এলাকা`);
     }
   }
 
-  // 2) Verified Firestore listings sharing the same 3-digit or 4-digit postal zone
-  const prefix3 = v.pin.slice(0, 3);
-  for (const ep of existingPins || []) {
-    const clean = String(ep || "").trim();
-    if (/^[1-9][0-9]{5}$/.test(clean) && clean.startsWith(prefix3)) {
-      add(clean, "Verified Listings Nearby", "যাচাইকৃত তালিকা রয়েছে");
-    }
-  }
-
-  // 3) Numerically adjacent surrounding postal PINs in the same 3-digit postal division
-  for (const delta of [-1, 1, -2, 2, -3, 3]) {
-    const cand = pinNum + delta;
-    const candStr = String(cand);
-    if (cand >= 100001 && cand <= 899999 && candStr.startsWith(prefix3)) {
-      add(candStr, "Adjacent PIN Area", "পার্শ্ববর্তী পিন এলাকা");
-    }
-  }
-
-  // 4) Same 2-digit West Bengal region hubs if still fewer than 6 suggestions
-  if (suggestions.length < 6 && v.isWestBengal) {
-    const prefix2 = v.pin.slice(0, 2);
+  // 2) Same-district hubs from WEST_BENGAL_PIN_HUBS (using verified India Post district name)
+  if (activeDistrict) {
     for (const h of WEST_BENGAL_PIN_HUBS) {
-      if (h.pin.startsWith(prefix2)) add(h.pin, h.areaEn, h.areaBn);
+      if (h.district.toLowerCase() === activeDistrict) {
+        add(h.pin, h.areaEn, h.areaBn);
+        for (const np of h.nearby) {
+          add(np, `${h.district} Postal Area`, `${h.district} ডাক এলাকা`);
+        }
+      }
+    }
+  }
+
+  // 3) Verified Firestore records in the SAME verified district (never guessing by consecutive numbers!)
+  for (const entry of verifiedItemsOrPins || []) {
+    if (entry && typeof entry === "object") {
+      const entryPin = String(entry.pinCode || "").trim();
+      const entryDist = String(entry.district || "").trim().toLowerCase();
+      if (/^[1-9][0-9]{5}$/.test(entryPin) && activeDistrict && entryDist === activeDistrict) {
+        add(entryPin, `Verified Listings (${entry.district})`, `যাচাইকৃত তালিকা (${entry.district})`);
+      }
     }
   }
 
@@ -160,7 +167,8 @@ export function getSurroundingPinSuggestions(pin, existingPins = []) {
 }
 
 // ----------------------------------------------------------------------------
-// 3. RELIABLE HAVERSINE DISTANCE & SAFE MAP / DIRECTIONS URL BUILDERS
+// 3. RELIABLE HAVERSINE DISTANCE & OPENSTREETMAP DIRECTIONS / MAP URL BUILDERS
+//    (100% Free OpenStreetMap — ZERO Google Maps / Google Places URLs!)
 // ----------------------------------------------------------------------------
 export function isValidIndiaCoordinate(lat, lng) {
   const la = Number(lat);
@@ -183,15 +191,21 @@ export function computeReliableDistanceKm(lat1, lng1, lat2, lng2) {
   return Number.isFinite(km) ? Math.round(km * 10) / 10 : null;
 }
 
-export function buildDirectionsUrl(item = {}) {
-  if (isValidIndiaCoordinate(item.lat, item.lng)) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${Number(item.lat).toFixed(6)},${Number(item.lng).toFixed(6)}`)}`;
+/**
+ * Builds an OpenStreetMap OSRM Directions URL ONLY when verified destination
+ * coordinates exist. Returns "" when coordinates are unavailable so UI can
+ * show an honest "Route unavailable" notice instead of fabricating a route.
+ */
+export function buildDirectionsUrl(item = {}, originCoords = null) {
+  if (!isValidIndiaCoordinate(item.lat, item.lng)) return "";
+  const dLat = Number(item.lat).toFixed(6);
+  const dLng = Number(item.lng).toFixed(6);
+  if (originCoords && isValidIndiaCoordinate(originCoords.lat, originCoords.lng)) {
+    const oLat = Number(originCoords.lat).toFixed(6);
+    const oLng = Number(originCoords.lng).toFixed(6);
+    return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(`${oLat},${oLng};${dLat},${dLng}`)}#map=13/${dLat}/${dLng}`;
   }
-  const dest = [item.name, item.address, item.pinCode, item.state || "West Bengal", "India"]
-    .filter(Boolean)
-    .join(", ");
-  if (!dest) return "";
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
+  return `https://www.openstreetmap.org/directions?to=${encodeURIComponent(`${dLat},${dLng}`)}#map=15/${dLat}/${dLng}`;
 }
 
 export function buildMapExternalUrl(item = {}) {
@@ -200,7 +214,9 @@ export function buildMapExternalUrl(item = {}) {
     const lo = Number(item.lng).toFixed(6);
     return `https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=15/${la}/${lo}`;
   }
-  const q = [item.name, item.address, item.pinCode, "West Bengal", "India"].filter(Boolean).join(", ");
+  const q = [item.name || item.shgName, item.village || item.area, item.block, item.district, item.pinCode, "West Bengal", "India"]
+    .filter(Boolean)
+    .join(", ");
   return q ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(q)}` : "";
 }
 
@@ -214,48 +230,53 @@ export function buildOsmEmbedUrl(centerLat, centerLng, markerLat = null, markerL
 }
 
 // ----------------------------------------------------------------------------
-// 4. VERIFICATION STATUS BADGES & MERGE / FILTER HELPERS
+// 4. VERIFICATION & ADMIN APPROVAL STATUS BADGES
 // ----------------------------------------------------------------------------
 export function getVerificationBadgeMeta(status = "") {
   const s = String(status || "").toUpperCase();
   if (s === "ADMIN_VERIFIED") {
     return {
-      en: "Admin Verified",
-      bn: "অ্যাডমিন যাচাইকৃত",
+      en: "Admin Verified & Approved",
+      bn: "অ্যাডমিন যাচাইকৃত ও অনুমোদিত",
       cls: "bg-[#DCFCE7] text-[#14532D] border-[#BBF7D0]"
     };
   }
   if (s === "GOOGLE_PLACES") {
     return {
-      en: "Live Places Directory",
-      bn: "লাইভ ম্যাপ ডিরেক্টরি",
+      en: "Optional Places Directory",
+      bn: "ঐচ্ছিক ম্যাপ ডিরেক্টরি",
       cls: "bg-sky-100 text-sky-900 border-sky-200"
     };
   }
   if (s === "OSM_DIRECTORY") {
     return {
       en: "OpenStreetMap Directory (Verify before visit)",
-      bn: "ম্যাপ ডিরেক্টরি (যাওয়ার আগে যাচাই করুন)",
+      bn: "OpenStreetMap তালিকা (যাওয়ার আগে যাচাই করুন)",
       cls: "bg-sky-50 text-sky-900 border-sky-200"
     };
   }
   if (s === "REJECTED") {
     return {
-      en: "Rejected",
-      bn: "বাতিলকৃত",
+      en: "Rejected by Admin",
+      bn: "অ্যাডমিন দ্বারা বাতিল",
       cls: "bg-rose-100 text-rose-800 border-rose-200"
     };
   }
   return {
-    en: "Unverified Submission (Pending Admin Review)",
-    bn: "অযাচাইকৃত জমা (অ্যাডমিন যাচাই বাকি)",
+    en: "Pending Admin Approval (Private)",
+    bn: "অ্যাডমিন অনুমোদনের অপেক্ষায় (ব্যক্তিগত)",
     cls: "bg-amber-100 text-amber-900 border-amber-300"
   };
 }
 
+// ----------------------------------------------------------------------------
+// 5. MERGE & FILTER HELPERS (NEARBY SERVICES + SHG SEARCH)
+// ----------------------------------------------------------------------------
 /**
- * Merges Admin-verified Firestore Nearby Services + optional live directory items
- * (and, strictly for the submitter/admin only, their own pending unverified items).
+ * Merges Admin-verified Firestore Nearby Services + OpenStreetMap directory items
+ * (and, strictly for the submitter only, their own pending private items).
+ * Distance is calculated ONLY when BOTH valid reference coordinates AND verified
+ * listing coordinates exist — never inferred from PIN Code alone.
  */
 export function filterNearbyListings({
   verifiedListings = [],
@@ -263,42 +284,55 @@ export function filterNearbyListings({
   myPendingListings = [],
   pinCode = "",
   surroundingPins = [],
+  district = "",
   category = "ALL",
   search = "",
-  referenceCoords = null
+  userCoords = null,
+  pinCenterCoords = null
 } = {}) {
   const cleanPin = String(pinCode || "").trim();
+  const cleanDistrict = String(district || "").trim().toLowerCase();
   const surroundingSet = new Set((surroundingPins || []).map((x) => (typeof x === "string" ? x : x?.pin)).filter(Boolean));
   const q = String(search || "").trim().toLowerCase();
 
+  const hasUserGps = Boolean(userCoords && isValidIndiaCoordinate(userCoords.lat, userCoords.lng));
+  const hasPinCenter = Boolean(pinCenterCoords && isValidIndiaCoordinate(pinCenterCoords.lat, pinCenterCoords.lng));
+  const refCoords = hasUserGps ? userCoords : (hasPinCenter ? pinCenterCoords : null);
+  const refBasis = hasUserGps ? "GPS" : (hasPinCenter ? "PIN_CENTER" : "NONE");
+
   const normalizeItem = (raw, sourceTag) => {
-    const dist = referenceCoords
-      ? computeReliableDistanceKm(referenceCoords.lat, referenceCoords.lng, raw.lat, raw.lng)
-      : (typeof raw.distanceKm === "number" && Number.isFinite(raw.distanceKm) ? raw.distanceKm : null);
+    const hasItemCoords = isValidIndiaCoordinate(raw.lat, raw.lng);
+    const dist = refCoords && hasItemCoords
+      ? computeReliableDistanceKm(refCoords.lat, refCoords.lng, raw.lat, raw.lng)
+      : null;
     return {
       ...raw,
-      category: NEARBY_SERVICE_CATEGORY_MAP[raw.category] ? raw.category : "AGRI_INPUT_SHOP",
+      category: NEARBY_SERVICE_CATEGORY_MAP[raw.category] ? raw.category : "FARMER_SUPPORT_CENTRE",
       pinCode: String(raw.pinCode || "").trim(),
+      approvalStatus: raw.approvalStatus || (raw.verificationStatus === "ADMIN_VERIFIED" ? "APPROVED" : raw.verificationStatus === "REJECTED" ? "REJECTED" : "PENDING"),
       distanceKm: dist,
+      distanceBasis: dist !== null ? refBasis : "NONE",
       sourceTag
     };
   };
 
-  // Verified Firestore records matching exact PIN or surrounding PINs (or all when no PIN entered)
+  // Public verified Firestore records only
   const verifiedMatched = (verifiedListings || [])
     .filter((item) => item && item.verificationStatus === "ADMIN_VERIFIED" && item.published === true)
     .map((item) => normalizeItem(item, "FIRESTORE_VERIFIED"))
     .filter((item) => {
       if (!cleanPin) return true;
-      return item.pinCode === cleanPin || surroundingSet.has(item.pinCode);
+      if (item.pinCode === cleanPin || surroundingSet.has(item.pinCode)) return true;
+      if (cleanDistrict && String(item.district || "").trim().toLowerCase() === cleanDistrict) return true;
+      return false;
     });
 
-  // Live OpenStreetMap / Google Places real directory items for the searched PIN
+  // OpenStreetMap live mapped items for searched PIN
   const liveMatched = cleanPin
     ? (liveDirectoryListings || []).map((item) => normalizeItem(item, "LIVE_DIRECTORY"))
     : [];
 
-  // Submitter's own pending unverified submissions (NEVER mixed into public verified counts)
+  // Submitter's own pending private submissions (NEVER mixed into public verified counts)
   const pendingOwn = (myPendingListings || [])
     .filter((item) => item && item.verificationStatus === "PENDING_REVIEW")
     .map((item) => normalizeItem(item, "MY_PENDING"))
@@ -310,7 +344,7 @@ export function filterNearbyListings({
       const catMeta = NEARBY_SERVICE_CATEGORY_MAP[item.category] || { en: "", bn: "" };
       const hay = [
         item.name, item.nameBn, item.address, item.area, item.district,
-        item.pinCode, item.phone, item.notes, catMeta.en, catMeta.bn
+        item.pinCode, item.notes, catMeta.en, catMeta.bn
       ].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
     }
@@ -319,7 +353,6 @@ export function filterNearbyListings({
 
   const combinedPublic = [...applyFilters(verifiedMatched), ...applyFilters(liveMatched)]
     .sort((a, b) => {
-      // Exact PIN first, Admin Verified first, then shortest reliable distance
       const aExact = cleanPin && a.pinCode === cleanPin ? 0 : 1;
       const bExact = cleanPin && b.pinCode === cleanPin ? 0 : 1;
       if (aExact !== bExact) return aExact - bExact;
@@ -339,26 +372,59 @@ export function filterNearbyListings({
   };
 }
 
+/**
+ * Filters verified SHGs by PIN Code, Village / Locality, Block, District & keyword.
+ */
 export function filterShgListings({
   verifiedShgs = [],
   myPendingShgs = [],
   pinCode = "",
   surroundingPins = [],
   district = "ALL",
-  search = ""
+  block = "",
+  village = "",
+  search = "",
+  userCoords = null
 } = {}) {
   const cleanPin = String(pinCode || "").trim();
   const surroundingSet = new Set((surroundingPins || []).map((x) => (typeof x === "string" ? x : x?.pin)).filter(Boolean));
+  const blockQ = String(block || "").trim().toLowerCase();
+  const villageQ = String(village || "").trim().toLowerCase();
   const q = String(search || "").trim().toLowerCase();
+  const hasUserGps = Boolean(userCoords && isValidIndiaCoordinate(userCoords.lat, userCoords.lng));
+
+  const normalizeShg = (item) => {
+    const dist = hasUserGps && isValidIndiaCoordinate(item.lat, item.lng)
+      ? computeReliableDistanceKm(userCoords.lat, userCoords.lng, item.lat, item.lng)
+      : null;
+    return {
+      ...item,
+      village: String(item.village || item.area || "").trim(),
+      gramPanchayat: String(item.gramPanchayat || "").trim(),
+      block: String(item.block || "").trim(),
+      approvalStatus: item.approvalStatus || (item.verificationStatus === "ADMIN_VERIFIED" ? "APPROVED" : item.verificationStatus === "REJECTED" ? "REJECTED" : "PENDING"),
+      distanceKm: dist,
+      distanceBasis: dist !== null ? "GPS" : "NONE"
+    };
+  };
 
   const matches = (item) => {
     if (!item) return false;
-    if (district !== "ALL" && String(item.district || "").toLowerCase() !== district.toLowerCase()) return false;
+    if (district !== "ALL" && String(item.district || "").trim().toLowerCase() !== district.trim().toLowerCase()) return false;
     if (cleanPin && item.pinCode !== cleanPin && !surroundingSet.has(item.pinCode)) return false;
+    if (blockQ) {
+      const blkHay = [item.block, item.area, item.address].filter(Boolean).join(" ").toLowerCase();
+      if (!blkHay.includes(blockQ)) return false;
+    }
+    if (villageQ) {
+      const vilHay = [item.village, item.area, item.gramPanchayat, item.address].filter(Boolean).join(" ").toLowerCase();
+      if (!vilHay.includes(villageQ)) return false;
+    }
     if (q) {
       const hay = [
-        item.shgName, item.shgNameBn, item.area, item.district, item.address, item.pinCode,
-        ...(item.activities || []), ...(item.services || []),
+        item.shgName, item.shgNameBn, item.village, item.area, item.gramPanchayat,
+        item.block, item.district, item.address, item.pinCode,
+        ...(item.activities || []), ...(item.services || []), ...(item.products || []),
         item.entrepreneurshipInfo, item.govtSupport
       ].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
@@ -368,6 +434,7 @@ export function filterShgListings({
 
   const publicShgs = (verifiedShgs || [])
     .filter((s) => s && s.verificationStatus === "ADMIN_VERIFIED" && s.published === true)
+    .map(normalizeShg)
     .filter(matches)
     .sort((a, b) => {
       const aExact = cleanPin && a.pinCode === cleanPin ? 0 : 1;
@@ -377,6 +444,7 @@ export function filterShgListings({
 
   const ownPending = (myPendingShgs || [])
     .filter((s) => s && s.verificationStatus === "PENDING_REVIEW")
+    .map(normalizeShg)
     .filter(matches);
 
   return {

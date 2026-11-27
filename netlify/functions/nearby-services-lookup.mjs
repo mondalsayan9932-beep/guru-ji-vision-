@@ -85,14 +85,11 @@ export function classifyOsmTagsToCategory(tags = {}) {
   if (/fertiliz|urea|dap|sar\b|সার/i.test(name)) return "FERTILIZER_SHOP";
   if (/seed|beej|বীজ/i.test(name)) return "SEED_SHOP";
   if (/pesticid|insecticid|kitnashak|কীটনাশক/i.test(name)) return "PESTICIDE_SHOP";
-  if (/tractor|pump|sprayer|machin|equipment|tiller/i.test(name) || shop === "farm_machinery") {
+  if (/tractor|pump|sprayer|machin|equipment|tiller|hardware/i.test(name) || shop === "farm_machinery" || shop === "hardware") {
     return "AGRI_EQUIPMENT_SHOP";
   }
   if (shop === "agrarian" || shop === "farm" || shop === "garden_centre" || /krishi|agri|kisan|কৃষি/i.test(name)) {
-    return "AGRI_INPUT_SHOP";
-  }
-  if (/shg|self help|swayambhar|anandadhara|mahila|স্বনির্ভর/i.test(name)) {
-    return "SHG_GROUP";
+    return "FERTILIZER_SHOP";
   }
   if (
     amenity === "community_centre" ||
@@ -105,7 +102,7 @@ export function classifyOsmTagsToCategory(tags = {}) {
   if (["convenience", "supermarket", "general", "greengrocer", "grocery"].includes(shop)) {
     return "GROCERY_GENERAL";
   }
-  return "AGRI_INPUT_SHOP";
+  return "FARMER_SUPPORT_CENTRE";
 }
 
 async function resolveIndiaPostPin(pin) {
@@ -113,24 +110,32 @@ async function resolveIndiaPostPin(pin) {
     const res = await fetchAllowlisted(`https://api.postalpincode.in/pincode/${pin}`, {
       headers: { Accept: "application/json" }
     }, 7000);
-    if (!res.ok) return null;
+    if (!res.ok) return { found: false, networkError: `India Post HTTP ${res.status}`, data: null };
     const data = await res.json();
     const first = Array.isArray(data) ? data[0] : null;
     if (!first || first.Status !== "Success" || !Array.isArray(first.PostOffice) || !first.PostOffice.length) {
-      return null;
+      return {
+        found: false,
+        notFound: true,
+        message: String(first?.Message || "PIN Code not found in India Post directory."),
+        data: null
+      };
     }
     const offices = first.PostOffice.slice(0, 12);
     const primary = offices[0];
     return {
-      pinCode: pin,
-      state: String(primary.State || "").trim(),
-      district: String(primary.District || "").trim(),
-      block: String(primary.Block || primary.Taluk || "").trim(),
-      division: String(primary.Division || "").trim(),
-      postOffices: offices.map((po) => String(po.Name || "").trim()).filter(Boolean)
+      found: true,
+      data: {
+        pinCode: pin,
+        state: String(primary.State || "").trim(),
+        district: String(primary.District || "").trim(),
+        block: String(primary.Block || primary.Taluk || "").trim(),
+        division: String(primary.Division || "").trim(),
+        postOffices: offices.map((po) => String(po.Name || "").trim()).filter(Boolean)
+      }
     };
-  } catch {
-    return null;
+  } catch (err) {
+    return { found: false, networkError: err?.message || "India Post API unreachable", data: null };
   }
 }
 
@@ -317,9 +322,16 @@ export default async function handler(req) {
       });
     }
 
-    const postal = await resolveIndiaPostPin(pin);
-    const geo = await geocodePinNominatim(pin, postal);
+    const postalRes = await resolveIndiaPostPin(pin);
+    const postal = postalRes?.data || null;
+    const postalFound = Boolean(postalRes?.found && postal);
+    const postalNotFound = Boolean(postalRes?.notFound);
+    const postalError = postalRes?.networkError || (postalNotFound ? (postalRes?.message || "PIN Code not found in India Post directory.") : "");
 
+    // Do NOT geocode or fabricate results when India Post explicitly reports the PIN does not exist
+    const geo = postalNotFound ? null : await geocodePinNominatim(pin, postal);
+
+    // Optional future Google Places integration — strictly optional, never required or blocking
     const googlePlacesKey = String(process.env.GOOGLE_PLACES_API_KEY || "").trim();
     const googlePlacesConfigured = Boolean(googlePlacesKey);
 
@@ -339,13 +351,16 @@ export default async function handler(req) {
     const pinNum = parseInt(pin, 10);
     const isWestBengal =
       (postal?.state && postal.state.toLowerCase().includes("west bengal")) ||
-      (pinNum >= 700001 && pinNum <= 743711);
+      (!postalNotFound && pinNum >= 700001 && pinNum <= 743711);
 
     return jsonResponse(200, {
       ok: true,
       pinCode: pin,
       isWestBengal,
       postal,
+      postalFound,
+      postalNotFound,
+      postalError,
       centerCoords: geo ? { lat: geo.lat, lng: geo.lng, displayName: geo.displayName } : null,
       liveListings: directoryRes.items || [],
       liveSourceOk: Boolean(directoryRes.ok),
@@ -353,11 +368,11 @@ export default async function handler(req) {
       apiInfo: {
         googlePlacesConfigured,
         activePublicProvider: googlePlacesConfigured
-          ? "Google Places API (Server-Side) + OpenStreetMap Fallback"
-          : "India Post PIN API + OpenStreetMap Directory + Guru Ji Vision Verified Local Directory",
+          ? "India Post PIN API + OpenStreetMap + Optional Google Places (Server-Side)"
+          : "Free Services Only: India Post PIN API + OpenStreetMap + Admin-Verified Directory",
         setupHint: googlePlacesConfigured
-          ? "Server-side Google Places API is active."
-          : "Free OpenStreetMap + Admin-Verified Directory is active with zero billing required. To optionally enable commercial Google Places coverage, set GOOGLE_PLACES_API_KEY in Netlify Environment Variables (never in frontend code)."
+          ? "Optional server-side Google Places integration is enabled alongside India Post & OpenStreetMap."
+          : "Running 100% on free services (India Post PIN API + OpenStreetMap + Admin-Verified Directory). No GOOGLE_PLACES_API_KEY is required; it remains optional for future server-side configuration via Netlify Environment Variables."
       }
     });
   } catch (err) {

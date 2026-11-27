@@ -79,6 +79,7 @@ import {
   bindWomenNearbyEvents,
   createInitialWomenNearbyState
 } from "./women-nearby-controller.js";
+import { syncWomenNearbyLeafletMap } from "./women-nearby-map.js";
 import {
   filterQuizQuestions,
   mergeQuizQuestions,
@@ -220,6 +221,7 @@ const state = {
   shgDirectoryListings: [],
   myPendingNearbyListings: [],
   myPendingShgListings: [],
+  directoryAuditLogs: [],
   womenFarmer: createInitialWomenFarmerState(),
   womenCms: createInitialWomenCmsState(),
   womenNearby: createInitialWomenNearbyState(),
@@ -414,6 +416,7 @@ function clearPrivateStateOnLogout() {
   state.studyBookmarks = loadGuestBookmarks();
   state.myPendingNearbyListings = [];
   state.myPendingShgListings = [];
+  state.directoryAuditLogs = [];
   clearFarmerFinancePrivateState(state);
   clearWomenFarmerTransientState(state);
 
@@ -435,6 +438,7 @@ function clearPrivateStateOnLogout() {
         sigKey === "studyBookmarks" ||
         sigKey === "myPendingNearbyListings" ||
         sigKey === "myPendingShgListings" ||
+        sigKey === "directoryAuditLogs" ||
         sigKey === "studentDoubtThreads" ||
         sigKey === "professorDoubtThreads" ||
         sigKey.startsWith("ff:") ||
@@ -562,7 +566,7 @@ const ROUTE_DATA_DEPS = {
     "announcements", "careerOpportunities", "farmerQueries", "professors", "firestoreMarketPrices",
     "agricultureSchemes", "agricultureSchemeHistory", "communityPosts",
     "womenVideos", "womenLearningResources", "womenSchemeDiscoveryQueue",
-    "nearbyServiceListings", "shgDirectoryListings"
+    "nearbyServiceListings", "shgDirectoryListings", "directoryAuditLogs"
   ]),
   owner: new Set([
     "appSettings", "ownerUsers", "ownerAdmins", "ownerActivities",
@@ -798,6 +802,7 @@ function renderActiveView({ fromLiveUpdate = false } = {}) {
   // Skip redundant DOM replacement if the rendered HTML is identical
   if (sameRoute && html === renderTracker.lastRenderedHtml) {
     renderShellChrome();
+    syncWomenNearbyLeafletMap(state);
     return;
   }
 
@@ -808,6 +813,9 @@ function renderActiveView({ fromLiveUpdate = false } = {}) {
     renderTracker.lastHomeStructureKey = getHomeStructureKey();
   }
   renderShellChrome();
+
+  // Mount/refresh interactive Leaflet.js + OpenStreetMap map when Map View is visible
+  syncWomenNearbyLeafletMap(state);
 
   // Auto-scroll active consultation chat to bottom
   const chatBox = document.getElementById("doubtMessagesContainer");
